@@ -2069,6 +2069,38 @@ kbd {
     display: grid;
   }
 }
+
+.dealer-indicator {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.dealer-indicator[hidden] {
+  display: none;
+}
+.dealer-indicator-arrow {
+  color: #f5d883;
+  font-size: 36px;
+  line-height: 1;
+  text-shadow: 0 2px 5px #000;
+}
+.dealer-indicator-caption {
+  max-width: min(170px, 38vw);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #172b25e8;
+  color: #fff3ce;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 @media (pointer: fine) {
   .joystick {
     display: none;

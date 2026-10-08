@@ -76,6 +76,7 @@ function placePiles(
 }
 
 export class TableCards {
+  readonly framingBounds = { radius: 0, height: TABLE_TOP };
   private readonly meshes = new Map<string, CardMesh>();
   private kicker: CardMesh | null = null;
 
@@ -102,6 +103,19 @@ export class TableCards {
       card.details = placement.details;
     }
     this.syncKicker(state.kicker);
+    this.updateFraming();
+  }
+
+  private updateFraming(): void {
+    this.framingBounds.radius = 0;
+    this.framingBounds.height = TABLE_TOP;
+    for (const card of this.pickable) {
+      const { width, depth, height } = card.geometry.parameters;
+      // The circumradius fits every rotation of the card, including during its animation.
+      const radius = Math.hypot(card.target.x, card.target.z) + Math.hypot(width, depth) / 2;
+      this.framingBounds.radius = Math.max(this.framingBounds.radius, radius);
+      this.framingBounds.height = Math.max(this.framingBounds.height, card.target.y + height / 2);
+    }
   }
 
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {

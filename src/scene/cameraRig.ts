@@ -12,13 +12,23 @@ import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
-const MIN_ZOOM = 5;
+const MIN_ZOOM = 3;
 const MAX_ZOOM = 17;
+const DEFAULT_ZOOM = 4.8;
+const TABLE_HEIGHT = 1.68;
+const CARD_FRAME_MARGIN = 0.12;
 const EYE_HEIGHT = 1.99;
 const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
 const NARROW_SCREEN_PX = 700;
+const VIEW_TRANSITION_SECONDS = 1.2;
+
+interface ViewTransition {
+  position: THREE.Vector3;
+  rotation: THREE.Quaternion;
+  elapsed: number;
+}
 
 /** What the rig needs to know about the game for this frame. */
 export interface FrameContext {
@@ -29,6 +39,8 @@ export interface FrameContext {
   observer: boolean;
   /** Seat position of the player's robot, if seated. */
   seat: THREE.Vector3 | null;
+  /** Target card footprint, including won tricks and the kicker. */
+  tableBounds?: { radius: number; height: number };
 }
 
 export class CameraRig {
@@ -37,7 +49,7 @@ export class CameraRig {
   yaw = 0;
   pitch = -0.12;
   /** Height of the top view; changed by the wheel and pinch. */
-  zoom = 13;
+  zoom = DEFAULT_ZOOM;
   orbitDistance = 4;
   readonly spectatorPosition = new THREE.Vector3(0, 2, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
@@ -50,6 +62,8 @@ export class CameraRig {
   private readonly upTarget = new THREE.Vector3(0, 1, 0);
   /** Invisible camera used to compute the target rotation with `lookAt`. */
   private readonly aim = new THREE.PerspectiveCamera();
+  private previousMode: InspectionCameraMode | null = null;
+  private transition: ViewTransition | null = null;
 
   resetView(): void {
     this.yaw = 0;
@@ -75,12 +89,49 @@ export class CameraRig {
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
     this.chooseTargets(deltaSeconds, context);
-    this.camera.position.lerp(this.positionTarget, blend);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
     this.aim.lookAt(this.lookTarget);
-    this.camera.quaternion.slerp(this.aim.quaternion, blend);
+    this.updateTransition(context);
+    if (this.transition) this.animateTransition(deltaSeconds);
+    else {
+      this.camera.position.lerp(this.positionTarget, blend);
+      this.camera.quaternion.slerp(this.aim.quaternion, blend);
+    }
     this.camera.up.copy(this.upTarget);
+  }
+
+  private updateTransition(context: FrameContext): void {
+    if (context.inspected?.parent) {
+      this.transition = null;
+      this.previousMode = null;
+      return;
+    }
+    const previous = this.previousMode;
+    this.previousMode = context.mode;
+    if (previous === context.mode) return;
+    this.transition = null;
+    const ascending = previous === 'first' && context.mode === 'top';
+    const descending = previous === 'top' && context.mode === 'first';
+    if (ascending || descending) {
+      this.transition = {
+        position: this.camera.position.clone(),
+        rotation: this.camera.quaternion.clone(),
+        elapsed: 0,
+      };
+    }
+  }
+
+  private animateTransition(deltaSeconds: number): void {
+    const transition = this.transition;
+    if (!transition) return;
+    transition.elapsed += deltaSeconds;
+    const progress = Math.min(1, transition.elapsed / VIEW_TRANSITION_SECONDS);
+    // One easing curve keeps translation and rotation continuous, with gentle starts and stops.
+    const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
+    this.camera.position.lerpVectors(transition.position, this.positionTarget, eased);
+    this.camera.quaternion.slerpQuaternions(transition.rotation, this.aim.quaternion, eased);
+    if (progress === 1) this.transition = null;
   }
 
   private chooseTargets(deltaSeconds: number, context: FrameContext): void {
@@ -89,7 +140,7 @@ export class CameraRig {
     this.upTarget.set(0, 1, 0);
     if (context.mode === 'landing') this.aimLanding();
     else if (context.inspected?.parent) this.aimInspection(context.inspected);
-    else if (context.mode === 'top') this.aimTop(seatAngle);
+    else if (context.mode === 'top') this.aimTop(seatAngle, context.tableBounds);
     else if (context.mode === 'third') this.aimThirdPerson(deltaSeconds);
     else this.aimFirstPerson(deltaSeconds, seatAngle, context);
   }
@@ -125,13 +176,18 @@ export class CameraRig {
   }
 
   /** Straight down on the table, rotated so the player's seat is at the bottom of the screen. */
-  private aimTop(seatAngle: number): void {
-    // Portrait screens are narrower than tall, so pull back further to fit the whole table.
-    const height = 1.4 + (this.zoom - 1.4) / Math.min(1, this.camera.aspect);
+  private aimTop(seatAngle: number, bounds: FrameContext['tableBounds']): void {
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov / 2);
+    const cardDistance = bounds
+      ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
+      : 0;
+    // Fit card corners in the narrower screen dimension, rather than framing the whole room.
+    const distance = Math.max(this.zoom - TABLE_HEIGHT, cardDistance);
+    const height = TABLE_HEIGHT + distance / Math.min(1, this.camera.aspect);
     // A tiny z offset keeps the view direction from being exactly vertical.
     this.positionTarget.set(0, height, 0.001);
-    this.lookTarget.set(0, 1.4, 0);
-    this.upTarget.set(-Math.sin(seatAngle), 0, Math.cos(seatAngle));
+    this.lookTarget.set(0, TABLE_HEIGHT, 0);
+    this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
   }
 
   private aimFirstPerson(deltaSeconds: number, seatAngle: number, context: FrameContext): void {
