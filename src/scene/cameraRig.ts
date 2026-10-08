@@ -19,6 +19,15 @@ const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
 const NARROW_SCREEN_PX = 700;
+const VIEW_TRANSITION_SECONDS = 0.9;
+const TRANSITION_MIDPOINT = 0.5;
+
+interface ViewTransition {
+  position: THREE.Vector3;
+  rotation: THREE.Quaternion;
+  ascending: boolean;
+  elapsed: number;
+}
 
 /** What the rig needs to know about the game for this frame. */
 export interface FrameContext {
@@ -50,6 +59,8 @@ export class CameraRig {
   private readonly upTarget = new THREE.Vector3(0, 1, 0);
   /** Invisible camera used to compute the target rotation with `lookAt`. */
   private readonly aim = new THREE.PerspectiveCamera();
+  private previousMode: InspectionCameraMode | null = null;
+  private transition: ViewTransition | null = null;
 
   resetView(): void {
     this.yaw = 0;
@@ -75,12 +86,58 @@ export class CameraRig {
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
     this.chooseTargets(deltaSeconds, context);
-    this.camera.position.lerp(this.positionTarget, blend);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
     this.aim.lookAt(this.lookTarget);
-    this.camera.quaternion.slerp(this.aim.quaternion, blend);
+    this.updateTransition(context);
+    if (this.transition) this.animateTransition(deltaSeconds);
+    else {
+      this.camera.position.lerp(this.positionTarget, blend);
+      this.camera.quaternion.slerp(this.aim.quaternion, blend);
+    }
     this.camera.up.copy(this.upTarget);
+  }
+
+  private updateTransition(context: FrameContext): void {
+    if (context.inspected?.parent) {
+      this.transition = null;
+      this.previousMode = null;
+      return;
+    }
+    const previous = this.previousMode;
+    this.previousMode = context.mode;
+    if (previous === context.mode) return;
+    this.transition = null;
+    const ascending = previous === 'first' && context.mode === 'top';
+    const descending = previous === 'top' && context.mode === 'first';
+    if (ascending || descending) {
+      this.transition = {
+        position: this.camera.position.clone(),
+        rotation: this.camera.quaternion.clone(),
+        ascending,
+        elapsed: 0,
+      };
+    }
+  }
+
+  private animateTransition(deltaSeconds: number): void {
+    const transition = this.transition;
+    if (!transition) return;
+    transition.elapsed += deltaSeconds;
+    const progress = Math.min(1, transition.elapsed / VIEW_TRANSITION_SECONDS);
+    const early = THREE.MathUtils.smoothstep(progress, 0, TRANSITION_MIDPOINT);
+    const late = THREE.MathUtils.smoothstep(progress, TRANSITION_MIDPOINT, 1);
+    const horizontal = transition.ascending ? late : early;
+    const vertical = transition.ascending ? early : late;
+    // Lift clear of the player's head before crossing the table; reverse that path on return.
+    this.camera.position.lerpVectors(transition.position, this.positionTarget, horizontal);
+    this.camera.position.y = THREE.MathUtils.lerp(transition.position.y, this.positionTarget.y, vertical);
+    this.camera.quaternion.slerpQuaternions(
+      transition.rotation,
+      this.aim.quaternion,
+      THREE.MathUtils.smoothstep(progress, 0, 1),
+    );
+    if (progress === 1) this.transition = null;
   }
 
   private chooseTargets(deltaSeconds: number, context: FrameContext): void {
@@ -131,7 +188,7 @@ export class CameraRig {
     // A tiny z offset keeps the view direction from being exactly vertical.
     this.positionTarget.set(0, height, 0.001);
     this.lookTarget.set(0, 1.4, 0);
-    this.upTarget.set(-Math.sin(seatAngle), 0, Math.cos(seatAngle));
+    this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
   }
 
   private aimFirstPerson(deltaSeconds: number, seatAngle: number, context: FrameContext): void {
