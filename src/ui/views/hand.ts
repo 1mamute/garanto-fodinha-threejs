@@ -40,20 +40,16 @@ export function handPanel(view: GameView): SafeHtml | null {
   const handVisible = game.phase === 'bet' || game.phase === 'play' || game.phase === 'trick';
   if (!handVisible || observer || !me) return null;
   const fromAbove = ui.cameraMode === 'top';
-  const count = me.hand.length;
-  return html`<section class="hand-panel ${fromAbove ? 'hand-disabled' : ''} ${ui.handOpen ? 'hand-expanded' : 'hand-collapsed'}">
+  return html`<section class="hand-panel ${fromAbove ? 'hand-disabled' : ''} hand-collapsed physical-hand-hint">
     <div class="hand-heading">
       <span>${handHint(view)}</span>
-      <button class="button subtle hand-toggle" data-action="hand-toggle" aria-expanded="${ui.handOpen}" aria-controls="hand-fallback" ${fromAbove && 'disabled'}>
-        ${ui.handOpen ? 'Fechar cartas' : 'Cartas'} <small>${count}</small>
-      </button>
     </div>
-    ${handFallback(view, me)}
+    <div class="keyboard-hand">${handFallback(view, me)}</div>
   </section>`;
 }
 
 function handFallback(view: GameView, me: Player): SafeHtml {
-  return html`<div id="hand-fallback" ${!view.ui.handOpen && 'hidden'}>
+  return html`<div id="hand-fallback">
     <div class="hand-cards">
       ${me.hand.map((card, index) => handCard(view, card, index))}
       ${!me.hand.length && html`<span class="empty-hand">Todas as cartas já foram à mesa.</span>`}

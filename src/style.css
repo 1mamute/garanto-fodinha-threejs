@@ -2694,6 +2694,31 @@ kbd {
     bottom: 300px;
   }
 }
+.keyboard-hand {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.keyboard-hand:focus-within {
+  right: 12px;
+  bottom: 68px;
+  width: min(370px, calc(100vw - 24px));
+  height: auto;
+  padding: 12px;
+  background: #141b18;
+  clip-path: none;
+}
+.physical-hand-hint {
+  pointer-events: none;
+}
+.physical-hand-hint .hand-heading > span {
+  display: block;
+}
+.physical-hand-hint .keyboard-hand {
+  pointer-events: auto;
+}
 @media (max-width: 700px) and (min-height: 501px) {
   .players-panel {
     max-height: 18dvh;

@@ -8,12 +8,14 @@
  */
 import type { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
+import { CardDrag } from './cardDrag';
 import { MouseLook } from './mouseLook';
 import type { InspectionCameraMode, Pose } from './types';
 
 const DRAG_THRESHOLD_PX = 7;
 const LOOK_SPEED = 0.004;
 const PLAY_DISTANCE_PX = 65;
+const PLAY_HEIGHT_FRACTION = 0.08;
 /** Horizontal drag distance that moves a card one slot in the hand. */
 const SLOT_WIDTH_PX = 35;
 const HOLD_TO_INSPECT_MS = 2000;
@@ -59,11 +61,13 @@ export class SceneInput {
   private pinchDistance: number | null = null;
   private readonly pointerLook = { yaw: 0, pitch: 0 };
   private readonly mouseLook: MouseLook;
+  private readonly cardDrag: CardDrag;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly target: InputTarget,
   ) {
+    this.cardDrag = new CardDrag(target.rig.camera, canvas);
     this.mouseLook = new MouseLook({
       canvas,
       rig: target.rig,
@@ -105,6 +109,8 @@ export class SceneInput {
       target.rig.joystick.y = 0;
       this.drag = null;
       this.pointers.clear();
+      target.reach(false);
+      target.afterDrag();
       this.resetPointerLook();
     });
   }
@@ -157,6 +163,7 @@ export class SceneInput {
   }
 
   private press(event: PointerEvent): void {
+    if (this.drag?.card && this.drag.pointerId !== event.pointerId) return;
     if (this.mouseLook.press(event)) return;
     const { target } = this;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -173,6 +180,10 @@ export class SceneInput {
       card,
       startedAt: performance.now(),
     };
+    if (card && target.mode === 'first') {
+      this.cardDrag.begin(card, clientX, clientY);
+      target.reach(true);
+    }
     // Clicking beside the inspected card closes it.
     if (target.inspected && !target.pick(clientX, clientY, false)) target.clearInspection();
   }
@@ -181,7 +192,7 @@ export class SceneInput {
     if (this.mouseLook.active) return;
     this.updatePointerLook(event);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (this.pointers.size === 2) {
+    if (this.pointers.size === 2 && !this.drag?.card) {
       this.pinch();
       return;
     }
@@ -206,9 +217,7 @@ export class SceneInput {
       rig.addPitch(-(event.clientY - drag.lastY) * LOOK_SPEED);
       return;
     }
-    // Lift the card as it is dragged up, and slide it along with the pointer.
-    drag.card.position.y = 0.03 + Math.min(0.25, (drag.startY - event.clientY) * 0.001);
-    drag.card.position.x += (event.clientX - drag.lastX) * 0.001;
+    this.cardDrag.move(drag.card, event.clientX, event.clientY);
     this.target.reach(true);
   }
 
@@ -245,7 +254,10 @@ export class SceneInput {
     if (target.mode === 'top' && !drag.moved) target.inspect(drag.card);
     if (target.mode === 'first' && drag.moved) {
       const slotShift = Math.round((event.clientX - drag.startX) / SLOT_WIDTH_PX);
-      target.dropHandCard(drag.card, drag.startY - event.clientY > PLAY_DISTANCE_PX, slotShift);
+      const playDistance = Math.min(PLAY_DISTANCE_PX, this.canvas.clientHeight * PLAY_HEIGHT_FRACTION);
+      const onTable =
+        drag.startY - event.clientY > playDistance && this.cardDrag.overTable(event.clientX, event.clientY);
+      target.dropHandCard(drag.card, onTable, slotShift);
     }
   }
 

@@ -163,6 +163,7 @@ export class TableScene implements InputTarget {
 
   dropHandCard(card: CardMesh, playUpwards: boolean, slotShift: number): void {
     if (playUpwards) {
+      this.tableCards.releaseFromHand(card);
       this.callbacks.onPlay(card.card.id);
       return;
     }

@@ -79,8 +79,13 @@ export class TableCards {
   readonly framingBounds = { radius: 0, height: TABLE_TOP };
   private readonly meshes = new Map<string, CardMesh>();
   private kicker: CardMesh | null = null;
+  private released: CardMesh | null = null;
 
   constructor(private readonly world: THREE.Group) {}
+
+  releaseFromHand(card: CardMesh): void {
+    this.released = card;
+  }
 
   /** Everything that can be clicked to inspect. */
   get pickable(): CardMesh[] {
@@ -103,6 +108,7 @@ export class TableCards {
       card.details = placement.details;
     }
     this.syncKicker(state.kicker);
+    this.released = null;
     this.updateFraming();
   }
 
@@ -119,9 +125,12 @@ export class TableCards {
   }
 
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {
-    const card = new CardMesh(placement.entry.card);
+    const held = this.released?.card.id === placement.entry.card.id ? this.released : null;
+    const card = held ?? new CardMesh(placement.entry.card);
     const seat = placement.onTable ? seats.get(placement.entry.playerId) : undefined;
-    if (seat) {
+    if (held) {
+      this.world.attach(card);
+    } else if (seat) {
       // Thrown from the player's hand: start above their side of the table, slightly turned.
       card.position.copy(seat.position).multiplyScalar(0.7).setY(2);
       card.rotation.y = placement.rotation + 0.5;
@@ -155,6 +164,9 @@ export class TableCards {
       card.position.lerp(card.target, slide);
       const rotation = card === inspected ? 0 : card.targetRotation;
       card.rotation.y = THREE.MathUtils.lerp(card.rotation.y, rotation, blend);
+      card.rotation.x = THREE.MathUtils.lerp(card.rotation.x, 0, blend);
+      card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, 0, blend);
+      card.scale.lerp(new THREE.Vector3(1, 1, 1), blend);
     }
   }
 }
