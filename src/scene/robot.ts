@@ -26,6 +26,7 @@ export class Robot {
   private readonly rightArm = new THREE.Group();
   private readonly leftArm = new THREE.Group();
   private readonly legs: THREE.Group[] = [];
+  private readonly lookDirection = new THREE.Vector3();
   /** When the last card was played, to swing the arm. */
   playedAt = -10;
   /** When the robot sat down at the table, for the little hop. */
@@ -75,6 +76,8 @@ export class Robot {
     // Bury the pivot in the shoulders so the shell rests directly on the torso.
     this.head.position.y = HEAD_PIVOT_HEIGHT;
     this.head.name = 'head';
+    // Pitch follows the head's horizontal heading, rather than the body's sideways axis.
+    this.head.rotation.order = 'YXZ';
     head.position.y = HEAD_SHELL_OFFSET;
     this.group.add(this.head);
     this.head.add(head);
@@ -156,21 +159,9 @@ export class Robot {
    * `blend` is the per-frame smoothing factor.
    */
   animate(time: number, pose: Pose | undefined, blend: number): void {
-    const { group, head } = this;
+    const { group } = this;
     const idleYaw = Math.sin(time * 0.6 + group.position.x) * 0.13;
-    const yaw = THREE.MathUtils.clamp(
-      Math.atan2(Math.sin(pose?.yaw ?? idleYaw), Math.cos(pose?.yaw ?? idleYaw)),
-      -MAX_HEAD_YAW,
-      MAX_HEAD_YAW,
-    );
-    const pitch = THREE.MathUtils.clamp(pose?.pitch ?? 0, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, yaw, blend);
-    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
-    for (const eye of this.eyes) {
-      // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
-      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, yaw * 0.35, blend);
-      eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
-    }
+    this.animateHead(pose ?? { yaw: idleYaw, pitch: 0 }, blend);
     // Breathing.
     this.body.scale.y = 1 + Math.sin(time * 2 + group.position.x) * 0.012;
     // Swing the right arm for ~1 s after playing a card.
@@ -181,6 +172,37 @@ export class Robot {
     const hop = Math.max(0, 1 - (time - this.seatedAt) / 1.2);
     group.position.y = Math.sin(hop * Math.PI) * 0.35;
     this.animateDeath(time);
+  }
+
+  /** Track a world-space target with the head only; null smoothly restores a neutral look. */
+  lookAt(target: THREE.Vector3 | null, blend: number): void {
+    let pose: Pose = { yaw: 0, pitch: 0 };
+    if (target) {
+      this.group.updateWorldMatrix(true, false);
+      const direction = this.group.worldToLocal(this.lookDirection.copy(target)).sub(this.head.position);
+      pose = {
+        yaw: Math.atan2(direction.x, direction.z),
+        pitch: Math.atan2(direction.y, Math.hypot(direction.x, direction.z)),
+      };
+    }
+    this.animateHead(pose, blend);
+  }
+
+  private animateHead(pose: Pose, blend: number): void {
+    const { head } = this;
+    const yaw = THREE.MathUtils.clamp(
+      Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw)),
+      -MAX_HEAD_YAW,
+      MAX_HEAD_YAW,
+    );
+    const pitch = THREE.MathUtils.clamp(pose.pitch, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
+    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, yaw, blend);
+    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
+    for (const eye of this.eyes) {
+      // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
+      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, yaw * 0.35, blend);
+      eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
+    }
   }
 
   /** Eliminated robots tip over sideways and keep wobbling their head. */

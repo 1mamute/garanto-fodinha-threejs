@@ -35,6 +35,8 @@ export class LabScene implements InputTarget {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly tableCards = new TableCards(this.world);
   private readonly controlled = new Robot('#648bc1', 'standing');
+  private readonly stationary = new Robot('#c38e67', 'standing');
+  private headTracking = false;
   private readonly walking: RobotWalking;
   private readonly timer = new THREE.Timer();
   private readonly input: SceneInput;
@@ -57,6 +59,10 @@ export class LabScene implements InputTarget {
       if (!(event.target instanceof Element)) return;
       const mode = event.target.closest<HTMLElement>('[data-camera]')?.dataset.camera;
       if (mode === 'first' || mode === 'third' || mode === 'top') this.setMode(mode);
+      if (event.target.closest('[data-action="toggle-head-tracking"]')) {
+        this.headTracking = !this.headTracking;
+        this.renderUi();
+      }
     });
     this.renderUi();
     this.renderer.setAnimationLoop(() => {
@@ -93,7 +99,7 @@ export class LabScene implements InputTarget {
     if (dealer) room.dealerChip.position.copy(dealer.position).multiplyScalar(0.7).setY(TABLE_TOP);
     const active = state.turn ? seats.get(state.turn) : undefined;
     if (active) room.spotlight.position.copy(active.position);
-    const stationary = new Robot('#c38e67', 'standing');
+    const { stationary } = this;
     this.controlled.group.rotation.y = Math.PI;
     stationary.group.position.set(2, 0, 5);
     stationary.group.rotation.y = Math.PI;
@@ -170,6 +176,7 @@ export class LabScene implements InputTarget {
       deltaSeconds,
     });
     this.controlled.group.visible = this.mode !== 'first';
+    this.stationary.lookAt(this.headTracking ? this.rig.spectatorPosition : null, blend);
     this.input.checkLongPress(performance.now());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
     if (!document.hidden) this.renderer.render(this.scene, this.rig.camera);
@@ -183,6 +190,8 @@ export class LabScene implements InputTarget {
       <strong>Laboratório de cena</strong>
       <p>Câmera: ${MODE_LABELS[this.mode]}</p>
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
+      <button class="button subtle" data-action="toggle-head-tracking" aria-pressed="${String(this.headTracking)}">Robô de inspeção: seguir com a cabeça ${this.headTracking ? 'ligado' : 'desligado'}</button>
+      <p>Ative para o robô de inspeção olhar para seu personagem. Caminhe à frente dele e para os lados para observar a cabeça.</p>
       <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom na terceira pessoa e vista superior</p>
       <p>Vista superior: clique numa carta para inspecionar. Esc: sair da inspeção.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}

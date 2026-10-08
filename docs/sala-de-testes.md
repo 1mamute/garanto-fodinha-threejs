@@ -24,6 +24,8 @@ A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** al
 
 Para examinar o robô imóvel em terceira pessoa, caminhe até perto dele e ajuste o ângulo e a distância. Orbitar parado não desloca o personagem. Essa perspectiva está disponível apenas no laboratório.
 
+O botão **Robô de inspeção: seguir com a cabeça** liga e desliga o acompanhamento do personagem controlado. O robô de inspeção mantém o corpo imóvel e gira suavemente a cabeça e os olhos, respeitando os limites do pescoço usados pelos robôs da mesa. Caminhe à frente dele e para os lados para observar o giro; ao desligar, a cabeça volta suavemente à posição neutra. O acompanhamento começa desligado e sua escolha é preservada ao alternar as câmeras.
+
 Trocar a câmera encerra a inspeção, libera as teclas e zera o joystick, preservando a posição, a orientação e os ajustes de zoom.
 
 ## Movimentação e limites
@@ -56,6 +58,7 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/style.css` | Aparência do painel e do aviso de captura. |
 | `tests/cameraRig.test.ts` | Equivalência entre perspectivas e entre teclado/joystick, diagonais, limites e órbita. |
 | `tests/robotWalking.test.ts` | Suavidade do giro, olhar independente, passos, parada e equivalência entre taxas de quadros. |
+| `tests/robotLook.test.ts` | Acompanhamento de alvos pela cabeça, retorno ao repouso e limites do pescoço sem mover o corpo. |
 
 ## Validação específica
 
@@ -67,5 +70,6 @@ Use os comandos de [Verificar no README](../README.md#verificar). No laboratóri
 4. Na vista superior, confira a suspensão da caminhada e a inspeção por clique, incluindo saída com Esc ou clique fora.
 5. Troque as câmeras pelos botões e por espaço, conferindo posição preservada, encerramento da inspeção e joystick zerado.
 6. Confira os controles compartilhados no jogo como observador/eliminado e a manipulação de cartas com cursor livre para jogadores sentados.
+7. Ligue o acompanhamento da cabeça do robô de inspeção, caminhe à frente dele e para os lados e confira que o corpo permanece imóvel. Alterne as câmeras, confira que o botão continua ligado e desligue para observar o retorno suave da cabeça à posição neutra.
 
 O build de produção elimina o módulo do laboratório. Com `npm run preview`, `/?scene=lab` deve abrir a tela inicial normal; `dist/assets` não deve conter um módulo `labScene` nem o texto **Laboratório de cena**.
