@@ -20,7 +20,7 @@ A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** al
 | Perspectiva | Comportamento no laboratório |
 | --- | --- |
 | Terceira pessoa | Arraste na cena para orbitar o robô controlado; a roda do mouse ajusta a distância. WASD ou joystick continuam movendo o personagem. |
-| Vista superior | A caminhada fica suspensa. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
+| Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. Uma seta com o nome do dealer aponta para seu assento. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
 
 Para examinar o robô imóvel em terceira pessoa, caminhe até perto dele e ajuste o ângulo e a distância. Orbitar parado não desloca o personagem. Essa perspectiva está disponível apenas no laboratório.
 
@@ -53,6 +53,7 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/environment.ts` | Renderer, neblina e iluminação compartilhados com a cena principal. |
 | `src/scene/room.ts`, `robot.ts`, `cards.ts` e `hands.ts` | Recursos gráficos compartilhados; altere aqui para atualizar as duas cenas. |
 | `src/scene/cameraRig.ts` | Caminhada compartilhada, órbita e posicionamento das câmeras. |
+| `src/scene/dealerIndicator.ts` | Seta compartilhada que indica o dealer na vista superior, ocultada durante a inspeção de cartas. |
 | `src/scene/roomDimensions.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
 | `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
 | `src/scene/input.ts`, `mouseLook.ts` e `src/ui/joystick.ts` | Controles compartilhados com o jogo. |

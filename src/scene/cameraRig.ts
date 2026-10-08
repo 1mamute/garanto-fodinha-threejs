@@ -12,20 +12,21 @@ import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
-const MIN_ZOOM = 5;
+const MIN_ZOOM = 3;
 const MAX_ZOOM = 17;
+const DEFAULT_ZOOM = 4.8;
+const TABLE_HEIGHT = 1.68;
+const CARD_FRAME_MARGIN = 0.12;
 const EYE_HEIGHT = 1.99;
 const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
 const NARROW_SCREEN_PX = 700;
-const VIEW_TRANSITION_SECONDS = 0.9;
-const TRANSITION_MIDPOINT = 0.5;
+const VIEW_TRANSITION_SECONDS = 1.2;
 
 interface ViewTransition {
   position: THREE.Vector3;
   rotation: THREE.Quaternion;
-  ascending: boolean;
   elapsed: number;
 }
 
@@ -38,6 +39,8 @@ export interface FrameContext {
   observer: boolean;
   /** Seat position of the player's robot, if seated. */
   seat: THREE.Vector3 | null;
+  /** Target card footprint, including won tricks and the kicker. */
+  tableBounds?: { radius: number; height: number };
 }
 
 export class CameraRig {
@@ -46,7 +49,7 @@ export class CameraRig {
   yaw = 0;
   pitch = -0.12;
   /** Height of the top view; changed by the wheel and pinch. */
-  zoom = 13;
+  zoom = DEFAULT_ZOOM;
   orbitDistance = 4;
   readonly spectatorPosition = new THREE.Vector3(0, 2, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
@@ -114,7 +117,6 @@ export class CameraRig {
       this.transition = {
         position: this.camera.position.clone(),
         rotation: this.camera.quaternion.clone(),
-        ascending,
         elapsed: 0,
       };
     }
@@ -125,18 +127,10 @@ export class CameraRig {
     if (!transition) return;
     transition.elapsed += deltaSeconds;
     const progress = Math.min(1, transition.elapsed / VIEW_TRANSITION_SECONDS);
-    const early = THREE.MathUtils.smoothstep(progress, 0, TRANSITION_MIDPOINT);
-    const late = THREE.MathUtils.smoothstep(progress, TRANSITION_MIDPOINT, 1);
-    const horizontal = transition.ascending ? late : early;
-    const vertical = transition.ascending ? early : late;
-    // Lift clear of the player's head before crossing the table; reverse that path on return.
-    this.camera.position.lerpVectors(transition.position, this.positionTarget, horizontal);
-    this.camera.position.y = THREE.MathUtils.lerp(transition.position.y, this.positionTarget.y, vertical);
-    this.camera.quaternion.slerpQuaternions(
-      transition.rotation,
-      this.aim.quaternion,
-      THREE.MathUtils.smoothstep(progress, 0, 1),
-    );
+    // One easing curve keeps translation and rotation continuous, with gentle starts and stops.
+    const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
+    this.camera.position.lerpVectors(transition.position, this.positionTarget, eased);
+    this.camera.quaternion.slerpQuaternions(transition.rotation, this.aim.quaternion, eased);
     if (progress === 1) this.transition = null;
   }
 
@@ -146,7 +140,7 @@ export class CameraRig {
     this.upTarget.set(0, 1, 0);
     if (context.mode === 'landing') this.aimLanding();
     else if (context.inspected?.parent) this.aimInspection(context.inspected);
-    else if (context.mode === 'top') this.aimTop(seatAngle);
+    else if (context.mode === 'top') this.aimTop(seatAngle, context.tableBounds);
     else if (context.mode === 'third') this.aimThirdPerson(deltaSeconds);
     else this.aimFirstPerson(deltaSeconds, seatAngle, context);
   }
@@ -182,12 +176,17 @@ export class CameraRig {
   }
 
   /** Straight down on the table, rotated so the player's seat is at the bottom of the screen. */
-  private aimTop(seatAngle: number): void {
-    // Portrait screens are narrower than tall, so pull back further to fit the whole table.
-    const height = 1.4 + (this.zoom - 1.4) / Math.min(1, this.camera.aspect);
+  private aimTop(seatAngle: number, bounds: FrameContext['tableBounds']): void {
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov / 2);
+    const cardDistance = bounds
+      ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
+      : 0;
+    // Fit card corners in the narrower screen dimension, rather than framing the whole room.
+    const distance = Math.max(this.zoom - TABLE_HEIGHT, cardDistance);
+    const height = TABLE_HEIGHT + distance / Math.min(1, this.camera.aspect);
     // A tiny z offset keeps the view direction from being exactly vertical.
     this.positionTarget.set(0, height, 0.001);
-    this.lookTarget.set(0, 1.4, 0);
+    this.lookTarget.set(0, TABLE_HEIGHT, 0);
     this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
   }
 

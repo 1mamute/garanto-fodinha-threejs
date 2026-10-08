@@ -7,6 +7,7 @@ import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
 import { demoState } from './demo';
+import { DealerIndicator } from './dealerIndicator';
 import { createRenderer, createScene } from './environment';
 import { animateFan, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
@@ -34,6 +35,9 @@ export class LabScene implements InputTarget {
   private readonly world = new THREE.Group();
   private readonly renderer: THREE.WebGLRenderer;
   private readonly tableCards = new TableCards(this.world);
+  private readonly dealerIndicator = new DealerIndicator();
+  private dealerSeat: THREE.Vector3 | null = null;
+  private dealerName = '';
   private readonly controlled = new Robot('#648bc1', 'standing');
   private readonly stationary = new Robot('#c38e67', 'standing');
   private headTracking = false;
@@ -96,6 +100,8 @@ export class LabScene implements InputTarget {
       card.rotation.y = card.targetRotation;
     }
     const dealer = seats.get(state.dealer);
+    this.dealerSeat = dealer?.position.clone() ?? null;
+    this.dealerName = state.players.find(player => player.id === state.dealer)?.name ?? '';
     if (dealer) room.dealerChip.position.copy(dealer.position).multiplyScalar(0.7).setY(TABLE_TOP);
     const active = state.turn ? seats.get(state.turn) : undefined;
     if (active) room.spotlight.position.copy(active.position);
@@ -166,6 +172,13 @@ export class LabScene implements InputTarget {
       observer: true,
       seat: null,
       inspected: this.inspected,
+      tableBounds: this.tableCards.framingBounds,
+    });
+    this.dealerIndicator.update({
+      camera: this.rig.camera,
+      seat: this.dealerSeat,
+      name: this.dealerName,
+      visible: this.mode === 'top' && !this.inspected,
     });
     this.walking.update({
       position: this.rig.spectatorPosition,

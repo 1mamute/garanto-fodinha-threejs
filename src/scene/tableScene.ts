@@ -7,6 +7,7 @@ import { findPlayer, type GameState, type Player } from '../game';
 import { CameraRig, MAX_PITCH, MIN_PITCH } from './cameraRig';
 import type { CardMesh } from './cards';
 import { demoState } from './demo';
+import { DealerIndicator } from './dealerIndicator';
 import { createRenderer, createScene } from './environment';
 import { animateFan, FirstPersonHands, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
@@ -47,6 +48,7 @@ export class TableScene implements InputTarget {
   private readonly room: RoomProps;
   private readonly seats = new Map<string, SeatProps>();
   private readonly tableCards: TableCards;
+  private readonly dealerIndicator = new DealerIndicator();
   private readonly firstPerson: FirstPersonHands;
   private readonly input: SceneInput;
   private readonly poses = new Map<string, Pose>();
@@ -283,7 +285,9 @@ export class TableScene implements InputTarget {
       inspected: this.inspected,
       observer,
       seat: mySeat?.robot.group.position.clone().setY(0) ?? null,
+      tableBounds: this.tableCards.framingBounds,
     });
+    this.updateDealerIndicator();
     // In first person you are your robot: hide it and show your own hands instead.
     const embodied = this.mode === 'first' && !observer;
     this.firstPerson.visible = embodied;
@@ -305,6 +309,16 @@ export class TableScene implements InputTarget {
       const pose = mine ? this.input.pose : this.poses.get(playerId);
       robot.animate(time, pose, blend);
     }
+  }
+
+  private updateDealerIndicator(): void {
+    const dealer = this.state ? findPlayer(this.state, this.state.dealer) : undefined;
+    this.dealerIndicator.update({
+      camera: this.rig.camera,
+      seat: dealer ? (this.seats.get(dealer.id)?.robot.group.position ?? null) : null,
+      name: dealer?.name ?? '',
+      visible: this.mode === 'top' && !this.inspected,
+    });
   }
 
   /** Shares where you look (and walk, as a spectator) a few times per second. */
