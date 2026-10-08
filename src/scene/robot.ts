@@ -45,7 +45,7 @@ export class Robot {
   }
 
   private buildHead(paint: THREE.Material): void {
-    this.head.position.y = this.posture === 'standing' ? 1.65 : 2.05;
+    this.head.position.y = this.posture === 'standing' ? 1.65 : 1.88;
     this.head.name = 'head';
     this.head.rotation.order = 'YXZ';
     this.group.add(this.head);
