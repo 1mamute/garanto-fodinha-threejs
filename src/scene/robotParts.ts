@@ -76,14 +76,14 @@ function geometry(key: string, parts: readonly Part[]): THREE.BufferGeometry {
 }
 
 export function robotBody(parent: THREE.Group, paint: THREE.Material, standing: boolean): THREE.Mesh {
-  const torsoHeight = standing ? 1.25 : 1.38;
-  const torsoLength = standing ? 0.57 : 0.8;
+  const torsoHeight = standing ? 1.25 : 1.555;
+  const torsoLength = standing ? 0.57 : 1.15;
   return mesh(
     geometry(`body-${standing}`, [
       { shape: 'barrel', at: [0, torsoHeight, 0], scale: [0.45, torsoLength, 0.43] },
       { shape: 'round', at: [0, 1.01, 0], scale: [0.44, 0.155, 0.42] },
-      { shape: 'dome', at: [0, standing ? 1.65 : 1.88, 0], scale: [0.43, 0.3, 0.43] },
-      { shape: 'barrel', at: [0, standing ? 1.59 : 1.82, 0], scale: [0.43, 0.16, 0.43] },
+      { shape: 'dome', at: [0, standing ? 1.65 : 2.23, 0], scale: [0.43, 0.3, 0.43] },
+      { shape: 'barrel', at: [0, standing ? 1.59 : 2.17, 0], scale: [0.43, 0.16, 0.43] },
     ]),
     paint,
     parent,
@@ -130,12 +130,17 @@ export function robotLeg(parent: THREE.Group, paint: THREE.Material, standing: b
   );
 }
 
-export function robotArm(parent: THREE.Group, paint: THREE.Material, side: number, standing: boolean): void {
-  const elbow = new THREE.Vector3(side * 0.15, -0.28, standing ? 0 : 0.17);
+function armJoints(side: number, standing: boolean): { elbow: THREE.Vector3; wrist: THREE.Vector3 } {
+  const elbow = new THREE.Vector3(side * 0.15, standing ? -0.28 : -0.45, standing ? 0 : 0.17);
   const wrist = new THREE.Vector3(side * -0.16, -0.29, standing ? 0 : 0.59);
-  if (side < 0 && !standing) wrist.set(0.16, -0.195, 0.715);
-  if (side > 0 && !standing) wrist.set(-0.16, -0.01, 0.66);
+  if (side < 0 && !standing) wrist.set(0.16, -0.545, 0.715);
+  if (side > 0 && !standing) wrist.set(-0.16, -0.36, 0.66);
   if (standing) wrist.set(side * 0.15, -0.62, 0);
+  return { elbow, wrist };
+}
+
+export function robotArm(parent: THREE.Group, paint: THREE.Material, side: number, standing: boolean): void {
+  const { elbow, wrist } = armJoints(side, standing);
   const parts = [limb(new THREE.Vector3(), elbow, 0.095), limb(elbow, wrist, 0.075)];
   mesh(geometry(`arm-${side}-${standing}`, parts), paint, parent);
   mesh(ROUND, paint, parent, elbow.toArray()).scale.setScalar(0.1);

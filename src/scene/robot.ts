@@ -45,7 +45,7 @@ export class Robot {
   }
 
   private buildHead(paint: THREE.Material): void {
-    this.head.position.y = this.posture === 'standing' ? 1.65 : 1.88;
+    this.head.position.y = this.posture === 'standing' ? 1.65 : 2.23;
     this.head.name = 'head';
     this.head.rotation.order = 'YXZ';
     this.group.add(this.head);
@@ -67,7 +67,7 @@ export class Robot {
   private buildArms(paint: THREE.Material): void {
     this.group.add(this.leftArm, this.rightArm);
     const standing = this.posture === 'standing';
-    const shoulderHeight = standing ? 1.45 : 1.85;
+    const shoulderHeight = standing ? 1.45 : 2.2;
     this.leftArm.position.set(-0.46, shoulderHeight, 0.06);
     this.rightArm.position.set(0.46, shoulderHeight, 0.06);
     robotArm(this.leftArm, paint, -1, standing);

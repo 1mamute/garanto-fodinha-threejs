@@ -205,7 +205,7 @@ export class TableScene implements InputTarget {
     props.robot.group.rotation.y = angle + Math.PI;
     props.chair.position.copy(position);
     props.chair.rotation.y = angle + Math.PI;
-    props.label.position.copy(position).setY(2.8);
+    props.label.position.copy(position).setY(3.15);
     return props;
   }
 

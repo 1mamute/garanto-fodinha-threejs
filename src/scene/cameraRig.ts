@@ -17,7 +17,8 @@ const MAX_ZOOM = 17;
 const DEFAULT_ZOOM = 4.8;
 const TABLE_HEIGHT = 1.68;
 const CARD_FRAME_MARGIN = 0.12;
-const EYE_HEIGHT = 2.25;
+const EYE_HEIGHT = 3.05;
+const DEFAULT_PITCH = -0.436;
 const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
@@ -44,10 +45,10 @@ export interface FrameContext {
 }
 
 export class CameraRig {
-  readonly camera = new THREE.PerspectiveCamera(62, 1, 0.04, 60);
+  readonly camera = new THREE.PerspectiveCamera(55, 1, 0.04, 60);
   /** Head turn relative to facing the table centre. */
   yaw = 0;
-  pitch = -0.12;
+  pitch = DEFAULT_PITCH;
   /** Height of the top view; changed by the wheel and pinch. */
   zoom = DEFAULT_ZOOM;
   orbitDistance = 4;
@@ -67,7 +68,7 @@ export class CameraRig {
 
   resetView(): void {
     this.yaw = 0;
-    this.pitch = -0.12;
+    this.pitch = DEFAULT_PITCH;
   }
 
   addPitch(delta: number): void {

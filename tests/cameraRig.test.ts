@@ -9,6 +9,24 @@ function advance(rig: CameraRig, mode: InspectionCameraMode, seconds = 0.05): vo
   rig.update(seconds, 1, { mode, observer: true, seat: null, inspected: null });
 }
 
+test('a câmera sentada mostra a face do kicker acima da área da mão', () => {
+  for (const aspect of [390 / 844, 16 / 10]) {
+    const rig = new CameraRig();
+    rig.resize(aspect);
+    rig.update(0.05, 1, {
+      mode: 'first',
+      observer: false,
+      seat: new Vector3(0, 0, 3.35),
+      inspected: null,
+    });
+    rig.camera.updateMatrixWorld();
+    const farEdge = new Vector3(0, 1.68, -0.295).project(rig.camera);
+    const nearEdge = new Vector3(0, 1.68, 0.295).project(rig.camera);
+    assert.ok(farEdge.y - nearEdge.y > 0.08, 'o tampo não achata a face da carta');
+    assert.ok(nearEdge.y > -0.45, 'o kicker fica acima da mão em repouso');
+  }
+});
+
 test('a vista da mesa sobe e centraliza em um único movimento contínuo', () => {
   const rig = new CameraRig();
   advance(rig, 'first');

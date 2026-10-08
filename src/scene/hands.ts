@@ -70,7 +70,7 @@ export class FirstPersonHands {
 
   constructor(private readonly camera: THREE.Camera) {
     camera.add(this.leftHand, this.rightGlove);
-    this.leftHand.position.set(-0.12, -0.26, -0.95);
+    this.leftHand.position.set(-0.12, -0.4, -0.95);
     this.leftHand.rotation.x = 1.25;
     const clamp = new THREE.Group();
     clamp.position.set(0, 0.03, -0.06);
@@ -108,7 +108,7 @@ export class FirstPersonHands {
   }
 
   show(cards: readonly Card[]): void {
-    const spread = Math.min(0.085, 0.75 / Math.max(1, cards.length));
+    const spread = Math.min(0.085, 0.85 / Math.max(1, cards.length));
     syncFan(this.cards, cards, false, { scale: 0.65, spread, y: 0.03, z: -0.06, tilt: -0.055 });
   }
 
@@ -139,7 +139,7 @@ export class FirstPersonHands {
 
   /** Narrow portrait screens shrink the hands so they stay inside the view. */
   fitTo(aspect: number): void {
-    const scale = aspect < 1 ? aspect * 0.9 : 1;
+    const scale = 0.7 * (aspect < 1 ? aspect * 0.9 : 1);
     this.leftHand.scale.setScalar(scale);
     this.leftHand.position.x = aspect < 1 ? 0 : -0.12;
     this.rightGlove.scale.setScalar(scale);
