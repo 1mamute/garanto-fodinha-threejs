@@ -85,6 +85,10 @@ export class TableScene implements InputTarget {
     this.setState(demoState(), null);
   }
 
+  get freeLook(): boolean {
+    return this.mode === 'first' && isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
+  }
+
   setState(state: GameState, myId: string | null): void {
     if (this.input.draggedHandCard) {
       this.pending = { state, myId };

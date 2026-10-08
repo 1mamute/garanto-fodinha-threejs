@@ -1,5 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,500,40,1;9..144,600,40,1;9..144,700,40,1&display=swap');
 
+.mouse-look-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #fff9ebe8;
+  color: #203e34;
+  z-index: 20;
+}
+
 .lab-panel {
   position: fixed;
   top: 16px;
@@ -1399,6 +1411,7 @@ kbd {
   border: 1px solid #f9f6df73;
   pointer-events: none;
 }
+
 @media (max-width: 1000px) {
   .hero h1 {
     font-size: 65px;
@@ -2048,5 +2061,16 @@ kbd {
     width: auto;
     max-width: none;
     min-width: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .joystick {
+    display: grid;
+  }
+}
+@media (pointer: fine) {
+  .joystick {
+    display: none;
   }
 }

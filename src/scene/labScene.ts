@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createDeck } from '../game';
 import { morph } from '../ui/dom';
 import { html } from '../ui/html';
+import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
 import { demoState } from './demo';
@@ -107,6 +108,12 @@ export class LabScene implements InputTarget {
     this.mode = mode;
     this.clearInspection();
     this.rig.keys.clear();
+    this.rig.joystick.x = 0;
+    this.rig.joystick.y = 0;
+  }
+
+  get freeLook(): boolean {
+    return this.mode === 'first';
   }
 
   inspect(card: CardMesh): void {
@@ -170,11 +177,15 @@ export class LabScene implements InputTarget {
       <strong>Laboratório de cena</strong>
       <p>Câmera: ${MODE_LABELS[this.mode]}</p>
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
-      <p>WASD: andar · Arraste o mouse: olhar / orbitar<br />Espaço: alternar câmera · Roda: zoom na terceira pessoa e vista superior</p>
+      <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom na terceira pessoa e vista superior</p>
       <p>Vista superior: clique numa carta para inspecionar. Esc: sair da inspeção.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}
       <a class="text-button" href="/">← Voltar ao jogo</a>
-    </aside>`,
+    </aside>${this.mode !== 'top' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}`,
     );
+    bindJoystick(this.root.querySelector<HTMLElement>('#joystick'), (x, y) => {
+      this.rig.joystick.x = x;
+      this.rig.joystick.y = y;
+    });
   }
 }

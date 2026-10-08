@@ -22,7 +22,7 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.
 - Na primeira pessoa, arraste cartas para ordenar; arraste para cima para jogar. Também pode selecionar a carta e usar o botão de jogar. Arraste a área livre para olhar.
 - **Espaço** alterna entre primeira pessoa e visão de cima. Nesta última, a mão fica bloqueada. Use a roda do mouse ou pinça para zoom; passe o mouse por dois segundos ou toque prolongadamente para inspecionar cartas e vazas coletadas. **ESC** ou clique fora encerra a inspeção.
-- Eliminados podem ver todas as mãos e passear usando **WASD** ou o joystick no celular. Toque no nome de um jogador para consultar sua mão como espectador.
+- Eliminados podem ver todas as mãos e passear em primeira pessoa: no computador, use **WASD** e clique na cena para capturar o mouse e olhar como em um FPS (**Esc** libera o cursor); no celular, use o joystick para andar e arraste na cena para olhar. Toque no nome de um jogador para consultar sua mão como espectador.
 - Participantes que chegam durante uma partida entram como espectadores. Use o chat para conversar.
 - Desconexão pausa a mesa por três minutos. Expirado o prazo, o jogador é eliminado, a rodada atual é cancelada e redistribuída, sem penalidade de vidas aos demais. A quantidade de cartas e o modo são mantidos; kicker e mãos são sorteados novamente.
 - O host é transferido automaticamente para um participante conectado. O antigo host pode voltar como jogador. Recarregue a página e use **Retomar minha sala** na mesma aba; a sessão e o último estado recebido são guardados no armazenamento da aba.

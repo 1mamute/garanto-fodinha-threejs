@@ -20,6 +20,20 @@ test('terceira pessoa anda como o observador em primeira pessoa', () => {
   assert.deepEqual(third.spectatorPosition.toArray(), first.spectatorPosition.toArray());
 });
 
+test('joystick e teclado caminham na mesma direção e velocidade', () => {
+  const keyboard = new CameraRig();
+  const touch = new CameraRig();
+  keyboard.yaw = 0.8;
+  touch.yaw = keyboard.yaw;
+  keyboard.keys.add('KeyW');
+  keyboard.keys.add('KeyD');
+  touch.joystick.x = Math.SQRT1_2;
+  touch.joystick.y = -Math.SQRT1_2;
+  advance(keyboard, 'first');
+  advance(touch, 'first');
+  assert.ok(keyboard.spectatorPosition.distanceTo(touch.spectatorPosition) < 1e-10);
+});
+
 test('andar na diagonal mantém a mesma velocidade', () => {
   const straight = new CameraRig();
   const diagonal = new CameraRig();
