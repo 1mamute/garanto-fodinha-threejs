@@ -16,7 +16,7 @@ function drawCorner(context: CanvasRenderingContext2D, card: Card): void {
 }
 
 function drawFace(context: CanvasRenderingContext2D, card: Card): void {
-  context.fillStyle = isRedSuit(card.suit) ? '#bf5b4e' : '#253d36';
+  context.fillStyle = isRedSuit(card.suit) ? '#a0332c' : '#202927';
   drawCorner(context, card);
   // The opposite corner is the same drawing turned upside down.
   context.save();
@@ -33,9 +33,9 @@ function drawFace(context: CanvasRenderingContext2D, card: Card): void {
 }
 
 function drawBack(context: CanvasRenderingContext2D): void {
-  context.fillStyle = '#386c5c';
+  context.fillStyle = '#68332e';
   context.fillRect(15, 15, 226, 330);
-  context.strokeStyle = '#a2c0a0';
+  context.strokeStyle = '#ab8262';
   context.lineWidth = 2;
   // Criss-cross diagonal lines.
   for (let offset = -350; offset < 500; offset += 24) {
@@ -46,11 +46,11 @@ function drawBack(context: CanvasRenderingContext2D): void {
     context.lineTo(offset + 330, 15);
     context.stroke();
   }
-  context.fillStyle = '#edc574';
+  context.fillStyle = '#ceb78c';
   context.beginPath();
   context.arc(128, 180, 48, 0, TAU);
   context.fill();
-  context.fillStyle = '#254e41';
+  context.fillStyle = '#532923';
   context.font = 'bold 70px Georgia';
   context.textAlign = 'center';
   context.fillText('G', 128, 204);
@@ -62,7 +62,7 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
   const cached = faceTextures.get(key);
   if (cached) return cached;
   const texture = canvasTexture(CARD_WIDTH, CARD_HEIGHT, context => {
-    context.fillStyle = '#fff9e9';
+    context.fillStyle = '#efe1c4';
     context.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
     context.strokeStyle = '#dccfb7';
     context.lineWidth = 10;
@@ -75,7 +75,24 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
   return texture;
 }
 
-const CARD_GEOMETRY = new THREE.BoxGeometry(0.42, 0.012, 0.59);
+/** Consolidate the four thin edges into one draw instead of four per card. */
+function cardGeometry(): THREE.BoxGeometry {
+  const geometry = new THREE.BoxGeometry(0.42, 0.012, 0.59);
+  const original = geometry.getIndex();
+  if (!original) return geometry;
+  const indices: number[] = [];
+  for (const face of [0, 1, 4, 5, 2, 3]) {
+    for (let index = 0; index < 6; index++) indices.push(original.getX(face * 6 + index));
+  }
+  geometry.setIndex(indices);
+  geometry.clearGroups();
+  geometry.addGroup(0, 24, 0);
+  geometry.addGroup(24, 6, 1);
+  geometry.addGroup(30, 6, 2);
+  return geometry;
+}
+
+const CARD_GEOMETRY = cardGeometry();
 const EDGE = material('#ded3ba');
 
 /** A card in the world. It eases towards `target`/`targetRotation` every frame. */
@@ -91,10 +108,10 @@ export class CardMesh extends THREE.Mesh<THREE.BoxGeometry, THREE.Material[]> {
     readonly card: Card,
     readonly faceDown = false,
   ) {
-    // Box faces in order: +x, -x, +y (top), -y (bottom), +z, -z.
+    // Consolidated geometry groups: edges, top and bottom.
     const top = material('#ffffff', { map: cardTexture(faceDown ? null : card) });
     const bottom = material('#ffffff', { map: cardTexture(null) });
-    super(CARD_GEOMETRY, [EDGE, EDGE, top, bottom, EDGE, EDGE]);
+    super(CARD_GEOMETRY, [EDGE, top, bottom]);
     this.details = { card, playerName: '' };
   }
 

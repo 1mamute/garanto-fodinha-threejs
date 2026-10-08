@@ -163,8 +163,8 @@ export class CameraRig {
   /** Home screen: the table seen from a corner, shifted so the menu does not cover it. */
   private aimLanding(): void {
     const narrow = innerWidth < NARROW_SCREEN_PX;
-    this.positionTarget.set(7.9, 7.4, 10.5);
-    this.lookTarget.set(narrow ? 0 : -2.4, narrow ? 3 : 1.2, 0);
+    this.positionTarget.set(narrow ? 5.4 : 6.4, 3.6, narrow ? 8 : 7.8);
+    this.lookTarget.set(narrow ? 0 : -1.5, 1.65, 0);
   }
 
   /** Close-up above an inspected card, with the card's top edge pointing up on screen. */

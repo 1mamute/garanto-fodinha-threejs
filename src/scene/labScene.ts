@@ -13,6 +13,7 @@ import { animateFan, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { smoothing, TAU } from './primitives';
 import { Robot } from './robot';
+import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { RobotWalking } from './robotWalking';
 import { buildChair, buildRoom, TABLE_TOP } from './room';
 import { TableCards, type Seat } from './tableCards';
@@ -43,6 +44,7 @@ export class LabScene implements InputTarget {
   private headTracking = false;
   private readonly walking: RobotWalking;
   private readonly timer = new THREE.Timer();
+  private readonly budget = new RenderBudget(isMobileRenderer());
   private readonly input: SceneInput;
   private readonly raycaster = new THREE.Raycaster();
 
@@ -165,7 +167,8 @@ export class LabScene implements InputTarget {
 
   private frame(): void {
     this.timer.update();
-    const deltaSeconds = Math.min(this.timer.getDelta(), 0.05);
+    const deltaSeconds = this.budget.takeFrame(this.timer.getElapsed(), document.hidden);
+    if (!deltaSeconds) return;
     const blend = smoothing(deltaSeconds, 7);
     this.rig.update(deltaSeconds, blend, {
       mode: this.mode,
@@ -190,7 +193,9 @@ export class LabScene implements InputTarget {
     this.stationary.lookAt(this.headTracking ? this.rig.spectatorPosition : null, blend);
     this.input.checkLongPress(performance.now());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
-    if (!document.hidden) this.renderer.render(this.scene, this.rig.camera);
+    const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
+    if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
+    this.renderer.render(this.scene, this.rig.camera);
   }
 
   private renderUi(): void {
