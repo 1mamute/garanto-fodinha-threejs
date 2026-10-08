@@ -1,0 +1,4 @@
+# Copie para .dev.vars para testar TURN localmente.
+# Segredos permanecem no Worker. Não use variáveis VITE_ para estes valores.
+TURN_KEY_ID=""
+TURN_API_TOKEN=""
