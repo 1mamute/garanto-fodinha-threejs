@@ -13,6 +13,23 @@ Guidance for coding agents working on Garanto, a 3D multiplayer card game (Three
   - `GARANTO_INTEGRATION_URL=http://localhost:8787 npm test` (API/WebSocket).
   - In the browser console on :5173: `await import('/tests/browser.integration.ts').then(module => module.run())` (real WebRTC, host migration, reconnection).
 
+## Browser debugging in T3 Code
+
+1. Verify Node and npm before starting servers. If PowerShell cannot find them, refresh the current process environment and retry:
+
+   ```powershell
+   $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+   node --version
+   npm.cmd --version
+   ```
+
+2. Start `npm.cmd run dev` if port 5173 is not already serving this project. The dev script uses Vite's runner config loader because the default esbuild config bundling can fail with parent-directory access denied in the Windows sandbox. Start the Worker too when testing rooms or multiplayer.
+3. When T3 Code exposes `preview_*` tools, call `preview_status` first. If no automation-capable tab is attached, call `preview_open`; an unopened preview is not evidence that browser automation is unavailable.
+4. Navigate with `preview_navigate` using `target: { kind: 'environment-port', port: 5173 }`. Inspect with `preview_snapshot`, use its locators for interactions, and use `preview_evaluate` for live page state. A successful setup loads Garanto and permits a snapshot and JavaScript evaluation.
+5. If navigation fails, inspect the returned error, preview status, and server output; correct the cause and retry. Use another browser system only if these tools are absent, `preview_open` explicitly reports unsupported/unavailable, or the user requests it. Report breakpoint debugging separately: preview inspection does not imply that breakpoint/step-through debugger tools are available.
+
+The browser tab, running servers, and refreshed `PATH` are session-local; repeat the relevant steps in each new session.
+
 ## Layout
 
 | Path | Responsibility |
