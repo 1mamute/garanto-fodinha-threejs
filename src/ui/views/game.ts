@@ -34,7 +34,7 @@ export function createGameView(ui: UiState, game: GameState, session: Session): 
 }
 
 const PHASE_LABELS: Record<Phase, string> = {
-  lobby: 'Sala de espera',
+  lobby: 'Preparando a mesa',
   bet: 'Hora do palpite',
   play: 'Cartas na mesa',
   trick: 'Vaza encerrada',
@@ -46,7 +46,7 @@ const PHASE_LABELS: Record<Phase, string> = {
 export function gameScreen(view: GameView): SafeHtml {
   const { ui, game, observer } = view;
   return html`${gameHeader(view)}${playersPanel(view)}
-    <div class="event-banner">${game.lastEvent}</div>
+    <div class="event-banner" role="status">${game.lastEvent}</div>
     ${kickerInfo(game)}${centerCard(view)}${bidPanel(view)}${handPanel(view)}${viewControls(view)}
     ${ui.chatOpen && chatPanel(view)}${inspectionPanel(ui)}${watchedHand(view)}
     ${observer && ui.cameraMode === 'first' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}
@@ -66,7 +66,7 @@ function gameHeader({ ui, game, session }: GameView): SafeHtml {
       <button class="icon-button" data-action="sound" aria-label="${soundLabel}" title="${soundLabel}">
         ${icon('volume')}${!ui.soundEnabled && html`<span class="off-line"></span>`}
       </button>
-      <button class="icon-button ${ui.chatOpen ? 'active' : ''}" data-action="chat-toggle" aria-label="Abrir chat">
+      <button class="icon-button ${ui.chatOpen ? 'active' : ''}" data-action="chat-toggle" aria-label="${ui.chatOpen ? 'Fechar' : 'Abrir'} chat" aria-expanded="${ui.chatOpen}">
         ${icon('chat')}
       </button>
       <button class="icon-button" data-action="help" aria-label="Como jogar">?</button>

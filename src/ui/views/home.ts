@@ -11,13 +11,13 @@ export function homeView(ui: UiState): SafeHtml {
         ${logo()}
         <nav>
           <button class="text-button" data-action="help">Como jogar</button>
-          <span class="nav-pill">${icon('users', 16)} Feito pra reunir</span>
+          <span class="nav-pill">${icon('users', 16)} 2–10 jogadores</span>
         </nav>
       </header>
       <main>${body}</main>
       <footer class="site-footer">
-        <span>Um jogo de cartas. Uma boa desculpa pra se reunir.</span>
-        <span>feito de palpites <span class="footer-suits">♦ ♠ ♥ ♣</span></span>
+        <span>Uma mesa. Alguns palpites. Até a última vida.</span>
+        <span class="footer-suits">♦ ♠ ♥ ♣</span>
       </footer>
     </div>
     ${homeModal(ui)}`;
@@ -25,37 +25,32 @@ export function homeView(ui: UiState): SafeHtml {
 
 function hero(ui: UiState): SafeHtml {
   return html`<section class="hero">
-      <div class="eyebrow"><span class="tiny-dot"></span> CARTAS NA MESA. CONFIANÇA NEM TANTO.</div>
-      <h1>Eu <em>garanto.</em><br />Você arrisca?</h1>
-      <p class="intro">Aposte nas suas cartas. Acerte seu palpite.<br />Seja o último robô de pé.</p>
+      <div class="eyebrow"><span class="tiny-dot"></span> A MESA ESTÁ ABERTA</div>
+      <h1>Eu <em>garanto.</em></h1>
+      <p class="intro">Quantas vazas você ganha?<br />Puxe uma cadeira e arrisque seu palpite.</p>
       <div class="hero-actions">
-        <button class="button primary" data-action="rooms">Encontrar uma mesa ${icon('arrow')}</button>
+        <button class="button primary" data-action="rooms">Entrar na mesa ${icon('arrow')}</button>
         <button class="button outlined" data-action="create">${icon('plus')} Criar sala</button>
       </div>
       <button class="practice-link" data-action="practice">
-        ${icon('robot')} Só você e os bots <span>um treino sem pressão ↗</span>
+        ${icon('robot')} Treinar com bots ${icon('arrow', 14)}
       </button>
+      <button class="text-button" data-action="join-code">Tenho um código de sala</button>
       ${ui.savedSession && html`<button class="button resume" data-action="resume">Retomar minha sala</button>`}
-      <div class="hero-stats">
-        <div><strong>2–10</strong><span>jogadores</span></div>
-        <div><strong>5 <span class="hearts">♥</span></strong><span>vidas pra arriscar</span></div>
-        <div><strong>100%</strong><span>entre amigos</span></div>
-      </div>
     </section>
     <div class="scene-note">
-      <span class="note-label">A MESA ESTÁ POSTA</span><span>O blefe é seu.<br />O charme é dos robôs.</span
-      ><span class="note-scribble">↖</span>
+      <span class="note-label">GARANTO · CLUBE DE CARTAS</span><span>O próximo lugar é seu.</span>
     </div>`;
 }
 
 function roomsPanel(ui: UiState): SafeHtml {
   return html`<section class="rooms-panel">
-    <div class="eyebrow"><span class="tiny-dot"></span> SEM CERIMÔNIA. PUXE UMA CADEIRA.</div>
+    <div class="eyebrow"><span class="tiny-dot"></span> MESAS ABERTAS</div>
     <div class="section-heading">
-      <h1>Uma mesa<br />para chamar de <em>sua.</em></h1>
+      <h1>Escolha sua <em>mesa.</em></h1>
       <button class="icon-button" data-action="refresh-rooms" aria-label="Atualizar salas">${icon('refresh')}</button>
     </div>
-    <p class="intro">Entre com seus amigos. Ou faça alguns novos.</p>
+    <p class="intro">Entre, crie uma sala ou use um convite.</p>
     <div class="rooms-list">${roomList(ui)}</div>
     <div class="room-actions">
       <button class="button primary" data-action="create">${icon('plus')} Criar uma sala</button>

@@ -26,16 +26,12 @@ function lobbyCard(view: GameView): SafeHtml {
   const seated = me?.seated === true;
   const readyLabel = me?.ready ? 'Pronto! Voltar a esperar' : 'Estou pronto';
   return html`<section class="lobby-card">
-    <span class="eyebrow">PODE CHEGAR, A CASA É SUA</span>
-    <h2>${seated ? 'Confortável aí?' : 'Qual é a sua cor?'}</h2>
+    <span class="eyebrow">ANTES DA PRIMEIRA CARTA</span>
+    <h2>${seated ? 'Seu lugar está reservado.' : 'Escolha seu lugar.'}</h2>
     <p>
-      ${
-        seated
-          ? 'Sua cor está confirmada. Marque pronto quando quiser começar.'
-          : 'Escolha uma cor e sente à mesa para confirmar.'
-      }
+      ${seated ? 'Marque pronto para começar.' : 'Escolha a cor do seu robô e sente à mesa.'}
     </p>
-    ${colorPicker(view)}
+    ${!seated && colorPicker(view)}
     <button class="button primary full" data-action="${seated ? 'ready' : 'seat'}">
       ${seated ? readyLabel : 'Sentar à mesa'} ${icon('check')}
     </button>

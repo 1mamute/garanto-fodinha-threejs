@@ -109,7 +109,14 @@ export class CardMesh extends THREE.Mesh<THREE.BoxGeometry, THREE.Material[]> {
     readonly faceDown = false,
   ) {
     // Consolidated geometry groups: edges, top and bottom.
-    const top = material('#ffffff', { map: cardTexture(faceDown ? null : card) });
+    const face = cardTexture(faceDown ? null : card);
+    // Held faces point away from the ceiling lamp; a little baked fill preserves suit contrast.
+    const top = material('#ffffff', {
+      map: face,
+      emissiveMap: face,
+      emissive: '#ffffff',
+      emissiveIntensity: 0.3,
+    });
     const bottom = material('#ffffff', { map: cardTexture(null) });
     super(CARD_GEOMETRY, [EDGE, top, bottom]);
     this.details = { card, playerName: '' };

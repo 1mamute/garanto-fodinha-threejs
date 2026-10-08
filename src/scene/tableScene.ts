@@ -13,15 +13,13 @@ import { animateFan, FirstPersonHands, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { disposeMaterials, smoothing, TAU } from './primitives';
 import { nowSeconds, Robot } from './robot';
+import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP, type RoomProps } from './room';
 import { TableCards, type Seat } from './tableCards';
 import type { CameraMode, CardInspection, Pose, SceneCallbacks } from './types';
 
 const SEAT_RADIUS = 3.35;
 const POSE_INTERVAL_S = 0.15;
-/** Phones are redrawn at ~30 fps to save battery. */
-const MOBILE_FRAME_S = 0.03;
-const NARROW_SCREEN_PX = 700;
 /** Robots show at most this many cards in their fan. */
 const MAX_FAN_CARDS = 20;
 
@@ -59,7 +57,7 @@ export class TableScene implements InputTarget {
   /** State received while a hand card was being dragged; applied on release. */
   private pending: { state: GameState; myId: string | null } | null = null;
   private lastPoseAt = 0;
-  private lastRenderAt = -1;
+  private readonly budget = new RenderBudget(isMobileRenderer());
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -275,8 +273,9 @@ export class TableScene implements InputTarget {
   private frame(): void {
     // Clamp the step so a backgrounded tab does not make everything jump.
     this.timer.update();
-    const deltaSeconds = Math.min(this.timer.getDelta(), 0.05);
     const time = this.timer.getElapsed();
+    const deltaSeconds = this.budget.takeFrame(time, document.hidden);
+    if (!deltaSeconds) return;
     const blend = smoothing(deltaSeconds, 7);
     const observer = isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
     const mySeat = this.myId ? this.seats.get(this.myId) : undefined;
@@ -292,13 +291,14 @@ export class TableScene implements InputTarget {
     const embodied = this.mode === 'first' && !observer;
     this.firstPerson.visible = embodied;
     this.input.checkLongPress(performance.now());
-    this.animateRobots(time, blend, embodied);
+    this.animateRobots(nowSeconds(), blend, embodied);
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
     const dragged = this.input.draggedHandCard;
     animateFan(this.firstPerson.cards, blend, dragged);
+    this.firstPerson.followCard(dragged);
     for (const { robot } of this.seats.values()) animateFan(robot.hand, blend, null);
     this.sendPose(time, observer);
-    this.render(time);
+    this.render();
   }
 
   private animateRobots(time: number, blend: number, embodied: boolean): void {
@@ -330,11 +330,10 @@ export class TableScene implements InputTarget {
     this.callbacks.onPose(pose);
   }
 
-  private render(time: number): void {
-    if (document.hidden) return;
-    if (innerWidth < NARROW_SCREEN_PX && time - this.lastRenderAt < MOBILE_FRAME_S) return;
+  private render(): void {
+    const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
+    if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
     this.renderer.render(this.scene, this.rig.camera);
-    this.lastRenderAt = time;
   }
 }
 

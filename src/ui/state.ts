@@ -20,6 +20,7 @@ export interface UiState {
   game: GameState | null;
   connectionStatus: string;
   selectedCardId: string | null;
+  handOpen: boolean;
   rooms: PublicRoom[];
   roomsError: string;
   roomsLoading: boolean;

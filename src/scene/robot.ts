@@ -1,15 +1,10 @@
 /** The little robots sitting around the table, and their idle/play/death animations. */
 import * as THREE from 'three';
 import type { Pose } from './types';
-import { BLACK, DARK, material, mesh, sphere, WHITE } from './primitives';
+import { buildGripper, robotArm, robotBody, robotHead, robotLeg, robotPaint } from './robotParts';
 
 const MAX_HEAD_YAW = 1.05;
 const MAX_HEAD_PITCH = 0.65;
-const HEAD_RADIUS = 0.47;
-const TORSO_RADIUS = 0.44;
-const HEAD_PIVOT_HEIGHT = 1.65;
-const SHOULDER_RADIUS = 0.43;
-const HEAD_SHELL_OFFSET = 0.24;
 
 /** Seconds since the page loaded; animation start times use the same clock. */
 export function nowSeconds(): number {
@@ -29,7 +24,7 @@ export class Robot {
   private readonly lookDirection = new THREE.Vector3();
   /** When the last card was played, to swing the arm. */
   playedAt = -10;
-  /** When the robot sat down at the table, for the little hop. */
+  /** When the robot sat down at the table; shared with the scene animation clock. */
   seatedAt = nowSeconds();
   diedAt: number | null = null;
 
@@ -37,108 +32,47 @@ export class Robot {
     readonly color: string,
     private readonly posture: 'seated' | 'standing' = 'seated',
   ) {
-    const paint = material(color, { roughness: 0.48 });
-    this.body = mesh(
-      new THREE.CylinderGeometry(TORSO_RADIUS, 0.46, 0.62, 32),
-      paint,
-      this.group,
-      [0, 1.27, 0],
-    );
-    mesh(
-      new THREE.SphereGeometry(0.47, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-      paint,
-      this.group,
-      [0, 0.98, 0],
-    ).scale.y = 0.8;
-    mesh(new THREE.CylinderGeometry(0.475, 0.475, 0.045, 32), paint, this.group, [0, 0.98, 0]);
-    mesh(new THREE.CylinderGeometry(SHOULDER_RADIUS, SHOULDER_RADIUS, 0.15, 32), paint, this.group, [
-      0,
-      HEAD_PIVOT_HEIGHT,
-      0,
-    ]);
-    // A broad socket fills the raised side of the seam when the head tilts.
-    mesh(
-      new THREE.SphereGeometry(SHOULDER_RADIUS, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
-      paint,
-      this.group,
-      [0, HEAD_PIVOT_HEIGHT, 0],
-    );
+    const paint = robotPaint(color);
+    this.body = robotBody(this.group, paint, posture === 'standing');
     this.buildHead(paint);
     this.buildLegs(paint);
     this.buildArms(paint);
-    this.hand.position.set(-0.5, 1.35, 0.53);
-    this.hand.rotation.x = 0.55;
+    // The card fan and clamp share a mount, so idle motion cannot separate the grip.
+    this.hand.position.set(-0.3, 1.92, 0.63);
+    this.hand.rotation.x = 0.95;
+    if (posture === 'seated') buildGripper(this.hand);
     this.group.add(this.hand);
   }
 
   private buildHead(paint: THREE.Material): void {
-    const head = new THREE.Group();
-    // Bury the pivot in the shoulders so the shell rests directly on the torso.
-    this.head.position.y = HEAD_PIVOT_HEIGHT;
+    this.head.position.y = this.posture === 'standing' ? 1.65 : 2.05;
     this.head.name = 'head';
-    // Pitch follows the head's horizontal heading, rather than the body's sideways axis.
     this.head.rotation.order = 'YXZ';
-    head.position.y = HEAD_SHELL_OFFSET;
     this.group.add(this.head);
-    this.head.add(head);
-    mesh(
-      new THREE.SphereGeometry(HEAD_RADIUS, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
-      paint,
-      head,
-      [0, 0.03, 0],
-    );
-    mesh(new THREE.CylinderGeometry(HEAD_RADIUS, HEAD_RADIUS, 0.23, 32), paint, head, [0, -0.085, 0]);
-    // A fixed dark underside suggests the reference's mouth seam without a talking jaw.
-    mesh(
-      new THREE.CylinderGeometry(HEAD_RADIUS - 0.005, HEAD_RADIUS - 0.005, 0.018, 32),
-      DARK,
-      head,
-      [0, -0.205, 0],
-    );
-    for (const x of [-0.235, 0.235]) {
-      const eye = new THREE.Group();
-      eye.position.set(x, 0.17, 0.405);
-      head.add(eye);
-      sphere(eye, WHITE, 0.19, { at: [0, 0, 0], scale: [1, 1.05, 0.85] });
-      sphere(eye, BLACK, 0.06, { at: [0, 0, 0.157], scale: [1, 1.1, 0.35] });
-      this.eyes.push(eye);
-    }
+    this.eyes.push(...robotHead(this.head, paint));
   }
 
   private buildLegs(paint: THREE.Material): void {
-    for (const x of [-0.2, 0.2]) {
-      this.buildLeg(paint, x);
-    }
-  }
-
-  private buildLeg(paint: THREE.Material, x: number): void {
     const standing = this.posture === 'standing';
-    const length = standing ? 0.93 : 0.51;
-    const leg = new THREE.Group();
-    leg.position.set(x, standing ? 0.98 : 0, 0);
-    this.group.add(leg);
-    this.legs.push(leg);
-    mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, leg, [
-      0,
-      standing ? -length / 2 : 0.45,
-      standing ? 0 : 0.13,
-    ]).rotation.x = standing ? 0 : -0.35;
+    for (const x of [-0.22, 0.22]) {
+      const leg = new THREE.Group();
+      // Chair cushion top is .855; the pelvis underside and boots meet their surfaces.
+      leg.position.set(x, standing ? 0.93 : 0.9, 0);
+      this.group.add(leg);
+      this.legs.push(leg);
+      robotLeg(leg, paint, standing);
+    }
   }
 
   private buildArms(paint: THREE.Material): void {
-    const { leftArm } = this;
-    this.group.add(leftArm, this.rightArm);
-    buildArm(leftArm, paint, -1, this.posture);
-    buildArm(this.rightArm, paint, 1, this.posture);
-    if (this.posture === 'standing') {
-      for (const arm of [leftArm, this.rightArm]) {
-        // Swing from the shoulder, rather than orbiting the arm around the floor.
-        arm.position.y = 1.3;
-        for (const child of arm.children) child.position.y -= arm.position.y;
-      }
-    }
+    this.group.add(this.leftArm, this.rightArm);
+    const standing = this.posture === 'standing';
+    const shoulderHeight = standing ? 1.45 : 1.85;
+    this.leftArm.position.set(-0.46, shoulderHeight, 0.06);
+    this.rightArm.position.set(0.46, shoulderHeight, 0.06);
+    robotArm(this.leftArm, paint, -1, standing);
+    robotArm(this.rightArm, paint, 1, standing);
   }
-
   /** Standing locomotion has its own pose; seated play/death animations stay independent. */
   animateWalking(phase: number, amount: number, worldLook: THREE.Quaternion): void {
     const stride = Math.sin(phase) * amount;
@@ -163,14 +97,13 @@ export class Robot {
     const idleYaw = Math.sin(time * 0.6 + group.position.x) * 0.13;
     this.animateHead(pose ?? { yaw: idleYaw, pitch: 0 }, blend);
     // Breathing.
-    this.body.scale.y = 1 + Math.sin(time * 2 + group.position.x) * 0.012;
+    this.body.scale.x = 1 + Math.sin(time * 2 + group.position.x) * 0.003;
     // Swing the right arm for ~1 s after playing a card.
     const swing = Math.sin(Math.max(0, 1 - (time - this.playedAt) / 1.1) * Math.PI);
     this.rightArm.rotation.x = -swing * 0.8;
     this.rightArm.rotation.z = -swing * 0.25;
-    // A small hop when sitting down.
-    const hop = Math.max(0, 1 - (time - this.seatedAt) / 1.2);
-    group.position.y = Math.sin(hop * Math.PI) * 0.35;
+    // Keep the pelvis on the cushion and the feet on the floor throughout idle/play.
+    group.position.y = 0;
     this.animateDeath(time);
   }
 
@@ -206,35 +139,18 @@ export class Robot {
     }
   }
 
-  /** Eliminated robots tip over sideways and keep wobbling their head. */
+  /** Elimination powers down the eyes and slumps the head, keeping the seated silhouette. */
   private animateDeath(time: number): void {
     const { group, head } = this;
     if (this.diedAt === null) {
-      group.rotation.z = Math.sin(time + group.position.x) * 0.02;
+      group.rotation.z = 0;
       head.rotation.z = 0;
+      for (const eye of this.eyes) eye.scale.y = 1;
       return;
     }
     const progress = THREE.MathUtils.clamp((time - this.diedAt) / 1.1, 0, 1);
-    group.rotation.z = Math.sin((progress * Math.PI) / 2) * 1.45;
-    group.position.y = -0.45 * progress;
-    head.rotation.z = Math.sin(time * 3) * 0.08;
+    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, 0.48, progress);
+    head.rotation.z = progress * 0.12;
+    for (const eye of this.eyes) eye.scale.y = 1 - progress * 0.8;
   }
-}
-
-function buildArm(
-  arm: THREE.Group,
-  paint: THREE.Material,
-  side: number,
-  posture: 'seated' | 'standing',
-): void {
-  const upper = sphere(arm, paint, 0.16, { at: [side * 0.53, 1.3, 0.06], scale: [0.8, 1.85, 0.9] });
-  upper.rotation.z = side * 0.3;
-  const forearm = new THREE.Group();
-  const standing = posture === 'standing';
-  forearm.position.set(side * 0.56, standing ? 0.99 : 1.12, standing ? 0.06 : 0.25);
-  forearm.rotation.x = standing ? 0 : -1.2;
-  arm.add(forearm);
-  mesh(new THREE.CylinderGeometry(0.09, 0.065, 0.38, 20), paint, forearm);
-  mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.065, 20), paint, forearm, [0, -0.18, 0]);
-  sphere(forearm, paint, 0.1, { at: [0, -0.23, 0], scale: [1, 0.65, 1] });
 }
