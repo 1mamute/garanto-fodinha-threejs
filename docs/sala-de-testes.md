@@ -6,7 +6,7 @@ Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena n
 
 - Quatro robôs sentados, cada um com duas cartas abertas na mão.
 - Duas cartas jogadas no centro da mesa, um kicker, o marcador do dealer e o destaque do jogador da vez.
-- Um robô imóvel em pé, identificado como **Robô para inspeção**, próximo à posição inicial.
+- Um robô laranja imóvel em pé para inspeção, sem identificação flutuante, na posição `(2, 0, 8)`, afastado da mesa e com espaço para caminhar ao redor.
 - Um robô azul controlável, oculto em primeira pessoa e visível nas outras perspectivas.
 
 A rodada permanece congelada, sem avanço de turnos ou animações de partida. `LabScene.populate()` parte de `demoState()` e preenche as mãos com cartas que não estejam na mesa ou no kicker. A postura em pé usa o modelo `Robot` com ajustes nos braços e pernas.

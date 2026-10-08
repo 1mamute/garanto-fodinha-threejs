@@ -13,7 +13,7 @@ import { SceneInput, type InputTarget } from './input';
 import { smoothing, TAU } from './primitives';
 import { Robot } from './robot';
 import { RobotWalking } from './robotWalking';
-import { buildChair, buildRoom, nameLabel, TABLE_TOP } from './room';
+import { buildChair, buildRoom, TABLE_TOP } from './room';
 import { TableCards, type Seat } from './tableCards';
 import type { InspectionCameraMode } from './types';
 
@@ -101,11 +101,9 @@ export class LabScene implements InputTarget {
     if (active) room.spotlight.position.copy(active.position);
     const { stationary } = this;
     this.controlled.group.rotation.y = Math.PI;
-    stationary.group.position.set(2, 0, 5);
+    stationary.group.position.set(2, 0, 8);
     stationary.group.rotation.y = Math.PI;
-    const label = nameLabel('Robô para inspeção');
-    label.position.set(2, 2.8, 5);
-    this.world.add(stationary.group, this.controlled.group, label);
+    this.world.add(stationary.group, this.controlled.group);
   }
 
   toggleMode(): void {
