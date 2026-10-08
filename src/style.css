@@ -1,5 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,500,40,1;9..144,600,40,1;9..144,700,40,1&display=swap');
 
+.lab-panel {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff9ebe8;
+  font-size: 13px;
+}
+.lab-panel p {
+  margin: 8px 0;
+}
+.lab-cameras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lab-cameras button[aria-pressed='true'] {
+  outline: 2px solid var(--green);
+}
+
 :root {
   font-family: 'DM Sans', sans-serif;
   color: #203e34;

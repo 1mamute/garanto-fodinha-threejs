@@ -4,7 +4,7 @@ Guidance for coding agents working on Garanto, a 3D multiplayer card game (Three
 
 ## Setup and commands
 
-- Node 22.12+. In this workspace a portable Node lives in `.tools/` (git-ignored): `export PATH="$PWD/.tools/node-v22.23.3-win-x64:$PATH"` (bash) before running npm.
+- Node 22.12+ is installed on the machine and available through the system/user `PATH`. Use the installed `node` and `npm`; verify with `node --version` and `npm --version`. If an existing terminal has a stale `PATH`, reopen it or refresh its environment. In PowerShell, use `npm.cmd` when script execution policy blocks `npm.ps1`.
 - `npm run check` — Prettier check, ESLint, `tsc` for every project, unit tests. **Must pass before you finish.**
 - `npm run format` / `npm run lint:fix` — auto-fix formatting and fixable lint.
 - `npm run build` — production bundle (Vite).
@@ -44,6 +44,7 @@ Guidance for coding agents working on Garanto, a 3D multiplayer card game (Three
 
 ## Workflow tips
 
+- When changing the development inspection scene or its controls, read `docs/sala-de-testes.md` for access, shared modules, movement limits and validation steps.
 - Add or update a unit test in `tests/game.test.ts` for any rule change; use the `startedMatch` / `completeRound` / `seededRandom` helpers from `tests/helpers.ts`.
 - Run `npm run check` after edits; run the integration tests when touching `src/net/` or `worker/`.
 - Do not commit, deploy (`npm run deploy`) or touch Cloudflare secrets unless explicitly asked.

@@ -7,7 +7,7 @@
  */
 import type { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
-import type { CameraMode, Pose } from './types';
+import type { InspectionCameraMode, Pose } from './types';
 
 const DRAG_THRESHOLD_PX = 7;
 const LOOK_SPEED = 0.004;
@@ -22,7 +22,7 @@ const POINTER_PITCH = 0.4;
 
 /** What the input handler needs from the scene. */
 export interface InputTarget {
-  readonly mode: CameraMode;
+  readonly mode: InspectionCameraMode;
   readonly inspected: CardMesh | null;
   readonly rig: CameraRig;
   /** First card under the pointer; `hand` searches the first-person hand instead of the table. */
@@ -174,7 +174,7 @@ export class SceneInput {
     }
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > DRAG_THRESHOLD_PX)
       drag.moved = true;
-    if (this.target.mode === 'first') this.dragFirstPerson(drag, event);
+    if (this.target.mode === 'first' || this.target.mode === 'third') this.dragFirstPerson(drag, event);
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
   }
@@ -230,6 +230,11 @@ export class SceneInput {
   }
 
   private wheel(event: WheelEvent): void {
+    if (this.target.mode === 'third') {
+      event.preventDefault();
+      this.target.rig.addOrbitZoom(event.deltaY * WHEEL_ZOOM);
+      return;
+    }
     if (this.target.mode !== 'top') return;
     event.preventDefault();
     this.target.rig.addZoom(event.deltaY * WHEEL_ZOOM);

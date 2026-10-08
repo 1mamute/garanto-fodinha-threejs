@@ -30,7 +30,10 @@ export class Robot {
   seatedAt = nowSeconds();
   diedAt: number | null = null;
 
-  constructor(readonly color: string) {
+  constructor(
+    readonly color: string,
+    private readonly posture: 'seated' | 'standing' = 'seated',
+  ) {
     const paint = material(color, { roughness: 0.48 });
     this.body = mesh(
       new THREE.CylinderGeometry(TORSO_RADIUS, 0.46, 0.62, 32),
@@ -98,16 +101,21 @@ export class Robot {
 
   private buildLegs(paint: THREE.Material): void {
     for (const x of [-0.2, 0.2]) {
-      mesh(new THREE.CylinderGeometry(0.13, 0.075, 0.51, 20), paint, this.group, [x, 0.45, 0.13]).rotation.x =
-        -0.35;
+      const standing = this.posture === 'standing';
+      const length = standing ? 0.93 : 0.51;
+      mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, this.group, [
+        x,
+        standing ? 0.515 : 0.45,
+        standing ? 0 : 0.13,
+      ]).rotation.x = standing ? 0 : -0.35;
     }
   }
 
   private buildArms(paint: THREE.Material): void {
     const leftArm = new THREE.Group();
     this.group.add(leftArm, this.rightArm);
-    buildArm(leftArm, paint, -1);
-    buildArm(this.rightArm, paint, 1);
+    buildArm(leftArm, paint, -1, this.posture);
+    buildArm(this.rightArm, paint, 1, this.posture);
   }
 
   /**
@@ -157,12 +165,18 @@ export class Robot {
   }
 }
 
-function buildArm(arm: THREE.Group, paint: THREE.Material, side: number): void {
+function buildArm(
+  arm: THREE.Group,
+  paint: THREE.Material,
+  side: number,
+  posture: 'seated' | 'standing',
+): void {
   const upper = sphere(arm, paint, 0.16, { at: [side * 0.53, 1.3, 0.06], scale: [0.8, 1.85, 0.9] });
   upper.rotation.z = side * 0.3;
   const forearm = new THREE.Group();
-  forearm.position.set(side * 0.56, 1.12, 0.25);
-  forearm.rotation.x = -1.2;
+  const standing = posture === 'standing';
+  forearm.position.set(side * 0.56, standing ? 0.99 : 1.12, standing ? 0.06 : 0.25);
+  forearm.rotation.x = standing ? 0 : -1.2;
   arm.add(forearm);
   mesh(new THREE.CylinderGeometry(0.09, 0.065, 0.38, 20), paint, forearm);
   mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.065, 20), paint, forearm, [0, -0.18, 0]);

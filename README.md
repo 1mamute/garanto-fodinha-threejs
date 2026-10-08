@@ -15,13 +15,6 @@ Abra **http://localhost:8787**. O mesmo endereço serve o jogo e o serviço de s
 
 Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto e execute `npm run dev` em outro terminal. Abra **http://localhost:5173**; Vite encaminha `/api` para o Worker local.
 
-Neste workspace também há um Node portátil em `.tools` (ignorado pelo Git). Para usá-lo no PowerShell, sem instalar globalmente:
-
-```powershell
-$env:PATH = "$((Resolve-Path .tools/node-v22.23.3-win-x64).Path);$env:PATH"
-npm.cmd run dev:cloudflare
-```
-
 ## Jogar
 
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
@@ -64,6 +57,10 @@ Sem configurar TURN, STUN e conexões diretas funcionam nas redes compatíveis, 
 Para testar localmente, copie `.dev.vars.example` para `.dev.vars` e preencha os dois valores. Esse arquivo está ignorado pelo Git.
 
 Cloudflare anuncia uma franquia mensal compartilhada de 1.000 GB para TURN/SFU; há cobrança excedente. Consulte os [preços oficiais](https://developers.cloudflare.com/realtime/sfu/platform/pricing/) e os requisitos da sua conta. Detalhes das alternativas e custos: [pesquisa de infraestrutura](docs/pesquisa-multiplayer.md).
+
+## Laboratório de cena
+
+Com `npm run dev`, abra `http://localhost:5173/?scene=lab` para inspecionar a sala, iluminação, robôs e cartas do jogo em uma cena local exclusiva de desenvolvimento. Ela inclui uma rodada congelada, um robô imóvel em pé e um robô controlável com a caminhada dos eliminados, além de câmeras em primeira pessoa, terceira pessoa e vista superior. Acesso, controles e manutenção estão em [docs/sala-de-testes.md](docs/sala-de-testes.md).
 
 ## Verificar
 
