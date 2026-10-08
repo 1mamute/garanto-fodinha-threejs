@@ -18,7 +18,7 @@ import { TableCards, type Seat } from './tableCards';
 import type { InspectionCameraMode } from './types';
 
 const SEAT_RADIUS = 3.35;
-const MODES = ['first', 'third', 'top'] as const;
+const MODES = ['first', 'top', 'third'] as const;
 const MODE_LABELS = {
   first: 'Primeira pessoa',
   third: 'Terceira pessoa',
