@@ -36,7 +36,8 @@ O corpo gira suavemente na direção do deslocamento efetivo, incluindo diagonai
 
 - Posição inicial do personagem: `(0, 0, 5.5)`; altura da câmera do observador: 2 unidades.
 - Velocidade: 2,7 unidades por segundo, com diagonais normalizadas e direção relativa à orientação horizontal da câmera.
-- Área permitida: anel entre os raios de 3 e 10,5 unidades ao redor da mesa. Passos que saiam desse anel são rejeitados, como no jogo.
+- Sala com diâmetro de 27 unidades; piso, paredes e painéis usam o mesmo raio de 13,5 unidades.
+- Área permitida: anel entre os raios de 3 e 12 unidades ao redor da mesa, mantendo 1,5 unidade de distância das paredes. Passos que saiam desse anel são rejeitados, como no jogo.
 - Sem colisões adicionais com objetos, salto ou voo. A câmera de terceira pessoa também não resolve colisões com a geometria.
 
 O laboratório serve para avaliar o deslocamento dos eliminados sem iniciar uma partida. Eliminação, sincronização de posições, migração de host e reconexão devem ser verificadas nos testes do jogo e da rede. A iluminação é ajustada no código; não há painel de edição de luzes.
@@ -52,6 +53,7 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/environment.ts` | Renderer, neblina e iluminação compartilhados com a cena principal. |
 | `src/scene/room.ts`, `robot.ts`, `cards.ts` e `hands.ts` | Recursos gráficos compartilhados; altere aqui para atualizar as duas cenas. |
 | `src/scene/cameraRig.ts` | Caminhada compartilhada, órbita e posicionamento das câmeras. |
+| `src/scene/roomDimensions.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
 | `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
 | `src/scene/input.ts`, `mouseLook.ts` e `src/ui/joystick.ts` | Controles compartilhados com o jogo. |
 | `src/scene/types.ts` | `InspectionCameraMode` acrescenta `third` aos modos do jogo. |

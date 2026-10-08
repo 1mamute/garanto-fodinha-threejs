@@ -60,7 +60,10 @@ test('as duas perspectivas preservam os limites de caminhada do observador', () 
     rig.keys.clear();
     rig.keys.add('KeyS');
     advance(rig, mode);
-    assert.equal(rig.spectatorPosition.z, 10.49);
+    assert.ok(Math.hypot(rig.spectatorPosition.x, rig.spectatorPosition.z) > 10.5);
+    rig.spectatorPosition.set(0, 2, 11.99);
+    advance(rig, mode);
+    assert.equal(rig.spectatorPosition.z, 11.99);
   }
 });
 

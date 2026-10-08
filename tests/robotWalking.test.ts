@@ -85,7 +85,7 @@ test('parar suaviza os passos e movimentos bloqueados não iniciam caminhada', (
   assert.ok(state.robot.group.position.y < movingHeight);
   for (let i = 0; i < 120; i++) step(state);
   assert.ok(state.robot.group.position.y < 1e-8);
-  state.rig.spectatorPosition.set(0, 2, 10.49);
+  state.rig.spectatorPosition.set(0, 2, 11.99);
   const blocked = new RobotWalking(state.robot, state.rig.spectatorPosition);
   state.rig.keys.add('KeyS');
   state.rig.update(0.05, 1, { mode: 'third', observer: true, seat: null, inspected: null });
