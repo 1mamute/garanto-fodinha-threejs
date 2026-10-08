@@ -7,7 +7,7 @@
  * to pass through zero when switching between opposite up vectors, which flipped the view.)
  */
 import * as THREE from 'three';
-import type { CameraMode } from './types';
+import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
@@ -22,7 +22,7 @@ const NARROW_SCREEN_PX = 700;
 
 /** What the rig needs to know about the game for this frame. */
 export interface FrameContext {
-  mode: CameraMode;
+  mode: InspectionCameraMode;
   /** Card being inspected from above, if any. */
   inspected: THREE.Object3D | null;
   /** Watching instead of playing: walks freely and has no robot. */
@@ -38,6 +38,7 @@ export class CameraRig {
   pitch = -0.12;
   /** Height of the top view; changed by the wheel and pinch. */
   zoom = 13;
+  orbitDistance = 4;
   readonly spectatorPosition = new THREE.Vector3(0, 2, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
   readonly joystick = { x: 0, y: 0 };
@@ -63,6 +64,10 @@ export class CameraRig {
     this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, MAX_ZOOM);
   }
 
+  addOrbitZoom(delta: number): void {
+    this.orbitDistance = THREE.MathUtils.clamp(this.orbitDistance + delta, 0.7, 8);
+  }
+
   resize(aspect: number): void {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
@@ -85,7 +90,23 @@ export class CameraRig {
     if (context.mode === 'landing') this.aimLanding();
     else if (context.inspected?.parent) this.aimInspection(context.inspected);
     else if (context.mode === 'top') this.aimTop(seatAngle);
+    else if (context.mode === 'third') this.aimThirdPerson(deltaSeconds);
     else this.aimFirstPerson(deltaSeconds, seatAngle, context);
+  }
+
+  private aimThirdPerson(deltaSeconds: number): void {
+    this.walk(deltaSeconds, 0);
+    this.lookTarget.copy(this.spectatorPosition).setY(1.3);
+    const horizontal = Math.cos(this.pitch) * this.orbitDistance;
+    this.positionTarget
+      .copy(this.lookTarget)
+      .add(
+        new THREE.Vector3(
+          Math.sin(this.yaw) * horizontal,
+          -Math.sin(this.pitch) * this.orbitDistance,
+          Math.cos(this.yaw) * horizontal,
+        ),
+      );
   }
 
   /** Home screen: the table seen from a corner, shifted so the menu does not cover it. */

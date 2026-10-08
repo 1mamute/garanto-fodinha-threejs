@@ -15,13 +15,6 @@ Abra **http://localhost:8787**. O mesmo endereço serve o jogo e o serviço de s
 
 Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto e execute `npm run dev` em outro terminal. Abra **http://localhost:5173**; Vite encaminha `/api` para o Worker local.
 
-Neste workspace também há um Node portátil em `.tools` (ignorado pelo Git). Para usá-lo no PowerShell, sem instalar globalmente:
-
-```powershell
-$env:PATH = "$((Resolve-Path .tools/node-v22.23.3-win-x64).Path);$env:PATH"
-npm.cmd run dev:cloudflare
-```
-
 ## Jogar
 
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
@@ -29,7 +22,7 @@ npm.cmd run dev:cloudflare
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.
 - Na primeira pessoa, arraste cartas para ordenar; arraste para cima para jogar. Também pode selecionar a carta e usar o botão de jogar. Arraste a área livre para olhar.
 - **Espaço** alterna entre primeira pessoa e visão de cima. Nesta última, a mão fica bloqueada. Use a roda do mouse ou pinça para zoom; passe o mouse por dois segundos ou toque prolongadamente para inspecionar cartas e vazas coletadas. **ESC** ou clique fora encerra a inspeção.
-- Eliminados podem ver todas as mãos e passear usando **WASD** ou o joystick no celular. Toque no nome de um jogador para consultar sua mão como espectador.
+- Eliminados podem ver todas as mãos e passear em primeira pessoa: no computador, use **WASD** e clique na cena para capturar o mouse e olhar como em um FPS (**Esc** libera o cursor); no celular, use o joystick para andar e arraste na cena para olhar. Toque no nome de um jogador para consultar sua mão como espectador.
 - Participantes que chegam durante uma partida entram como espectadores. Use o chat para conversar.
 - Desconexão pausa a mesa por três minutos. Expirado o prazo, o jogador é eliminado, a rodada atual é cancelada e redistribuída, sem penalidade de vidas aos demais. A quantidade de cartas e o modo são mantidos; kicker e mãos são sorteados novamente.
 - O host é transferido automaticamente para um participante conectado. O antigo host pode voltar como jogador. Recarregue a página e use **Retomar minha sala** na mesma aba; a sessão e o último estado recebido são guardados no armazenamento da aba.
@@ -64,6 +57,10 @@ Sem configurar TURN, STUN e conexões diretas funcionam nas redes compatíveis, 
 Para testar localmente, copie `.dev.vars.example` para `.dev.vars` e preencha os dois valores. Esse arquivo está ignorado pelo Git.
 
 Cloudflare anuncia uma franquia mensal compartilhada de 1.000 GB para TURN/SFU; há cobrança excedente. Consulte os [preços oficiais](https://developers.cloudflare.com/realtime/sfu/platform/pricing/) e os requisitos da sua conta. Detalhes das alternativas e custos: [pesquisa de infraestrutura](docs/pesquisa-multiplayer.md).
+
+## Laboratório de cena
+
+Com `npm run dev`, abra `http://localhost:5173/?scene=lab` para inspecionar a sala, iluminação, robôs e cartas do jogo em uma cena local exclusiva de desenvolvimento. Ela inclui uma rodada congelada, um robô imóvel em pé e um robô controlável com a caminhada dos eliminados, além de câmeras em primeira pessoa, terceira pessoa e vista superior. Acesso, controles e manutenção estão em [docs/sala-de-testes.md](docs/sala-de-testes.md).
 
 ## Verificar
 

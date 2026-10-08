@@ -7,6 +7,7 @@ import { findPlayer, type GameState, type Player } from '../game';
 import { CameraRig, MAX_PITCH, MIN_PITCH } from './cameraRig';
 import type { CardMesh } from './cards';
 import { demoState } from './demo';
+import { createRenderer, createScene } from './environment';
 import { animateFan, FirstPersonHands, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { disposeMaterials, smoothing, TAU } from './primitives';
@@ -41,7 +42,7 @@ export class TableScene implements InputTarget {
   inspected: CardMesh | null = null;
 
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly scene = new THREE.Scene();
+  private readonly scene = createScene();
   private readonly world = new THREE.Group();
   private readonly room: RoomProps;
   private readonly seats = new Map<string, SeatProps>();
@@ -63,8 +64,7 @@ export class TableScene implements InputTarget {
     private readonly callbacks: SceneCallbacks,
   ) {
     this.renderer = createRenderer(canvas);
-    this.scene.fog = new THREE.Fog('#d9d1bb', 17, 31);
-    this.scene.add(this.rig.camera, this.world, ...createLights());
+    this.scene.add(this.rig.camera, this.world);
     this.room = buildRoom(this.world);
     this.tableCards = new TableCards(this.world);
     this.firstPerson = new FirstPersonHands(this.rig.camera);
@@ -83,6 +83,10 @@ export class TableScene implements InputTarget {
 
   demo(): void {
     this.setState(demoState(), null);
+  }
+
+  get freeLook(): boolean {
+    return this.mode === 'first' && isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
   }
 
   setState(state: GameState, myId: string | null): void {
@@ -333,22 +337,4 @@ function updateRobot(
   const played = change.state.table.find(entry => entry.playerId === player.id);
   const alreadyShown = change.previous?.table.some(entry => entry.card.id === played?.card.id);
   if (played && !alreadyShown) robot.playedAt = now;
-}
-
-function createRenderer(canvas: HTMLCanvasElement): THREE.WebGLRenderer {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
-  // Touch screens and small windows render at a lower resolution to stay smooth.
-  const lowPower = innerWidth < NARROW_SCREEN_PX || matchMedia('(pointer:coarse)').matches;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, lowPower ? 1.25 : 1.75));
-  renderer.setClearColor('#dfd7bf');
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  return renderer;
-}
-
-function createLights(): THREE.Light[] {
-  const sun = new THREE.DirectionalLight('#fff1cc', 3);
-  sun.position.set(3, 9, 5);
-  const rim = new THREE.DirectionalLight('#87bfb3', 1.3);
-  rim.position.set(-5, 4, -5);
-  return [new THREE.HemisphereLight('#fff3d1', '#647569', 2.5), sun, rim];
 }

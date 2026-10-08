@@ -6,6 +6,9 @@ export type { Pose };
 /** `landing` is the home screen fly-over; `first` sits in the player's robot; `top` looks down. */
 export type CameraMode = 'landing' | 'first' | 'top';
 
+/** Third person is only exposed by the development laboratory. */
+export type InspectionCameraMode = CameraMode | 'third';
+
 /** What the UI shows about a card the player is inspecting from above. */
 export interface CardInspection {
   card: Card;

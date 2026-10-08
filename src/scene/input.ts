@@ -1,13 +1,15 @@
 /**
  * Pointer and keyboard input on the 3D canvas.
  *
- * First person: dragging empty space looks around; dragging a card of your hand up plays it,
+ * First-person walking uses pointer lock on desktop and touch drags on mobile.
+ * Seated players: dragging empty space looks around; dragging a card of your hand up plays it,
  * sideways reorders it. Top view: clicking (or hovering/holding for 2 s) a card inspects it,
  * the wheel or a pinch zooms.
  */
 import type { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
-import type { CameraMode, Pose } from './types';
+import { MouseLook } from './mouseLook';
+import type { InspectionCameraMode, Pose } from './types';
 
 const DRAG_THRESHOLD_PX = 7;
 const LOOK_SPEED = 0.004;
@@ -22,9 +24,11 @@ const POINTER_PITCH = 0.4;
 
 /** What the input handler needs from the scene. */
 export interface InputTarget {
-  readonly mode: CameraMode;
+  readonly mode: InspectionCameraMode;
   readonly inspected: CardMesh | null;
   readonly rig: CameraRig;
+  /** First-person walking, in contrast to playing cards at a seat. */
+  readonly freeLook: boolean;
   /** First card under the pointer; `hand` searches the first-person hand instead of the table. */
   pick(clientX: number, clientY: number, hand: boolean): CardMesh | undefined;
   inspect(card: CardMesh): void;
@@ -54,11 +58,21 @@ export class SceneInput {
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private pinchDistance: number | null = null;
   private readonly pointerLook = { yaw: 0, pitch: 0 };
+  private readonly mouseLook: MouseLook;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly target: InputTarget,
   ) {
+    this.mouseLook = new MouseLook({
+      canvas,
+      rig: target.rig,
+      enabled: () => target.freeLook,
+      onUnlock: () => {
+        target.rig.keys.clear();
+        this.resetPointerLook();
+      },
+    });
     canvas.addEventListener('pointerdown', event => {
       this.press(event);
     });
@@ -87,6 +101,8 @@ export class SceneInput {
     window.addEventListener('keyup', event => target.rig.keys.delete(event.code));
     window.addEventListener('blur', () => {
       target.rig.keys.clear();
+      target.rig.joystick.x = 0;
+      target.rig.joystick.y = 0;
       this.drag = null;
       this.pointers.clear();
       this.resetPointerLook();
@@ -111,6 +127,7 @@ export class SceneInput {
   }
 
   private updatePointerLook(event: PointerEvent): void {
+    if (this.mouseLook.enabled) return;
     if (event.pointerType !== 'mouse') return;
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -122,6 +139,7 @@ export class SceneInput {
 
   /** Inspects a card after the pointer rested on it, or held it down, long enough. */
   checkLongPress(now: number): void {
+    this.mouseLook.sync();
     if (this.hover && now - this.hover.since > HOLD_TO_INSPECT_MS) this.target.inspect(this.hover.card);
     const drag = this.drag;
     if (
@@ -139,6 +157,7 @@ export class SceneInput {
   }
 
   private press(event: PointerEvent): void {
+    if (this.mouseLook.press(event)) return;
     const { target } = this;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.canvas.setPointerCapture(event.pointerId);
@@ -159,6 +178,7 @@ export class SceneInput {
   }
 
   private move(event: PointerEvent): void {
+    if (this.mouseLook.active) return;
     this.updatePointerLook(event);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (this.pointers.size === 2) {
@@ -174,7 +194,7 @@ export class SceneInput {
     }
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > DRAG_THRESHOLD_PX)
       drag.moved = true;
-    if (this.target.mode === 'first') this.dragFirstPerson(drag, event);
+    if (this.target.mode === 'first' || this.target.mode === 'third') this.dragFirstPerson(drag, event);
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
   }
@@ -230,6 +250,11 @@ export class SceneInput {
   }
 
   private wheel(event: WheelEvent): void {
+    if (this.target.mode === 'third') {
+      event.preventDefault();
+      this.target.rig.addOrbitZoom(event.deltaY * WHEEL_ZOOM);
+      return;
+    }
     if (this.target.mode !== 'top') return;
     event.preventDefault();
     this.target.rig.addZoom(event.deltaY * WHEEL_ZOOM);
