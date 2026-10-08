@@ -174,7 +174,7 @@ export class Robot {
     this.animateDeath(time);
   }
 
-  /** Track a world-space target with the head only; null smoothly restores a neutral look. */
+  /** Track a world-space target through a full horizontal turn; null restores a neutral look. */
   lookAt(target: THREE.Vector3 | null, blend: number): void {
     let pose: Pose = { yaw: 0, pitch: 0 };
     if (target) {
@@ -185,22 +185,23 @@ export class Robot {
         pitch: Math.atan2(direction.y, Math.hypot(direction.x, direction.z)),
       };
     }
-    this.animateHead(pose, blend);
+    this.animateHead(pose, blend, true);
   }
 
-  private animateHead(pose: Pose, blend: number): void {
+  private animateHead(pose: Pose, blend: number, fullTurn = false): void {
     const { head } = this;
-    const yaw = THREE.MathUtils.clamp(
-      Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw)),
-      -MAX_HEAD_YAW,
-      MAX_HEAD_YAW,
-    );
+    const normalizedYaw = Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw));
+    const yaw = fullTurn ? normalizedYaw : THREE.MathUtils.clamp(normalizedYaw, -MAX_HEAD_YAW, MAX_HEAD_YAW);
     const pitch = THREE.MathUtils.clamp(pose.pitch, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, yaw, blend);
+    const difference = yaw - head.rotation.y;
+    // Unwrap behind the robot so crossing +/- PI continues the turn instead of reversing it.
+    const turn = fullTurn ? Math.atan2(Math.sin(difference), Math.cos(difference)) : difference;
+    head.rotation.y += turn * blend;
     head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
     for (const eye of this.eyes) {
       // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
-      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, yaw * 0.35, blend);
+      // Full-turn tracking aligns the eyes with the head, avoiding sideways pupils at the back.
+      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, fullTurn ? 0 : yaw * 0.35, blend);
       eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
     }
   }

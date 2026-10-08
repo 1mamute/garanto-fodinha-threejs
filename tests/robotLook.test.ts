@@ -48,14 +48,56 @@ test('desligar o acompanhamento restaura suavemente a posição neutra da cabeç
   assert.ok(head.quaternion.angleTo(new THREE.Quaternion()) < 1e-6);
 });
 
-test('alvos atrás ou acima respeitam os limites do pescoço e nunca giram o corpo', () => {
+test('alvos acima respeitam o limite vertical e nunca giram o corpo', () => {
   const robot = new Robot('#c38e67', 'standing');
   const head = headOf(robot);
   robot.lookAt(new THREE.Vector3(1, 10, -2), 1);
-  assert.ok(head.rotation.y > 0 && head.rotation.y < Math.PI / 2);
+  assert.ok(head.rotation.y > Math.PI / 2);
   assert.ok(head.rotation.x < 0 && head.rotation.x > -Math.PI / 2);
   assert.ok(robot.group.quaternion.angleTo(new THREE.Quaternion()) < 1e-7);
   robot.lookAt(head.position.clone(), 1);
   assert.ok(Number.isFinite(head.rotation.x));
   assert.ok(Number.isFinite(head.rotation.y));
+});
+
+test('a cabeça acompanha uma volta completa em ambos os sentidos sem girar o corpo', () => {
+  for (const sign of [-1, 1]) {
+    const robot = new Robot('#c38e67', 'standing');
+    const head = headOf(robot);
+    for (let i = 0; i <= 72; i++) {
+      const angle = (sign * i * Math.PI) / 36;
+      const target = head.position
+        .clone()
+        .add(new THREE.Vector3(Math.sin(angle) * 2, 0, Math.cos(angle) * 2));
+      robot.lookAt(target, 1);
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(head.quaternion);
+      const expected = target.clone().sub(head.position).normalize();
+      assert.ok(forward.angleTo(expected) < 1e-7, `Falha ao acompanhar o ângulo ${angle}`);
+    }
+    assert.ok(robot.group.quaternion.angleTo(new THREE.Quaternion()) < 1e-7);
+  }
+});
+
+test('passar atrás do robô mantém o giro suave pelo arco curto', () => {
+  for (const sign of [-1, 1]) {
+    const robot = new Robot('#c38e67', 'standing');
+    const head = headOf(robot);
+    const targetAt = (angle: number): THREE.Vector3 =>
+      head.position.clone().add(new THREE.Vector3(Math.sin(angle) * 2, 0, Math.cos(angle) * 2));
+    robot.lookAt(targetAt(sign * (Math.PI - 0.1)), 1);
+    const before = head.rotation.y;
+    robot.lookAt(targetAt(sign * (Math.PI + 0.1)), smoothing(1 / 60, 7));
+    const change = head.rotation.y - before;
+    assert.ok(change * sign > 0);
+    assert.ok(Math.abs(change) < 0.1);
+    robot.lookAt(null, 1);
+    assert.ok(head.quaternion.angleTo(new THREE.Quaternion()) < 1e-7);
+  }
+});
+
+test('os robôs sentados mantêm o limite horizontal do pescoço', () => {
+  const robot = new Robot('#c38e67');
+  robot.animate(robot.seatedAt + 2, { yaw: Math.PI, pitch: 0 }, 1);
+  const head = headOf(robot);
+  assert.ok(head.rotation.y > 0 && head.rotation.y < Math.PI / 2);
 });
