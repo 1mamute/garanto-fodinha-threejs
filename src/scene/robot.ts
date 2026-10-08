@@ -1,7 +1,15 @@
 /** The little robots sitting around the table, and their idle/play/death animations. */
 import * as THREE from 'three';
 import type { Pose } from './types';
-import { BLACK, DARK, material, mesh, sphere, tube, WHITE } from './primitives';
+import { BLACK, DARK, material, mesh, sphere, WHITE } from './primitives';
+
+const MAX_HEAD_YAW = 1.05;
+const MAX_HEAD_PITCH = 0.65;
+const HEAD_RADIUS = 0.47;
+const TORSO_RADIUS = 0.44;
+const HEAD_PIVOT_HEIGHT = 1.65;
+const SHOULDER_RADIUS = 0.43;
+const HEAD_SHELL_OFFSET = 0.24;
 
 /** Seconds since the page loaded; animation start times use the same clock. */
 export function nowSeconds(): number {
@@ -14,7 +22,7 @@ export class Robot {
   readonly hand = new THREE.Group();
   private readonly body: THREE.Mesh;
   private readonly head = new THREE.Group();
-  private readonly eyes = new THREE.Group();
+  private readonly eyes: THREE.Group[] = [];
   private readonly rightArm = new THREE.Group();
   /** When the last card was played, to swing the arm. */
   playedAt = -10;
@@ -23,65 +31,83 @@ export class Robot {
   diedAt: number | null = null;
 
   constructor(readonly color: string) {
-    const paint = material(color);
-    this.body = sphere(this.group, paint, 0.49, { at: [0, 1.25, 0], scale: [0.9, 1.12, 0.77] });
-    mesh(new THREE.CylinderGeometry(0.4, 0.44, 0.18, 18), paint, this.group, [0, 0.93, 0]);
+    const paint = material(color, { roughness: 0.48 });
+    this.body = mesh(
+      new THREE.CylinderGeometry(TORSO_RADIUS, 0.46, 0.62, 32),
+      paint,
+      this.group,
+      [0, 1.27, 0],
+    );
+    mesh(
+      new THREE.SphereGeometry(0.47, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      paint,
+      this.group,
+      [0, 0.98, 0],
+    ).scale.y = 0.8;
+    mesh(new THREE.CylinderGeometry(0.475, 0.475, 0.045, 32), paint, this.group, [0, 0.98, 0]);
+    mesh(new THREE.CylinderGeometry(SHOULDER_RADIUS, SHOULDER_RADIUS, 0.15, 32), paint, this.group, [
+      0,
+      HEAD_PIVOT_HEIGHT,
+      0,
+    ]);
+    // A broad socket fills the raised side of the seam when the head tilts.
+    mesh(
+      new THREE.SphereGeometry(SHOULDER_RADIUS, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+      paint,
+      this.group,
+      [0, HEAD_PIVOT_HEIGHT, 0],
+    );
     this.buildHead(paint);
-    this.buildLegs();
-    this.buildArms();
+    this.buildLegs(paint);
+    this.buildArms(paint);
     this.hand.position.set(-0.5, 1.35, 0.53);
     this.hand.rotation.x = 0.55;
     this.group.add(this.hand);
   }
 
   private buildHead(paint: THREE.Material): void {
-    const head = this.head;
-    head.position.y = 1.96;
-    this.group.add(head);
-    sphere(head, paint, 0.51, { at: [0, 0, 0], scale: [1.12, 0.8, 0.84] });
-    head.add(this.eyes);
+    const head = new THREE.Group();
+    // Bury the pivot in the shoulders so the shell rests directly on the torso.
+    this.head.position.y = HEAD_PIVOT_HEIGHT;
+    head.position.y = HEAD_SHELL_OFFSET;
+    this.group.add(this.head);
+    this.head.add(head);
+    mesh(
+      new THREE.SphereGeometry(HEAD_RADIUS, 32, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+      paint,
+      head,
+      [0, 0.03, 0],
+    );
+    mesh(new THREE.CylinderGeometry(HEAD_RADIUS, HEAD_RADIUS, 0.23, 32), paint, head, [0, -0.085, 0]);
+    // A fixed dark underside suggests the reference's mouth seam without a talking jaw.
+    mesh(
+      new THREE.CylinderGeometry(HEAD_RADIUS - 0.005, HEAD_RADIUS - 0.005, 0.018, 32),
+      DARK,
+      head,
+      [0, -0.205, 0],
+    );
+    for (const x of [-0.235, 0.235]) {
+      const eye = new THREE.Group();
+      eye.position.set(x, 0.17, 0.405);
+      head.add(eye);
+      sphere(eye, WHITE, 0.19, { at: [0, 0, 0], scale: [1, 1.05, 0.85] });
+      sphere(eye, BLACK, 0.06, { at: [0, 0, 0.157], scale: [1, 1.1, 0.35] });
+      this.eyes.push(eye);
+    }
+  }
+
+  private buildLegs(paint: THREE.Material): void {
     for (const x of [-0.2, 0.2]) {
-      sphere(this.eyes, WHITE, 0.165, { at: [x, 0.015, 0.36], scale: [0.9, 1.1, 0.5] });
-      sphere(this.eyes, BLACK, 0.075, { at: [x, 0.018, 0.435], scale: [0.85, 1.1, 0.38] });
-    }
-    // Off-center antenna and bolts give the little robots their own silhouette.
-    mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.26, 8), DARK, head, [0.25, 0.43, 0]).rotation.z = -0.35;
-    sphere(head, material('#edc66e'), 0.08, { at: [0.29, 0.58, 0] });
-    for (const x of [-0.54, 0.54]) sphere(head, DARK, 0.095, { at: [x, 0, 0], scale: [0.4, 1, 1] });
-    mesh(new THREE.BoxGeometry(0.18, 0.035, 0.03), BLACK, head, [0, -0.22, 0.39]).rotation.z = -0.12;
-  }
-
-  private buildLegs(): void {
-    for (const x of [-0.25, 0.25]) {
-      mesh(new THREE.CylinderGeometry(0.095, 0.11, 0.37, 8), DARK, this.group, [x, 0.58, 0.1]).rotation.x =
-        -0.7;
-      sphere(this.group, DARK, 0.17, { at: [x, 0.35, 0.25], scale: [1, 0.65, 1.5] });
+      mesh(new THREE.CylinderGeometry(0.13, 0.075, 0.51, 20), paint, this.group, [x, 0.45, 0.13]).rotation.x =
+        -0.35;
     }
   }
 
-  private buildArms(): void {
+  private buildArms(paint: THREE.Material): void {
     const leftArm = new THREE.Group();
     this.group.add(leftArm, this.rightArm);
-    tube(
-      leftArm,
-      [
-        [-0.4, 1.5, 0],
-        [-0.75, 1.28, 0.12],
-        [-0.57, 1.28, 0.48],
-      ],
-      DARK,
-    );
-    tube(
-      this.rightArm,
-      [
-        [0.4, 1.5, 0],
-        [0.74, 1.17, 0.13],
-        [0.53, 1.21, 0.55],
-      ],
-      DARK,
-    );
-    buildGlove(leftArm, -0.57);
-    buildGlove(this.rightArm, 0.53);
+    buildArm(leftArm, paint, -1);
+    buildArm(this.rightArm, paint, 1);
   }
 
   /**
@@ -91,11 +117,21 @@ export class Robot {
   animate(time: number, pose: Pose | undefined, blend: number): void {
     const { group, head } = this;
     const idleYaw = Math.sin(time * 0.6 + group.position.x) * 0.13;
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, pose?.yaw ?? idleYaw, blend);
-    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -(pose?.pitch ?? 0), blend);
-    this.eyes.rotation.x = -(pose?.pitch ?? 0) * 0.2;
+    const yaw = THREE.MathUtils.clamp(
+      Math.atan2(Math.sin(pose?.yaw ?? idleYaw), Math.cos(pose?.yaw ?? idleYaw)),
+      -MAX_HEAD_YAW,
+      MAX_HEAD_YAW,
+    );
+    const pitch = THREE.MathUtils.clamp(pose?.pitch ?? 0, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
+    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, yaw, blend);
+    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
+    for (const eye of this.eyes) {
+      // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
+      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, yaw * 0.35, blend);
+      eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
+    }
     // Breathing.
-    this.body.scale.y = 1.12 + Math.sin(time * 2 + group.position.x) * 0.025;
+    this.body.scale.y = 1 + Math.sin(time * 2 + group.position.x) * 0.012;
     // Swing the right arm for ~1 s after playing a card.
     const swing = Math.sin(Math.max(0, 1 - (time - this.playedAt) / 1.1) * Math.PI);
     this.rightArm.rotation.x = -swing * 0.8;
@@ -121,11 +157,14 @@ export class Robot {
   }
 }
 
-function buildGlove(arm: THREE.Group, x: number): void {
-  const glove = sphere(arm, WHITE, 0.15, { at: [x, 1.28, 0.49], scale: [1.1, 0.7, 1.1] });
-  glove.rotation.z = x < 0 ? -0.4 : 0.4;
-  // Thumb, then three fingers.
-  sphere(arm, WHITE, 0.07, { at: [x + (x < 0 ? 0.12 : -0.12), 1.29, 0.57] });
-  for (let finger = 0; finger < 3; finger++)
-    sphere(arm, WHITE, 0.045, { at: [x - 0.07 + finger * 0.06, 1.25, 0.62], scale: [1, 1, 1.5] });
+function buildArm(arm: THREE.Group, paint: THREE.Material, side: number): void {
+  const upper = sphere(arm, paint, 0.16, { at: [side * 0.53, 1.3, 0.06], scale: [0.8, 1.85, 0.9] });
+  upper.rotation.z = side * 0.3;
+  const forearm = new THREE.Group();
+  forearm.position.set(side * 0.56, 1.12, 0.25);
+  forearm.rotation.x = -1.2;
+  arm.add(forearm);
+  mesh(new THREE.CylinderGeometry(0.09, 0.065, 0.38, 20), paint, forearm);
+  mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.065, 20), paint, forearm, [0, -0.18, 0]);
+  sphere(forearm, paint, 0.1, { at: [0, -0.23, 0], scale: [1, 0.65, 1] });
 }

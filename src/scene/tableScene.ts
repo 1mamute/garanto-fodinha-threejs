@@ -298,16 +298,16 @@ export class TableScene implements InputTarget {
       const mine = playerId === this.myId;
       robot.group.visible = !(mine && embodied);
       label.visible = robot.group.visible;
-      const pose = mine ? { yaw: this.rig.yaw, pitch: this.rig.pitch } : this.poses.get(playerId);
+      const pose = mine ? this.input.pose : this.poses.get(playerId);
       robot.animate(time, pose, blend);
     }
   }
 
   /** Shares where you look (and walk, as a spectator) a few times per second. */
   private sendPose(time: number, observer: boolean): void {
-    if (this.mode !== 'first' || time - this.lastPoseAt <= POSE_INTERVAL_S) return;
+    if (this.mode === 'landing' || time - this.lastPoseAt <= POSE_INTERVAL_S) return;
     this.lastPoseAt = time;
-    const pose: Pose = { yaw: this.rig.yaw, pitch: this.rig.pitch };
+    const pose = this.input.pose;
     if (observer) pose.position = this.rig.spectatorPosition.toArray();
     this.callbacks.onPose(pose);
   }
