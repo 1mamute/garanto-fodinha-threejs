@@ -14,6 +14,7 @@ import type { CardInspection } from './types';
 /** Golden angle: successive cards spiral out without overlapping much. */
 const GOLDEN_ANGLE = 2.399;
 const KICKER_ROTATION = -0.15;
+const KICKER_CLEARANCE_RADIUS = 0.8;
 
 /** Where a seated robot is, as far as card placement is concerned. */
 export interface Seat {
@@ -31,9 +32,10 @@ interface Placement {
 }
 
 function placeTrick(state: GameState, placements: Map<string, Placement>): void {
+  const baseRadius = state.kicker ? KICKER_CLEARANCE_RADIUS : 0.28;
   state.table.forEach((entry, index) => {
     const angle = index * GOLDEN_ANGLE;
-    const radius = 0.28 + 0.055 * index;
+    const radius = baseRadius + 0.055 * index;
     const position = new THREE.Vector3(
       Math.sin(angle) * radius,
       TABLE_TOP + index * 0.006,
@@ -149,7 +151,7 @@ export class TableCards {
     this.kicker = null;
     if (!kicker) return;
     const card = new CardMesh(kicker);
-    card.position.set(-1.25, TABLE_TOP, -0.3);
+    card.position.set(0, TABLE_TOP, 0);
     card.target.copy(card.position);
     card.rotation.y = card.targetRotation = KICKER_ROTATION;
     card.details = { card: kicker, playerName: 'Kicker da rodada', kicker: true };
