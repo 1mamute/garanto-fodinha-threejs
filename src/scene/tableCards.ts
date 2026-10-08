@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import type { Card, GameState, TableEntry } from '../game';
 import { CardMesh } from './cards';
+import { CARD_SIZE } from './cardGeometry';
 import { TABLE_TOP } from './room';
 import type { CardInspection } from './types';
 
@@ -118,7 +119,7 @@ export class TableCards {
     this.framingBounds.radius = 0;
     this.framingBounds.height = TABLE_TOP;
     for (const card of this.pickable) {
-      const { width, depth, height } = card.geometry.parameters;
+      const { width, depth, height } = CARD_SIZE;
       // The circumradius fits every rotation of the card, including during its animation.
       const radius = Math.hypot(card.target.x, card.target.z) + Math.hypot(width, depth) / 2;
       this.framingBounds.radius = Math.max(this.framingBounds.radius, radius);
