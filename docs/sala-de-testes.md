@@ -30,6 +30,8 @@ Trocar a câmera encerra a inspeção, libera as teclas e zera o joystick, prese
 
 Primeira e terceira pessoa reutilizam a caminhada de `CameraRig`, por meio de `spectatorPosition`; o corpo do robô acompanha essa posição no chão.
 
+O corpo gira suavemente na direção do deslocamento efetivo, incluindo diagonais e joystick. Braços, pernas e uma leve oscilação acompanham os passos e voltam suavemente ao repouso quando o personagem para ou encontra um limite. A cabeça acompanha a orientação horizontal e vertical do mouse/toque, preservando o olhar enquanto o corpo gira. Orbitar parado move a cabeça sem girar o corpo.
+
 - Posição inicial do personagem: `(0, 0, 5.5)`; altura da câmera do observador: 2 unidades.
 - Velocidade: 2,7 unidades por segundo, com diagonais normalizadas e direção relativa à orientação horizontal da câmera.
 - Área permitida: anel entre os raios de 3 e 10,5 unidades ao redor da mesa. Passos que saiam desse anel são rejeitados, como no jogo.
@@ -48,10 +50,12 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/environment.ts` | Renderer, neblina e iluminação compartilhados com a cena principal. |
 | `src/scene/room.ts`, `robot.ts`, `cards.ts` e `hands.ts` | Recursos gráficos compartilhados; altere aqui para atualizar as duas cenas. |
 | `src/scene/cameraRig.ts` | Caminhada compartilhada, órbita e posicionamento das câmeras. |
+| `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
 | `src/scene/input.ts`, `mouseLook.ts` e `src/ui/joystick.ts` | Controles compartilhados com o jogo. |
 | `src/scene/types.ts` | `InspectionCameraMode` acrescenta `third` aos modos do jogo. |
 | `src/style.css` | Aparência do painel e do aviso de captura. |
 | `tests/cameraRig.test.ts` | Equivalência entre perspectivas e entre teclado/joystick, diagonais, limites e órbita. |
+| `tests/robotWalking.test.ts` | Suavidade do giro, olhar independente, passos, parada e equivalência entre taxas de quadros. |
 
 ## Validação específica
 
@@ -59,7 +63,7 @@ Use os comandos de [Verificar no README](../README.md#verificar). No laboratóri
 
 1. Confirme a câmera inicial e a composição congelada.
 2. Confira a caminhada e a captura/liberação do mouse no computador. No celular, use joystick e giro simultaneamente; soltar o joystick deve parar apenas a caminhada.
-3. Alterne para terceira pessoa e confira órbita, zoom e corpo do robô controlado.
+3. Alterne para terceira pessoa e confira órbita, zoom, giro suave do corpo e passos em WASD/joystick, incluindo diagonais e marcha à ré. Mude a direção sem mover o mouse e confira que a cabeça preserva o olhar; orbite parado e confira que apenas a cabeça gira. Solte os controles e confira o retorno suave ao repouso, também nos limites da sala.
 4. Na vista superior, confira a suspensão da caminhada e a inspeção por clique, incluindo saída com Esc ou clique fora.
 5. Troque as câmeras pelos botões e por espaço, conferindo posição preservada, encerramento da inspeção e joystick zerado.
 6. Confira os controles compartilhados no jogo como observador/eliminado e a manipulação de cartas com cursor livre para jogadores sentados.

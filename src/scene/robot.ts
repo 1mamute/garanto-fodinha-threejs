@@ -24,6 +24,8 @@ export class Robot {
   private readonly head = new THREE.Group();
   private readonly eyes: THREE.Group[] = [];
   private readonly rightArm = new THREE.Group();
+  private readonly leftArm = new THREE.Group();
+  private readonly legs: THREE.Group[] = [];
   /** When the last card was played, to swing the arm. */
   playedAt = -10;
   /** When the robot sat down at the table, for the little hop. */
@@ -72,6 +74,7 @@ export class Robot {
     const head = new THREE.Group();
     // Bury the pivot in the shoulders so the shell rests directly on the torso.
     this.head.position.y = HEAD_PIVOT_HEIGHT;
+    this.head.name = 'head';
     head.position.y = HEAD_SHELL_OFFSET;
     this.group.add(this.head);
     this.head.add(head);
@@ -101,21 +104,51 @@ export class Robot {
 
   private buildLegs(paint: THREE.Material): void {
     for (const x of [-0.2, 0.2]) {
-      const standing = this.posture === 'standing';
-      const length = standing ? 0.93 : 0.51;
-      mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, this.group, [
-        x,
-        standing ? 0.515 : 0.45,
-        standing ? 0 : 0.13,
-      ]).rotation.x = standing ? 0 : -0.35;
+      this.buildLeg(paint, x);
     }
   }
 
+  private buildLeg(paint: THREE.Material, x: number): void {
+    const standing = this.posture === 'standing';
+    const length = standing ? 0.93 : 0.51;
+    const leg = new THREE.Group();
+    leg.position.set(x, standing ? 0.98 : 0, 0);
+    this.group.add(leg);
+    this.legs.push(leg);
+    mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, leg, [
+      0,
+      standing ? -length / 2 : 0.45,
+      standing ? 0 : 0.13,
+    ]).rotation.x = standing ? 0 : -0.35;
+  }
+
   private buildArms(paint: THREE.Material): void {
-    const leftArm = new THREE.Group();
+    const { leftArm } = this;
     this.group.add(leftArm, this.rightArm);
     buildArm(leftArm, paint, -1, this.posture);
     buildArm(this.rightArm, paint, 1, this.posture);
+    if (this.posture === 'standing') {
+      for (const arm of [leftArm, this.rightArm]) {
+        // Swing from the shoulder, rather than orbiting the arm around the floor.
+        arm.position.y = 1.3;
+        for (const child of arm.children) child.position.y -= arm.position.y;
+      }
+    }
+  }
+
+  /** Standing locomotion has its own pose; seated play/death animations stay independent. */
+  animateWalking(phase: number, amount: number, worldLook: THREE.Quaternion): void {
+    const stride = Math.sin(phase) * amount;
+    this.legs.forEach((leg, index) => {
+      leg.rotation.x = stride * (index === 0 ? 0.38 : -0.38);
+    });
+    this.leftArm.rotation.x = -stride * 0.28;
+    this.rightArm.rotation.x = stride * 0.28;
+    this.group.position.y = (1 - Math.cos(phase * 2)) * amount * 0.018;
+    this.group.rotation.z = stride * 0.025;
+    // Cancel the body's full world rotation, including walking sway, to preserve mouse aim.
+    this.group.updateWorldMatrix(true, false);
+    this.group.getWorldQuaternion(this.head.quaternion).invert().multiply(worldLook);
   }
 
   /**

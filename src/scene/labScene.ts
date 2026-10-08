@@ -12,6 +12,7 @@ import { animateFan, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { smoothing, TAU } from './primitives';
 import { Robot } from './robot';
+import { RobotWalking } from './robotWalking';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP } from './room';
 import { TableCards, type Seat } from './tableCards';
 import type { InspectionCameraMode } from './types';
@@ -34,6 +35,7 @@ export class LabScene implements InputTarget {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly tableCards = new TableCards(this.world);
   private readonly controlled = new Robot('#648bc1', 'standing');
+  private readonly walking: RobotWalking;
   private readonly timer = new THREE.Timer();
   private readonly input: SceneInput;
   private readonly raycaster = new THREE.Raycaster();
@@ -45,6 +47,7 @@ export class LabScene implements InputTarget {
     this.renderer = createRenderer(canvas);
     this.scene.add(this.world, this.rig.camera);
     this.populate();
+    this.walking = new RobotWalking(this.controlled, this.rig.spectatorPosition);
     this.input = new SceneInput(canvas, this);
     this.resize();
     window.addEventListener('resize', () => {
@@ -160,10 +163,13 @@ export class LabScene implements InputTarget {
       seat: null,
       inspected: this.inspected,
     });
-    this.controlled.group.position.copy(this.rig.spectatorPosition).setY(0);
+    this.walking.update({
+      position: this.rig.spectatorPosition,
+      yaw: this.rig.yaw,
+      pitch: this.rig.pitch,
+      deltaSeconds,
+    });
     this.controlled.group.visible = this.mode !== 'first';
-    // The avatar faces the direction used by spectator walking; orbiting is independent at rest.
-    if (this.rig.keys.size > 0) this.controlled.group.rotation.y = this.rig.yaw + Math.PI;
     this.input.checkLongPress(performance.now());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
     if (!document.hidden) this.renderer.render(this.scene, this.rig.camera);
