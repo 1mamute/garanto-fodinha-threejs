@@ -68,11 +68,15 @@ Cloudflare anuncia uma franquia mensal compartilhada de 1.000 GB para TURN/SFU; 
 ## Verificar
 
 ```sh
-npm test
+npm run check   # formatação (Prettier), lint (ESLint), tipos (tsc) e testes
 npm run build
 ```
 
-Os testes cobrem ranking/manilhas, ordem do dealer, apostas inválidas, distribuição de 40 cartas, coleta de vazas, vidas, progressão/votação, desconexão e partidas completas de 2 a 10 jogadores.
+- `npm run lint` usa ESLint com `typescript-eslint` estrito e limites de legibilidade: complexidade cognitiva ≤ 10 (`eslint-plugin-sonarjs`), complexidade ciclomática ≤ 12, funções com até 70 linhas, no máximo 4 parâmetros e nomes com 2+ letras.
+- `npm run format` aplica o Prettier; `npm run lint:fix` corrige o que for automático.
+- `npm run typecheck` verifica separadamente navegador, Worker, testes e configuração.
+
+Os testes cobrem ranking/manilhas, ordem do dealer, apostas inválidas, distribuição de 40 cartas, coleta de vazas, vidas, progressão/votação, desconexão, revanche, bots eliminados, partidas completas de 2 a 10 jogadores e o limitador de mensagens do Worker.
 
 O teste de API/WebSocket é opcional e usa o Worker local em execução:
 
@@ -83,19 +87,22 @@ npm test
 
 Em bash: `GARANTO_INTEGRATION_URL=http://localhost:8787 npm test`.
 
-O arquivo `tests/browser.integration.js` executa clientes reais de WebRTC dentro de um navegador, testando migração e reconexão. Com Vite e o Worker abertos, execute na console do navegador:
+O arquivo `tests/browser.integration.ts` executa clientes reais de WebRTC dentro de um navegador, testando migração e reconexão. Com Vite e o Worker abertos, execute na console do navegador:
 
 ```js
-await import('/tests/browser.integration.js').then(m => m.run())
+await import('/tests/browser.integration.ts').then(module => module.run())
 ```
 
 ## Organização e limites
 
-- `src/game.js`: regras e transições de estado, sem interface ou rede.
-- `src/network.js`: sessão, sinalização, WebRTC, eleição anunciada pelo backend e cópias de recuperação.
-- `src/scene.js`: geometria procedural, animações, câmera, cartas, seleção e movimentação.
-- `src/main.js` e `src/style.css`: interface responsiva e controles acessíveis alternativos às cartas 3D.
-- `worker/index.js`: diretório persistente, admissão com senha, WebSockets com hibernação e credenciais TURN.
+Todo o código é TypeScript estrito.
+
+- `src/game/`: regras puras, sem interface ou rede. `applyAction`, `tick` e `reconcilePresence` recebem um estado e devolvem outro; `validate.ts` higieniza estados recebidos de outros navegadores.
+- `src/net/`: sessão (`session.ts`), sinalização por WebSocket, conexões WebRTC (`peers.ts`), mensagens entre pares e cópias de recuperação na aba.
+- `src/scene/`: mesa 3D. `tableScene.ts` coordena; robôs, sala, cartas da mesa, mãos, câmera (`cameraRig.ts`) e entrada (`input.ts`) ficam em módulos próprios.
+- `src/ui/`: controlador (`app.ts`) e telas em `views/`. O HTML é gerado pelo template `html` (escapa tudo por padrão) e aplicado por `morph`, que atualiza só o que mudou e preserva foco, menus abertos e transições.
+- `src/shared/`: tipos do protocolo entre navegador e Worker.
+- `worker/`: Durable Object `Lobby` (salas, admissão com senha, WebSockets com hibernação, eleição de host, credenciais TURN) e limites de uso.
 
 Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular, não usa sombras em tempo real e transmite poses com frequência reduzida. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
 

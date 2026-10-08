@@ -7,18 +7,38 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/*.test.js",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p worker && tsc -p tests && tsc -p tsconfig.node.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
     "dev:cloudflare": "npm run build && wrangler dev --port 8787",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run check && npm run build && wrangler deploy"
   },
   "dependencies": {
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261008.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "@types/three": "^0.186.0",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.1",
     "vite": "^7.1.7",
     "wrangler": "^4.40.0"
   },
   "overrides": {
     "sharp": "0.35.5"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }
