@@ -139,9 +139,9 @@ export class FirstPersonHands {
 
   /** Narrow portrait screens shrink the hands so they stay inside the view. */
   fitTo(aspect: number): void {
-    const scale = Math.min(1, aspect);
+    const scale = aspect < 1 ? aspect * 0.9 : 1;
     this.leftHand.scale.setScalar(scale);
-    this.leftHand.position.x = -0.12 * scale;
+    this.leftHand.position.x = aspect < 1 ? 0 : -0.12;
     this.rightGlove.scale.setScalar(scale);
     this.rightGlove.position.x = 0.42 * scale;
   }

@@ -2694,6 +2694,18 @@ kbd {
     bottom: 300px;
   }
 }
+@media (max-width: 700px) and (min-height: 501px) {
+  .players-panel {
+    max-height: 18dvh;
+  }
+  .playing .bid-panel,
+  .playing:has(.hand-expanded) .bid-panel {
+    top: max(240px, 38dvh);
+    bottom: auto;
+    max-height: 18dvh;
+    overflow-y: auto;
+  }
+}
 @media (max-height: 500px) and (min-width: 600px) {
   .players-panel {
     top: 84px;
