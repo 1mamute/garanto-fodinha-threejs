@@ -24,6 +24,9 @@ export class Robot {
   private readonly head = new THREE.Group();
   private readonly eyes: THREE.Group[] = [];
   private readonly rightArm = new THREE.Group();
+  private readonly leftArm = new THREE.Group();
+  private readonly legs: THREE.Group[] = [];
+  private readonly lookDirection = new THREE.Vector3();
   /** When the last card was played, to swing the arm. */
   playedAt = -10;
   /** When the robot sat down at the table, for the little hop. */
@@ -72,6 +75,9 @@ export class Robot {
     const head = new THREE.Group();
     // Bury the pivot in the shoulders so the shell rests directly on the torso.
     this.head.position.y = HEAD_PIVOT_HEIGHT;
+    this.head.name = 'head';
+    // Pitch follows the head's horizontal heading, rather than the body's sideways axis.
+    this.head.rotation.order = 'YXZ';
     head.position.y = HEAD_SHELL_OFFSET;
     this.group.add(this.head);
     this.head.add(head);
@@ -101,21 +107,51 @@ export class Robot {
 
   private buildLegs(paint: THREE.Material): void {
     for (const x of [-0.2, 0.2]) {
-      const standing = this.posture === 'standing';
-      const length = standing ? 0.93 : 0.51;
-      mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, this.group, [
-        x,
-        standing ? 0.515 : 0.45,
-        standing ? 0 : 0.13,
-      ]).rotation.x = standing ? 0 : -0.35;
+      this.buildLeg(paint, x);
     }
   }
 
+  private buildLeg(paint: THREE.Material, x: number): void {
+    const standing = this.posture === 'standing';
+    const length = standing ? 0.93 : 0.51;
+    const leg = new THREE.Group();
+    leg.position.set(x, standing ? 0.98 : 0, 0);
+    this.group.add(leg);
+    this.legs.push(leg);
+    mesh(new THREE.CylinderGeometry(0.13, 0.075, length, 20), paint, leg, [
+      0,
+      standing ? -length / 2 : 0.45,
+      standing ? 0 : 0.13,
+    ]).rotation.x = standing ? 0 : -0.35;
+  }
+
   private buildArms(paint: THREE.Material): void {
-    const leftArm = new THREE.Group();
+    const { leftArm } = this;
     this.group.add(leftArm, this.rightArm);
     buildArm(leftArm, paint, -1, this.posture);
     buildArm(this.rightArm, paint, 1, this.posture);
+    if (this.posture === 'standing') {
+      for (const arm of [leftArm, this.rightArm]) {
+        // Swing from the shoulder, rather than orbiting the arm around the floor.
+        arm.position.y = 1.3;
+        for (const child of arm.children) child.position.y -= arm.position.y;
+      }
+    }
+  }
+
+  /** Standing locomotion has its own pose; seated play/death animations stay independent. */
+  animateWalking(phase: number, amount: number, worldLook: THREE.Quaternion): void {
+    const stride = Math.sin(phase) * amount;
+    this.legs.forEach((leg, index) => {
+      leg.rotation.x = stride * (index === 0 ? 0.38 : -0.38);
+    });
+    this.leftArm.rotation.x = -stride * 0.28;
+    this.rightArm.rotation.x = stride * 0.28;
+    this.group.position.y = (1 - Math.cos(phase * 2)) * amount * 0.018;
+    this.group.rotation.z = stride * 0.025;
+    // Cancel the body's full world rotation, including walking sway, to preserve mouse aim.
+    this.group.updateWorldMatrix(true, false);
+    this.group.getWorldQuaternion(this.head.quaternion).invert().multiply(worldLook);
   }
 
   /**
@@ -123,21 +159,9 @@ export class Robot {
    * `blend` is the per-frame smoothing factor.
    */
   animate(time: number, pose: Pose | undefined, blend: number): void {
-    const { group, head } = this;
+    const { group } = this;
     const idleYaw = Math.sin(time * 0.6 + group.position.x) * 0.13;
-    const yaw = THREE.MathUtils.clamp(
-      Math.atan2(Math.sin(pose?.yaw ?? idleYaw), Math.cos(pose?.yaw ?? idleYaw)),
-      -MAX_HEAD_YAW,
-      MAX_HEAD_YAW,
-    );
-    const pitch = THREE.MathUtils.clamp(pose?.pitch ?? 0, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, yaw, blend);
-    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
-    for (const eye of this.eyes) {
-      // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
-      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, yaw * 0.35, blend);
-      eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
-    }
+    this.animateHead(pose ?? { yaw: idleYaw, pitch: 0 }, blend);
     // Breathing.
     this.body.scale.y = 1 + Math.sin(time * 2 + group.position.x) * 0.012;
     // Swing the right arm for ~1 s after playing a card.
@@ -148,6 +172,38 @@ export class Robot {
     const hop = Math.max(0, 1 - (time - this.seatedAt) / 1.2);
     group.position.y = Math.sin(hop * Math.PI) * 0.35;
     this.animateDeath(time);
+  }
+
+  /** Track a world-space target through a full horizontal turn; null restores a neutral look. */
+  lookAt(target: THREE.Vector3 | null, blend: number): void {
+    let pose: Pose = { yaw: 0, pitch: 0 };
+    if (target) {
+      this.group.updateWorldMatrix(true, false);
+      const direction = this.group.worldToLocal(this.lookDirection.copy(target)).sub(this.head.position);
+      pose = {
+        yaw: Math.atan2(direction.x, direction.z),
+        pitch: Math.atan2(direction.y, Math.hypot(direction.x, direction.z)),
+      };
+    }
+    this.animateHead(pose, blend, true);
+  }
+
+  private animateHead(pose: Pose, blend: number, fullTurn = false): void {
+    const { head } = this;
+    const normalizedYaw = Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw));
+    const yaw = fullTurn ? normalizedYaw : THREE.MathUtils.clamp(normalizedYaw, -MAX_HEAD_YAW, MAX_HEAD_YAW);
+    const pitch = THREE.MathUtils.clamp(pose.pitch, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
+    const difference = yaw - head.rotation.y;
+    // Unwrap behind the robot so crossing +/- PI continues the turn instead of reversing it.
+    const turn = fullTurn ? Math.atan2(Math.sin(difference), Math.cos(difference)) : difference;
+    head.rotation.y += turn * blend;
+    head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, -pitch, blend);
+    for (const eye of this.eyes) {
+      // Rotate around each eyeball's centre so pupils stay attached to its curved surface.
+      // Full-turn tracking aligns the eyes with the head, avoiding sideways pupils at the back.
+      eye.rotation.y = THREE.MathUtils.lerp(eye.rotation.y, fullTurn ? 0 : yaw * 0.35, blend);
+      eye.rotation.x = THREE.MathUtils.lerp(eye.rotation.x, -pitch * 0.45, blend);
+    }
   }
 
   /** Eliminated robots tip over sideways and keep wobbling their head. */

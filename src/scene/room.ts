@@ -1,9 +1,11 @@
 /** Static decor: floor, walls, table, plant, the turn spotlight, the dealer chip and chairs. */
 import * as THREE from 'three';
 import { canvasTexture, material, mesh, sphere, TAU, WOOD } from './primitives';
+import { ROOM_RADIUS } from './roomDimensions';
 
 /** Table surface height; cards lie just above it. */
 export const TABLE_TOP = 1.68;
+const WALL_PANEL_INSET = 0.25;
 
 export interface RoomProps {
   /** Spotlight over the player whose turn it is. */
@@ -19,19 +21,29 @@ export function buildRoom(world: THREE.Group): RoomProps {
 }
 
 function buildFloorAndWalls(world: THREE.Group): void {
-  mesh(new THREE.CylinderGeometry(12, 12, 0.15, 64), material('#d3c7ad'), world, [0, -0.1, 0]).rotation.y =
-    Math.PI / 12;
+  mesh(
+    new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
+    material('#d3c7ad'),
+    world,
+    [0, -0.1, 0],
+  ).rotation.y = Math.PI / 12;
   mesh(new THREE.CylinderGeometry(5.9, 5.9, 0.02, 64), material('#b5bba1'), world, [0, 0.005, 0]);
   for (let ring = 0; ring < 3; ring++) {
     const torus = new THREE.TorusGeometry(5.3 + ring * 0.2, 0.018, 5, 64);
     mesh(torus, material('#d6d5b8'), world, [0, 0.025, 0]).rotation.x = Math.PI / 2;
   }
   const wallMaterial = material('#ded7c4', { side: THREE.BackSide });
-  mesh(new THREE.CylinderGeometry(12, 12, 6, 40, 1, true), wallMaterial, world, [0, 2.8, 0]);
+  mesh(
+    new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 6, 40, 1, true),
+    wallMaterial,
+    world,
+    [0, 2.8, 0],
+  );
   const panelCount = 16;
+  const panelRadius = ROOM_RADIUS - WALL_PANEL_INSET;
   for (let panel = 0; panel < panelCount; panel++) {
     const angle = (panel * TAU) / panelCount;
-    const position = [Math.sin(angle) * 11.75, 1.4, Math.cos(angle) * 11.75] as const;
+    const position = [Math.sin(angle) * panelRadius, 1.4, Math.cos(angle) * panelRadius] as const;
     mesh(new THREE.BoxGeometry(0.12, 2.9, 0.18), material('#c2b69a'), world, position).rotation.y = angle;
   }
 }

@@ -7,6 +7,7 @@
  * to pass through zero when switching between opposite up vectors, which flipped the view.)
  */
 import * as THREE from 'three';
+import { WALK_OUTER_RADIUS } from './roomDimensions';
 import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
@@ -17,7 +18,6 @@ const EYE_HEIGHT = 1.99;
 const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
-const WALK_OUTER_RADIUS = 10.5;
 const NARROW_SCREEN_PX = 700;
 
 /** What the rig needs to know about the game for this frame. */
