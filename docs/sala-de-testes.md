@@ -1,6 +1,6 @@
 ﻿# Sala de testes
 
-Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena no README](../README.md#laboratório-de-cena). A sala funciona sem Worker ou conexões multiplayer. O link **Voltar ao jogo** abre `/`; recarregar restaura a composição e a câmera inicial.
+Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena no README](../README.md#laboratório-de-cena). No modo de desenvolvimento, o botão **Sala de testes** na página inicial abre o laboratório. A sala funciona sem Worker ou conexões multiplayer. O link **Voltar ao jogo** abre `/`; recarregar restaura a composição e a câmera inicial.
 
 ## Composição
 
@@ -19,6 +19,7 @@ A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** al
 
 | Perspectiva | Comportamento no laboratório |
 | --- | --- |
+| Primeira pessoa | A roda aproxima e afasta a visão sem deslocar o personagem, inclusive com o mouse capturado. WASD e joystick continuam funcionando durante o zoom. O limite é compartilhado com o jogo em `FIRST_PERSON_CAMERA.maxZoom`. |
 | Terceira pessoa | Arraste na cena para orbitar o robô controlado; a roda do mouse ajusta a distância. WASD ou joystick continuam movendo o personagem. |
 | Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. Uma seta com o nome do dealer aponta para seu assento. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
 
@@ -27,6 +28,7 @@ Para examinar o robô imóvel em terceira pessoa, caminhe até perto dele e ajus
 O botão **Robô de inspeção: seguir com a cabeça** liga e desliga o acompanhamento do personagem controlado. O robô de inspeção mantém o corpo imóvel e gira suavemente a cabeça em 360° na horizontal, com os olhos alinhados ao olhar e a inclinação vertical limitada. Caminhe ao redor dele para observar a volta completa: passar atrás mantém o giro contínuo, sem inverter a rotação. Ao desligar, a cabeça volta suavemente à posição neutra pelo arco mais curto. O acompanhamento começa desligado e sua escolha é preservada ao alternar as câmeras.
 
 Trocar a câmera encerra a inspeção, libera as teclas e zera o joystick, preservando a posição, a orientação e os ajustes de zoom.
+O retorno à primeira pessoa é instantâneo, sem interpolação da posição ou da orientação.
 
 ## Movimentação e limites
 

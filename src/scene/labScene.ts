@@ -208,7 +208,7 @@ export class LabScene implements InputTarget {
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
       <button class="button subtle" data-action="toggle-head-tracking" aria-pressed="${String(this.headTracking)}">Robô de inspeção: seguir com a cabeça ${this.headTracking ? 'ligado' : 'desligado'}</button>
       <p>Ative para o robô de inspeção olhar para seu personagem. Caminhe à frente dele e para os lados para observar a cabeça.</p>
-      <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom na terceira pessoa e vista superior</p>
+      <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom em todas as perspectivas</p>
       <p>Vista superior: clique numa carta para inspecionar. Esc: sair da inspeção.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}
       <a class="text-button" href="/">← Voltar ao jogo</a>

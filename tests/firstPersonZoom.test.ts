@@ -5,6 +5,21 @@ import { sanitizePose } from '../src/net/messages';
 import { CameraRig } from '../src/scene/cameraRig';
 import { Robot } from '../src/scene/robot';
 
+test('observadores e eliminados podem aproximar a visão sem alterar a caminhada', () => {
+  const normal = new CameraRig();
+  const zoomed = new CameraRig();
+  zoomed.addFirstPersonZoom(-1000);
+  const context = { mode: 'first' as const, observer: true, seat: null, inspected: null };
+  for (const rig of [normal, zoomed]) {
+    rig.keys.add('KeyW');
+    rig.update(0.05, 1, context);
+  }
+  assert.deepEqual(zoomed.spectatorPosition, normal.spectatorPosition);
+  assert.deepEqual(zoomed.camera.position, normal.camera.position);
+  assert.ok(zoomed.camera.fov < normal.camera.fov);
+  assert.ok(zoomed.spectatorPosition.z < 5.5);
+});
+
 test('o zoom em primeira pessoa respeita o limite configurável e preserva a posição', () => {
   const rig = new CameraRig();
   const context = { mode: 'first' as const, observer: false, seat: new Vector3(0, 0, 3.35), inspected: null };

@@ -105,13 +105,17 @@ export class CameraRig {
   }
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
-    this.updateFieldOfView(context.mode === 'first' && !context.inspected, blend);
+    const snapToFirst = context.mode === 'first' && this.previousMode !== 'first';
+    this.updateFieldOfView(context.mode === 'first' && !context.inspected, snapToFirst ? 1 : blend);
     this.chooseTargets(deltaSeconds, context);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
     this.aim.lookAt(this.lookTarget);
     this.updateTransition(context);
-    if (this.transition) this.animateTransition(deltaSeconds);
+    if (snapToFirst) {
+      this.camera.position.copy(this.positionTarget);
+      this.camera.quaternion.copy(this.aim.quaternion);
+    } else if (this.transition) this.animateTransition(deltaSeconds);
     else {
       this.camera.position.lerp(this.positionTarget, blend);
       this.camera.quaternion.slerp(this.aim.quaternion, blend);
@@ -139,8 +143,7 @@ export class CameraRig {
     if (previous === context.mode) return;
     this.transition = null;
     const ascending = previous === 'first' && context.mode === 'top';
-    const descending = previous === 'top' && context.mode === 'first';
-    if (ascending || descending) {
+    if (ascending) {
       this.transition = {
         position: this.camera.position.clone(),
         rotation: this.camera.quaternion.clone(),

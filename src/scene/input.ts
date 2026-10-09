@@ -92,10 +92,12 @@ export class SceneInput {
     canvas.addEventListener('pointerleave', () => {
       this.resetPointerLook();
     });
-    canvas.addEventListener(
+    window.addEventListener(
       'wheel',
       event => {
-        this.wheel(event);
+        // Pointer lock captures motion, but wheel events can still land on an overlaid panel.
+        const captured = this.mouseLook.active && this.mouseLook.enabled;
+        if (event.composedPath().includes(canvas) || captured) this.wheel(event);
       },
       { passive: false },
     );
