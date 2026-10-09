@@ -21,8 +21,8 @@ export function createScene(): THREE.Scene {
   // A single overhead pool and two cheap fill lights keep cards readable without shadow maps.
   const lamp = new THREE.PointLight('#ffd298', 32, 15, 2);
   lamp.position.set(0, 4.7, 0);
-  const rim = new THREE.DirectionalLight('#749baf', 0.65);
+  const rim = new THREE.DirectionalLight('#749baf', 0.45);
   rim.position.set(-5, 4, -5);
-  scene.add(new THREE.HemisphereLight('#a9b9c4', '#29211b', 0.65), lamp, rim);
+  scene.add(new THREE.HemisphereLight('#d0b190', '#30241f', 0.8), lamp, rim);
   return scene;
 }

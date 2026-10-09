@@ -19,6 +19,7 @@ export function buildRoom(world: THREE.Group): RoomProps {
   buildFloorAndWalls(world);
   buildTable(world);
   buildLamp(world);
+  buildWallLamps(world);
   buildUtilities(world);
   return { spotlight: buildSpotlight(world), dealerChip: buildDealerChip(world) };
 }
@@ -72,6 +73,30 @@ function buildLamp(world: THREE.Group): void {
   mesh(new THREE.CylinderGeometry(0.28, 1.05, 0.48, 24, 1, true), brass, world, [0, 4.85, 0]);
   const glow = new THREE.MeshBasicMaterial({ color: '#ffdb9c', side: THREE.DoubleSide });
   mesh(new THREE.CircleGeometry(0.98, 24), glow, world, [0, 4.61, 0]).rotation.x = Math.PI / 2;
+}
+
+/** Baked wall glows suggest warm side lighting without adding per-pixel lights on mobile. */
+function buildWallLamps(world: THREE.Group): void {
+  const glowTexture = canvasTexture(128, 128, context => {
+    const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(229, 149, 63, 0.35)');
+    gradient.addColorStop(1, 'rgba(229, 149, 63, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 128, 128);
+  });
+  const halo = new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, depthWrite: false });
+  const bulb = new THREE.MeshBasicMaterial({ color: '#e9b16b', toneMapped: false });
+  const casing = material('#3e3024', { roughness: 0.9 });
+  for (const angle of [Math.PI - 0.65, Math.PI + 0.65]) {
+    const fixture = new THREE.Group();
+    const radius = ROOM_RADIUS - 0.2;
+    fixture.position.set(Math.sin(angle) * radius, 3, Math.cos(angle) * radius);
+    fixture.rotation.y = angle + Math.PI;
+    world.add(fixture);
+    mesh(new THREE.PlaneGeometry(3.4, 3.4), halo, fixture, [0, 0, 0.04]);
+    mesh(new THREE.BoxGeometry(0.32, 0.75, 0.16), casing, fixture);
+    mesh(new THREE.BoxGeometry(0.18, 0.48, 0.02), bulb, fixture, [0, 0, 0.1]);
+  }
 }
 
 function buildUtilities(world: THREE.Group): void {
