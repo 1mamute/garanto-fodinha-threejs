@@ -37,6 +37,8 @@ Ao soltar o mouse ou toque depois de olhar ao redor enquanto sentado, a câmera 
 a cabeça voltam suavemente à direção inicial, preservando o zoom. Para manter o
 último olhar como antes, defina `SEATED_CAMERA.returnOnLookRelease` como `false`
 em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
+A duração do retorno é ajustável em `SEATED_CAMERA.returnDurationSeconds` (padrão: 1,2 segundo).
+Na visão da mesa, o zoom permite aproximar e voltar ao enquadramento inicial, sem afastar além dele.
 
 ## Publicar na Cloudflare
 

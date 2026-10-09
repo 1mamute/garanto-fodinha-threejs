@@ -170,6 +170,7 @@ export class SceneInput {
     if (this.drag?.card && this.drag.pointerId !== event.pointerId) return;
     if (this.mouseLook.press(event)) return;
     const { target } = this;
+    target.rig.cancelLookReturn();
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.canvas.setPointerCapture(event.pointerId);
     const card = target.pick(event.clientX, event.clientY, target.mode === 'first');
@@ -256,7 +257,7 @@ export class SceneInput {
   private returnSeatedLook(drag: Drag): void {
     if (!SEATED_CAMERA.returnOnLookRelease || drag.card) return;
     if (this.target.mode !== 'first' || this.target.freeLook) return;
-    this.target.rig.resetOrientation();
+    this.target.rig.returnOrientation();
     this.resetPointerLook();
   }
 

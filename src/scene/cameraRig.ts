@@ -8,14 +8,13 @@
  */
 import * as THREE from 'three';
 import { WALK_OUTER_RADIUS } from './roomDimensions';
-import { FIRST_PERSON_CAMERA } from './cameraSettings';
+import { FIRST_PERSON_CAMERA, SEATED_CAMERA } from './cameraSettings';
 import { ROBOT_DIMENSIONS } from './robotDimensions';
 import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
 const MIN_ZOOM = 3;
-const MAX_ZOOM = 17;
 const DEFAULT_ZOOM = 4.8;
 const TABLE_HEIGHT = 1.68;
 /** Stay below the lamp's lower disc at 4.61, including the near clipping plane. */
@@ -32,6 +31,12 @@ const VIEW_TRANSITION_SECONDS = 1.2;
 interface ViewTransition {
   position: THREE.Vector3;
   rotation: THREE.Quaternion;
+  elapsed: number;
+}
+
+interface LookReturn {
+  yaw: number;
+  pitch: number;
   elapsed: number;
 }
 
@@ -71,6 +76,7 @@ export class CameraRig {
   private readonly aim = new THREE.PerspectiveCamera();
   private previousMode: InspectionCameraMode | null = null;
   private transition: ViewTransition | null = null;
+  private lookReturn: LookReturn | null = null;
 
   resetView(): void {
     this.resetOrientation();
@@ -79,8 +85,31 @@ export class CameraRig {
 
   /** Restore the look target; the camera and robot already ease towards it each frame. */
   resetOrientation(): void {
+    this.cancelLookReturn();
     this.yaw = 0;
     this.pitch = DEFAULT_PITCH;
+  }
+
+  returnOrientation(): void {
+    this.lookReturn = { yaw: this.yaw, pitch: this.pitch, elapsed: 0 };
+  }
+
+  cancelLookReturn(): void {
+    this.lookReturn = null;
+  }
+
+  private animateLookReturn(deltaSeconds: number, context: FrameContext): void {
+    if (context.mode !== 'first') this.cancelLookReturn();
+    const returning = this.lookReturn;
+    if (!returning) return;
+    returning.elapsed += deltaSeconds;
+    const duration = Math.max(0.01, SEATED_CAMERA.returnDurationSeconds);
+    const progress = Math.min(1, returning.elapsed / duration);
+    // Ease the look target itself so camera placement and the shared head pose return together.
+    const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
+    this.yaw = THREE.MathUtils.lerp(returning.yaw, 0, eased);
+    this.pitch = THREE.MathUtils.lerp(returning.pitch, DEFAULT_PITCH, eased);
+    if (progress === 1) this.cancelLookReturn();
   }
 
   addFirstPersonZoom(wheelDelta: number): void {
@@ -100,7 +129,7 @@ export class CameraRig {
   }
 
   addZoom(delta: number): void {
-    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, MAX_ZOOM);
+    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, DEFAULT_ZOOM);
   }
 
   addOrbitZoom(delta: number): void {
@@ -113,6 +142,7 @@ export class CameraRig {
   }
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
+    this.animateLookReturn(deltaSeconds, context);
     const snapToFirst = context.mode === 'first' && this.previousMode !== 'first';
     this.updateFieldOfView(context, snapToFirst ? 1 : blend);
     this.chooseTargets(deltaSeconds, context);
@@ -233,8 +263,10 @@ export class CameraRig {
     const cardDistance = bounds
       ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
       : 0;
-    // Fit card corners in the narrower screen dimension, rather than framing the whole room.
-    const distance = Math.max(this.zoom - TABLE_HEIGHT, cardDistance);
+    // Fit all cards at the initial view; zooming in may crop that footprint intentionally.
+    const initialDistance = DEFAULT_ZOOM - TABLE_HEIGHT;
+    const zoomRatio = (this.zoom - TABLE_HEIGHT) / initialDistance;
+    const distance = Math.max(initialDistance, cardDistance) * zoomRatio;
     const requestedDistance = distance / Math.min(1, this.camera.aspect);
     const height = Math.min(MAX_TABLE_VIEW_HEIGHT, TABLE_HEIGHT + requestedDistance);
     // Widen the lens instead of crossing the lamp, preserving card framing and wheel zoom.

@@ -8,4 +8,5 @@ export const FIRST_PERSON_CAMERA = {
 /** Set to false to keep the seated player's last look direction after releasing a drag. */
 export const SEATED_CAMERA = {
   returnOnLookRelease: true,
+  returnDurationSeconds: 1.2,
 };
