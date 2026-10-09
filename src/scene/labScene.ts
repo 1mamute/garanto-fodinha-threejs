@@ -103,6 +103,8 @@ export class LabScene implements InputTarget {
       chair.rotation.y = robot.group.rotation.y;
       syncFan(robot.hand, player.hand, false, ROBOT_FAN);
       animateFan(robot.hand, 1, null);
+      // The printed side faces its owner; keep the top edge above the gripper.
+      for (const card of robot.hand.children) card.rotation.z = Math.PI;
       this.world.add(robot.group, chair);
       seats.set(player.id, { position: robot.group.position.clone(), rotation: robot.group.rotation.y });
     });

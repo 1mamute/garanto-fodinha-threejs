@@ -18,6 +18,8 @@ const MIN_ZOOM = 3;
 const MAX_ZOOM = 17;
 const DEFAULT_ZOOM = 4.8;
 const TABLE_HEIGHT = 1.68;
+/** Stay below the lamp's lower disc at 4.61, including the near clipping plane. */
+const MAX_TABLE_VIEW_HEIGHT = 4.3;
 const CARD_FRAME_MARGIN = 0.12;
 const EYE_HEIGHT = 3.05;
 const DEFAULT_PITCH = -0.436;
@@ -107,7 +109,7 @@ export class CameraRig {
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
     const snapToFirst = context.mode === 'first' && this.previousMode !== 'first';
-    this.updateFieldOfView(context.mode === 'first' && !context.inspected, snapToFirst ? 1 : blend);
+    this.updateFieldOfView(context, snapToFirst ? 1 : blend);
     this.chooseTargets(deltaSeconds, context);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
@@ -124,11 +126,15 @@ export class CameraRig {
     this.camera.up.copy(this.upTarget);
   }
 
-  private updateFieldOfView(firstPerson: boolean, blend: number): void {
+  private updateFieldOfView(context: FrameContext, blend: number): void {
     const base = FIRST_PERSON_CAMERA.fieldOfView;
+    const firstPerson = context.mode === 'first' && !context.inspected;
     const magnification = firstPerson ? this.firstPersonZoom : 1;
     const halfAngle = Math.tan(THREE.MathUtils.degToRad(base / 2)) / magnification;
-    const target = THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2;
+    const target =
+      context.mode === 'top' && !context.inspected
+        ? this.tableView(context.tableBounds).fieldOfView
+        : THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2;
     this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, target, blend);
     this.camera.updateProjectionMatrix();
   }
@@ -210,17 +216,25 @@ export class CameraRig {
 
   /** Straight down on the table, rotated so the player's seat is at the bottom of the screen. */
   private aimTop(seatAngle: number, bounds: FrameContext['tableBounds']): void {
-    const halfFov = THREE.MathUtils.degToRad(this.camera.fov / 2);
+    const { height } = this.tableView(bounds);
+    // A tiny z offset keeps the view direction from being exactly vertical.
+    this.positionTarget.set(0, height, 0.001);
+    this.lookTarget.set(0, TABLE_HEIGHT, 0);
+    this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
+  }
+
+  private tableView(bounds: FrameContext['tableBounds']): { height: number; fieldOfView: number } {
+    const halfFov = THREE.MathUtils.degToRad(FIRST_PERSON_CAMERA.fieldOfView / 2);
     const cardDistance = bounds
       ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
       : 0;
     // Fit card corners in the narrower screen dimension, rather than framing the whole room.
     const distance = Math.max(this.zoom - TABLE_HEIGHT, cardDistance);
-    const height = TABLE_HEIGHT + distance / Math.min(1, this.camera.aspect);
-    // A tiny z offset keeps the view direction from being exactly vertical.
-    this.positionTarget.set(0, height, 0.001);
-    this.lookTarget.set(0, TABLE_HEIGHT, 0);
-    this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
+    const requestedDistance = distance / Math.min(1, this.camera.aspect);
+    const height = Math.min(MAX_TABLE_VIEW_HEIGHT, TABLE_HEIGHT + requestedDistance);
+    // Widen the lens instead of crossing the lamp, preserving card framing and wheel zoom.
+    const halfAngle = (Math.tan(halfFov) * requestedDistance) / (height - TABLE_HEIGHT);
+    return { height, fieldOfView: THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2 };
   }
 
   private aimFirstPerson(deltaSeconds: number, seatAngle: number, context: FrameContext): void {
