@@ -1,6 +1,7 @@
 /** The little robots sitting around the table, and their idle/play/death animations. */
 import * as THREE from 'three';
 import type { Pose } from './types';
+import { ROBOT_DIMENSIONS } from './robotDimensions';
 import { buildGripper, robotArm, robotBody, robotHead, robotLeg, robotPaint } from './robotParts';
 
 const MAX_HEAD_YAW = 1.05;
@@ -33,19 +34,24 @@ export class Robot {
     private readonly posture: 'seated' | 'standing' = 'seated',
   ) {
     const paint = robotPaint(color);
-    this.body = robotBody(this.group, paint, posture === 'standing');
+    this.body = robotBody(this.group, paint);
+    this.body.position.y = this.postureHeight;
     this.buildHead(paint);
     this.buildLegs(paint);
     this.buildArms(paint);
     // The card fan and clamp share a mount, so idle motion cannot separate the grip.
-    this.hand.position.set(-0.3, 1.92, 0.63);
+    this.hand.position.set(-0.3, 1.92 + this.postureHeight, 0.63);
     this.hand.rotation.x = 0.95;
     if (posture === 'seated') buildGripper(this.hand);
     this.group.add(this.hand);
   }
 
+  private get postureHeight(): number {
+    return this.posture === 'standing' ? ROBOT_DIMENSIONS.standingOffset : 0;
+  }
+
   private buildHead(paint: THREE.Material): void {
-    this.head.position.y = this.posture === 'standing' ? 1.65 : 2.23;
+    this.head.position.y = ROBOT_DIMENSIONS.headHeight + this.postureHeight;
     this.head.name = 'head';
     this.head.rotation.order = 'YXZ';
     this.group.add(this.head);
@@ -57,7 +63,7 @@ export class Robot {
     for (const x of [-0.22, 0.22]) {
       const leg = new THREE.Group();
       // Chair cushion top is .855; the pelvis underside and boots meet their surfaces.
-      leg.position.set(x, standing ? 0.93 : 0.9, 0);
+      leg.position.set(x, ROBOT_DIMENSIONS.seatedHipHeight + this.postureHeight, 0);
       this.group.add(leg);
       this.legs.push(leg);
       robotLeg(leg, paint, standing);
@@ -67,9 +73,9 @@ export class Robot {
   private buildArms(paint: THREE.Material): void {
     this.group.add(this.leftArm, this.rightArm);
     const standing = this.posture === 'standing';
-    const shoulderHeight = standing ? 1.45 : 2.2;
-    this.leftArm.position.set(-0.46, shoulderHeight, 0.06);
-    this.rightArm.position.set(0.46, shoulderHeight, 0.06);
+    const { shoulderHeight } = ROBOT_DIMENSIONS;
+    this.leftArm.position.set(-0.46, shoulderHeight + this.postureHeight, 0.06);
+    this.rightArm.position.set(0.46, shoulderHeight + this.postureHeight, 0.06);
     robotArm(this.leftArm, paint, -1, standing);
     robotArm(this.rightArm, paint, 1, standing);
   }

@@ -37,7 +37,7 @@ Primeira e terceira pessoa reutilizam a caminhada de `CameraRig`, por meio de `s
 
 O corpo gira suavemente na direção do deslocamento efetivo, incluindo diagonais e joystick. Braços, pernas e uma leve oscilação acompanham os passos e voltam suavemente ao repouso quando o personagem para ou encontra um limite. A cabeça acompanha a orientação horizontal e vertical do mouse/toque, preservando o olhar enquanto o corpo gira. Orbitar parado move a cabeça sem girar o corpo.
 
-- Posição inicial do personagem: `(0, 0, 5.5)`; altura da câmera do observador: 2 unidades.
+- Posição inicial do personagem: `(0, 0, 5.5)`; a câmera do observador fica na altura dos olhos do modelo em pé (3,16 unidades). Tronco e cabeça compartilham as proporções dos robôs sentados. Em pé, a coxa estendida eleva o corpo em 0,52 unidade, mantendo os pés no chão.
 - Velocidade: 2,7 unidades por segundo, com diagonais normalizadas e direção relativa à orientação horizontal da câmera.
 - Sala com diâmetro de 27 unidades; piso, paredes e painéis usam o mesmo raio de 13,5 unidades.
 - Área permitida: anel entre os raios de 3 e 12 unidades ao redor da mesa, mantendo 1,5 unidade de distância das paredes. Passos que saiam desse anel são rejeitados, como no jogo.

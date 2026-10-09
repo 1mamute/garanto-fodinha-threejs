@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { WALK_OUTER_RADIUS } from './roomDimensions';
 import { FIRST_PERSON_CAMERA } from './cameraSettings';
+import { ROBOT_DIMENSIONS } from './robotDimensions';
 import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
@@ -55,7 +56,7 @@ export class CameraRig {
   /** Height of the top view; changed by the wheel and pinch. */
   zoom = DEFAULT_ZOOM;
   orbitDistance = 4;
-  readonly spectatorPosition = new THREE.Vector3(0, 2, 5.5);
+  readonly spectatorPosition = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
   readonly joystick = { x: 0, y: 0 };
   /** Keyboard codes currently pressed. */
@@ -177,7 +178,9 @@ export class CameraRig {
 
   private aimThirdPerson(deltaSeconds: number): void {
     this.walk(deltaSeconds, 0);
-    this.lookTarget.copy(this.spectatorPosition).setY(1.3);
+    this.lookTarget
+      .copy(this.spectatorPosition)
+      .setY(ROBOT_DIMENSIONS.torsoHeight + ROBOT_DIMENSIONS.standingOffset);
     const horizontal = Math.cos(this.pitch) * this.orbitDistance;
     this.positionTarget
       .copy(this.lookTarget)

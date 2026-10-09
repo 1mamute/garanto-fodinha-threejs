@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { material, mesh } from './primitives';
+import { ROBOT_DIMENSIONS } from './robotDimensions';
 
 type Coordinates = readonly [number, number, number];
 interface Part {
@@ -75,15 +76,14 @@ function geometry(key: string, parts: readonly Part[]): THREE.BufferGeometry {
   return result;
 }
 
-export function robotBody(parent: THREE.Group, paint: THREE.Material, standing: boolean): THREE.Mesh {
-  const torsoHeight = standing ? 1.25 : 1.555;
-  const torsoLength = standing ? 0.57 : 1.15;
+export function robotBody(parent: THREE.Group, paint: THREE.Material): THREE.Mesh {
+  const { torsoHeight, torsoLength, headHeight } = ROBOT_DIMENSIONS;
   return mesh(
-    geometry(`body-${standing}`, [
+    geometry('body', [
       { shape: 'barrel', at: [0, torsoHeight, 0], scale: [0.45, torsoLength, 0.43] },
       { shape: 'round', at: [0, 1.01, 0], scale: [0.44, 0.155, 0.42] },
-      { shape: 'dome', at: [0, standing ? 1.65 : 2.23, 0], scale: [0.43, 0.3, 0.43] },
-      { shape: 'barrel', at: [0, standing ? 1.59 : 2.17, 0], scale: [0.43, 0.16, 0.43] },
+      { shape: 'dome', at: [0, headHeight, 0], scale: [0.43, 0.3, 0.43] },
+      { shape: 'barrel', at: [0, headHeight - 0.06, 0], scale: [0.43, 0.16, 0.43] },
     ]),
     paint,
     parent,
@@ -103,7 +103,7 @@ export function robotHead(parent: THREE.Group, paint: THREE.Material): THREE.Gro
   mesh(BARREL, JOINT, parent, [0, 0.035, 0]).scale.set(0.465, 0.018, 0.465);
   return [-0.235, 0.235].map(x => {
     const eye = new THREE.Group();
-    eye.position.set(x, 0.41, 0.405);
+    eye.position.set(x, ROBOT_DIMENSIONS.eyeOffset, 0.405);
     parent.add(eye);
     mesh(ROUND, EYE, eye).scale.set(0.19, 0.2, 0.162);
     mesh(ROUND, VISOR, eye, [0, 0, 0.157]).scale.set(0.06, 0.066, 0.021);
@@ -112,18 +112,20 @@ export function robotHead(parent: THREE.Group, paint: THREE.Material): THREE.Gro
 }
 
 export function robotLeg(parent: THREE.Group, paint: THREE.Material, standing: boolean): void {
+  const { thighLength } = ROBOT_DIMENSIONS;
   const parts: Part[] = standing
     ? [
-        { shape: 'box', at: [0, -0.36, 0], scale: [0.1, 0.57, 0.12] },
-        { shape: 'round', at: [0, -0.84, 0.04], scale: [0.11, 0.085, 0.16] },
+        { shape: 'box', at: [0, -thighLength / 2, 0], scale: [0.12, thighLength, 0.12] },
+        { shape: 'box', at: [0, -0.41 - thighLength, 0], scale: [0.1, 0.65, 0.12] },
+        { shape: 'round', at: [0, -0.825 - thighLength, 0.04], scale: [0.12, 0.075, 0.17] },
       ]
     : [
-        { shape: 'box', at: [0, 0, 0.2], scale: [0.12, 0.12, 0.52] },
+        { shape: 'box', at: [0, 0, 0.2], scale: [0.12, 0.12, thighLength] },
         { shape: 'box', at: [0, -0.41, 0.43], scale: [0.1, 0.65, 0.12] },
         { shape: 'round', at: [0, -0.825, 0.48], scale: [0.12, 0.075, 0.17] },
       ];
   mesh(geometry(standing ? 'leg-standing' : 'leg-seated', parts), paint, parent);
-  mesh(ROUND, JOINT, parent, [0, standing ? -0.63 : -0.06, standing ? 0 : 0.43]).scale.set(
+  mesh(ROUND, JOINT, parent, [0, standing ? -thighLength : -0.06, standing ? 0 : 0.43]).scale.set(
     0.135,
     0.135,
     0.14,
