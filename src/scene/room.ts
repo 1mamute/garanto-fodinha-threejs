@@ -87,7 +87,7 @@ function buildWallLamps(world: THREE.Group): void {
   const halo = new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, depthWrite: false });
   const bulb = new THREE.MeshBasicMaterial({ color: '#e9b16b', toneMapped: false });
   const casing = material('#3e3024', { roughness: 0.9 });
-  for (const angle of [Math.PI - 0.65, Math.PI + 0.65]) {
+  for (const angle of [Math.PI - 0.65, Math.PI + 0.65, -0.65, 0.65]) {
     const fixture = new THREE.Group();
     const radius = ROOM_RADIUS - 0.2;
     fixture.position.set(Math.sin(angle) * radius, 3, Math.cos(angle) * radius);
