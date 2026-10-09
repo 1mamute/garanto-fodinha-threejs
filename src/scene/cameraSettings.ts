@@ -4,3 +4,8 @@ export const FIRST_PERSON_CAMERA = {
   maxZoom: 2.5,
   wheelSensitivity: 0.0015,
 } as const;
+
+/** Set to false to keep the seated player's last look direction after releasing a drag. */
+export const SEATED_CAMERA = {
+  returnOnLookRelease: true,
+};

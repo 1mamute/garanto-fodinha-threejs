@@ -33,6 +33,11 @@ O zoom máximo em primeira pessoa é configurado em `src/scene/cameraSettings.ts
 na propriedade `FIRST_PERSON_CAMERA.maxZoom` (padrão: `2.5`, ou 2,5×; `1` desativa
 o zoom). Cada `CameraRig` também permite ajustar `maxFirstPersonZoom`.
 
+Ao soltar o mouse ou toque depois de olhar ao redor enquanto sentado, a câmera e
+a cabeça voltam suavemente à direção inicial, preservando o zoom. Para manter o
+último olhar como antes, defina `SEATED_CAMERA.returnOnLookRelease` como `false`
+em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
+
 ## Publicar na Cloudflare
 
 O projeto usa o plano gratuito de Workers e Durable Objects com SQLite, sem máquina virtual. A aplicação e a API são publicadas juntas, no mesmo endereço HTTPS. Uma conta Cloudflare é necessária; não há credenciais incluídas no repositório.

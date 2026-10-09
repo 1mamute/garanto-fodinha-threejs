@@ -9,6 +9,7 @@
 import type { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
 import { CardDrag } from './cardDrag';
+import { SEATED_CAMERA } from './cameraSettings';
 import { MouseLook } from './mouseLook';
 import type { InspectionCameraMode, Pose } from './types';
 
@@ -247,8 +248,16 @@ export class SceneInput {
     if (drag?.pointerId !== event.pointerId) return;
     this.drag = null;
     if (event.type !== 'pointercancel') this.finishDrag(drag, event);
+    this.returnSeatedLook(drag);
     this.target.reach(false);
     this.target.afterDrag();
+  }
+
+  private returnSeatedLook(drag: Drag): void {
+    if (!SEATED_CAMERA.returnOnLookRelease || drag.card) return;
+    if (this.target.mode !== 'first' || this.target.freeLook) return;
+    this.target.rig.resetOrientation();
+    this.resetPointerLook();
   }
 
   private finishDrag(drag: Drag, event: PointerEvent): void {

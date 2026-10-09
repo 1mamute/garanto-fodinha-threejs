@@ -73,9 +73,14 @@ export class CameraRig {
   private transition: ViewTransition | null = null;
 
   resetView(): void {
+    this.resetOrientation();
+    this.firstPersonZoom = 1;
+  }
+
+  /** Restore the look target; the camera and robot already ease towards it each frame. */
+  resetOrientation(): void {
     this.yaw = 0;
     this.pitch = DEFAULT_PITCH;
-    this.firstPersonZoom = 1;
   }
 
   addFirstPersonZoom(wheelDelta: number): void {
