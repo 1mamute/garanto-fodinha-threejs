@@ -101,6 +101,12 @@ export class FirstPersonHands {
       TRIM,
       0.045,
     );
+    this.leftHand.traverse(object => {
+      object.layers.set(1);
+    });
+    this.rightGlove.traverse(object => {
+      object.layers.set(1);
+    });
   }
 
   set visible(visible: boolean) {
@@ -111,6 +117,29 @@ export class FirstPersonHands {
   show(cards: readonly Card[]): void {
     const spread = Math.min(0.085, 0.85 / Math.max(1, cards.length));
     syncFan(this.cards, cards, false, { scale: 0.65, spread, y: 0.03, z: -0.06, tilt: -0.055 });
+    this.cards.traverse(object => {
+      object.layers.set(1);
+    });
+  }
+
+  /** Draw the existing hands after the room, so the visible torso cannot occlude held cards. */
+  render(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
+    if (!this.leftHand.visible) return;
+    const previousLayers = this.camera.layers.mask;
+    const previousClear = renderer.autoClear;
+    const previousMatrixUpdate = scene.matrixWorldAutoUpdate;
+    // The room pass already updated transforms; reuse them for the hands.
+    scene.matrixWorldAutoUpdate = false;
+    renderer.autoClear = false;
+    renderer.clearDepth();
+    this.camera.layers.set(1);
+    try {
+      renderer.render(scene, this.camera);
+    } finally {
+      this.camera.layers.mask = previousLayers;
+      renderer.autoClear = previousClear;
+      scene.matrixWorldAutoUpdate = previousMatrixUpdate;
+    }
   }
 
   /** The right glove reaches forward while a card is being dragged. */

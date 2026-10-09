@@ -199,7 +199,7 @@ export class LabScene implements InputTarget {
       pitch: this.rig.pitch,
       deltaSeconds,
     });
-    this.controlled.group.visible = this.mode !== 'first';
+    this.controlled.setFirstPerson(this.mode === 'first');
     this.stationary.lookAt(this.headTracking ? this.rig.spectatorPosition : null, blend);
     this.animateZoomDemo(deltaSeconds, blend);
     this.input.checkLongPress(performance.now());

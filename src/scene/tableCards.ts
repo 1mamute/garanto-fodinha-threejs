@@ -130,6 +130,7 @@ export class TableCards {
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {
     const held = this.released?.card.id === placement.entry.card.id ? this.released : null;
     const card = held ?? new CardMesh(placement.entry.card);
+    card.layers.set(0);
     const seat = placement.onTable ? seats.get(placement.entry.playerId) : undefined;
     if (held) {
       this.world.attach(card);

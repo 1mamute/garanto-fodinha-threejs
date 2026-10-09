@@ -50,6 +50,16 @@ export class Robot {
     return this.posture === 'standing' ? ROBOT_DIMENSIONS.standingOffset : 0;
   }
 
+  /** Keep the body grounded in first person, with camera-mounted hands for seated play. */
+  setFirstPerson(firstPerson: boolean): void {
+    this.group.visible = true;
+    this.head.visible = !firstPerson;
+    this.hand.visible = !firstPerson;
+    const showArms = !firstPerson || this.posture === 'standing';
+    this.leftArm.visible = showArms;
+    this.rightArm.visible = showArms;
+  }
+
   private buildHead(paint: THREE.Material): void {
     this.head.position.y = ROBOT_DIMENSIONS.headHeight + this.postureHeight;
     this.head.name = 'head';

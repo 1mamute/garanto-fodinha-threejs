@@ -146,6 +146,7 @@ export class TableScene implements InputTarget {
   }
 
   pick(clientX: number, clientY: number, hand: boolean): CardMesh | undefined {
+    this.raycaster.layers.set(hand ? 1 : 0);
     const rect = this.renderer.domElement.getBoundingClientRect();
     const pointer = new THREE.Vector2(
       ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -289,7 +290,7 @@ export class TableScene implements InputTarget {
     });
     this.updateDealerIndicator();
     this.firstPerson.fitTo(this.rig.camera.aspect, this.rig.camera.fov);
-    // In first person you are your robot: hide it and show your own hands instead.
+    // Keep the seated body visible; camera-mounted hands replace its arms and card fan.
     const embodied = this.mode === 'first' && !observer;
     this.firstPerson.visible = embodied;
     this.input.checkLongPress(performance.now());
@@ -306,8 +307,8 @@ export class TableScene implements InputTarget {
   private animateRobots(time: number, blend: number, embodied: boolean): void {
     for (const [playerId, { robot, label }] of this.seats) {
       const mine = playerId === this.myId;
-      robot.group.visible = !(mine && embodied);
-      label.visible = robot.group.visible;
+      robot.setFirstPerson(mine && embodied);
+      label.visible = !(mine && embodied);
       const pose = mine ? this.input.pose : this.poses.get(playerId);
       robot.animate(time, pose, blend);
     }
@@ -336,6 +337,7 @@ export class TableScene implements InputTarget {
     const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
     if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
     this.renderer.render(this.scene, this.rig.camera);
+    this.firstPerson.render(this.renderer, this.scene);
   }
 }
 
