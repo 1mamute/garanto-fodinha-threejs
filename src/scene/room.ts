@@ -1,5 +1,6 @@
 /** Static decor: floor, walls, table, plant, the turn spotlight, the dealer chip and chairs. */
 import * as THREE from 'three';
+import { floorTexture } from './floorTexture';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
 import { ROOM_RADIUS } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
@@ -27,11 +28,10 @@ export function buildRoom(world: THREE.Group): RoomProps {
 function buildFloorAndWalls(world: THREE.Group): void {
   mesh(
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
-    material('#242a29', { map: wornTexture('wood') }),
+    material('#ffffff', { map: floorTexture(), roughness: 1 }),
     world,
     [0, -0.1, 0],
   ).rotation.y = Math.PI / 12;
-  mesh(new THREE.CylinderGeometry(4.8, 4.8, 0.02, 48), material('#151e1c'), world, [0, 0.005, 0]);
   const wallMaterial = material('#313a39', { side: THREE.BackSide, map: wornTexture('metal') });
   mesh(
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 6, 40, 1, true),
