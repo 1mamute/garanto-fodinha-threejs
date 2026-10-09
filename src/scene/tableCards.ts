@@ -8,12 +8,14 @@
 import * as THREE from 'three';
 import type { Card, GameState, TableEntry } from '../game';
 import { CardMesh } from './cards';
+import { CARD_SIZE } from './cardGeometry';
 import { TABLE_TOP } from './room';
 import type { CardInspection } from './types';
 
 /** Golden angle: successive cards spiral out without overlapping much. */
 const GOLDEN_ANGLE = 2.399;
 const KICKER_ROTATION = -0.15;
+const KICKER_CLEARANCE_RADIUS = 0.8;
 
 /** Where a seated robot is, as far as card placement is concerned. */
 export interface Seat {
@@ -31,9 +33,10 @@ interface Placement {
 }
 
 function placeTrick(state: GameState, placements: Map<string, Placement>): void {
+  const baseRadius = state.kicker ? KICKER_CLEARANCE_RADIUS : 0.28;
   state.table.forEach((entry, index) => {
     const angle = index * GOLDEN_ANGLE;
-    const radius = 0.28 + 0.055 * index;
+    const radius = baseRadius + 0.055 * index;
     const position = new THREE.Vector3(
       Math.sin(angle) * radius,
       TABLE_TOP + index * 0.006,
@@ -79,8 +82,13 @@ export class TableCards {
   readonly framingBounds = { radius: 0, height: TABLE_TOP };
   private readonly meshes = new Map<string, CardMesh>();
   private kicker: CardMesh | null = null;
+  private released: CardMesh | null = null;
 
   constructor(private readonly world: THREE.Group) {}
+
+  releaseFromHand(card: CardMesh): void {
+    this.released = card;
+  }
 
   /** Everything that can be clicked to inspect. */
   get pickable(): CardMesh[] {
@@ -103,6 +111,7 @@ export class TableCards {
       card.details = placement.details;
     }
     this.syncKicker(state.kicker);
+    this.released = null;
     this.updateFraming();
   }
 
@@ -110,7 +119,7 @@ export class TableCards {
     this.framingBounds.radius = 0;
     this.framingBounds.height = TABLE_TOP;
     for (const card of this.pickable) {
-      const { width, depth, height } = card.geometry.parameters;
+      const { width, depth, height } = CARD_SIZE;
       // The circumradius fits every rotation of the card, including during its animation.
       const radius = Math.hypot(card.target.x, card.target.z) + Math.hypot(width, depth) / 2;
       this.framingBounds.radius = Math.max(this.framingBounds.radius, radius);
@@ -119,9 +128,13 @@ export class TableCards {
   }
 
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {
-    const card = new CardMesh(placement.entry.card);
+    const held = this.released?.card.id === placement.entry.card.id ? this.released : null;
+    const card = held ?? new CardMesh(placement.entry.card);
+    card.layers.set(0);
     const seat = placement.onTable ? seats.get(placement.entry.playerId) : undefined;
-    if (seat) {
+    if (held) {
+      this.world.attach(card);
+    } else if (seat) {
       // Thrown from the player's hand: start above their side of the table, slightly turned.
       card.position.copy(seat.position).multiplyScalar(0.7).setY(2);
       card.rotation.y = placement.rotation + 0.5;
@@ -140,7 +153,7 @@ export class TableCards {
     this.kicker = null;
     if (!kicker) return;
     const card = new CardMesh(kicker);
-    card.position.set(-1.25, TABLE_TOP, -0.3);
+    card.position.set(0, TABLE_TOP, 0);
     card.target.copy(card.position);
     card.rotation.y = card.targetRotation = KICKER_ROTATION;
     card.details = { card: kicker, playerName: 'Kicker da rodada', kicker: true };
@@ -155,6 +168,9 @@ export class TableCards {
       card.position.lerp(card.target, slide);
       const rotation = card === inspected ? 0 : card.targetRotation;
       card.rotation.y = THREE.MathUtils.lerp(card.rotation.y, rotation, blend);
+      card.rotation.x = THREE.MathUtils.lerp(card.rotation.x, 0, blend);
+      card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, 0, blend);
+      card.scale.lerp(new THREE.Vector3(1, 1, 1), blend);
     }
   }
 }

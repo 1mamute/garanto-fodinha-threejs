@@ -8,12 +8,15 @@
  */
 import type { CameraRig } from './cameraRig';
 import type { CardMesh } from './cards';
+import { CardDrag } from './cardDrag';
+import { SEATED_CAMERA } from './cameraSettings';
 import { MouseLook } from './mouseLook';
 import type { InspectionCameraMode, Pose } from './types';
 
 const DRAG_THRESHOLD_PX = 7;
 const LOOK_SPEED = 0.004;
 const PLAY_DISTANCE_PX = 65;
+const PLAY_HEIGHT_FRACTION = 0.08;
 /** Horizontal drag distance that moves a card one slot in the hand. */
 const SLOT_WIDTH_PX = 35;
 const HOLD_TO_INSPECT_MS = 2000;
@@ -59,11 +62,13 @@ export class SceneInput {
   private pinchDistance: number | null = null;
   private readonly pointerLook = { yaw: 0, pitch: 0 };
   private readonly mouseLook: MouseLook;
+  private readonly cardDrag: CardDrag;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly target: InputTarget,
   ) {
+    this.cardDrag = new CardDrag(target.rig.camera, canvas);
     this.mouseLook = new MouseLook({
       canvas,
       rig: target.rig,
@@ -88,10 +93,12 @@ export class SceneInput {
     canvas.addEventListener('pointerleave', () => {
       this.resetPointerLook();
     });
-    canvas.addEventListener(
+    window.addEventListener(
       'wheel',
       event => {
-        this.wheel(event);
+        // Pointer lock captures motion, but wheel events can still land on an overlaid panel.
+        const captured = this.mouseLook.active && this.mouseLook.enabled;
+        if (event.composedPath().includes(canvas) || captured) this.wheel(event);
       },
       { passive: false },
     );
@@ -105,6 +112,8 @@ export class SceneInput {
       target.rig.joystick.y = 0;
       this.drag = null;
       this.pointers.clear();
+      target.reach(false);
+      target.afterDrag();
       this.resetPointerLook();
     });
   }
@@ -118,6 +127,7 @@ export class SceneInput {
     return {
       yaw: this.target.rig.yaw + this.pointerLook.yaw,
       pitch: this.target.rig.pitch + this.pointerLook.pitch,
+      squint: this.target.mode === 'first' ? this.target.rig.squint : 0,
     };
   }
 
@@ -157,8 +167,10 @@ export class SceneInput {
   }
 
   private press(event: PointerEvent): void {
+    if (this.drag?.card && this.drag.pointerId !== event.pointerId) return;
     if (this.mouseLook.press(event)) return;
     const { target } = this;
+    target.rig.cancelLookReturn();
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.canvas.setPointerCapture(event.pointerId);
     const card = target.pick(event.clientX, event.clientY, target.mode === 'first');
@@ -173,6 +185,10 @@ export class SceneInput {
       card,
       startedAt: performance.now(),
     };
+    if (card && target.mode === 'first') {
+      this.cardDrag.begin(card, clientX, clientY);
+      target.reach(true);
+    }
     // Clicking beside the inspected card closes it.
     if (target.inspected && !target.pick(clientX, clientY, false)) target.clearInspection();
   }
@@ -181,7 +197,7 @@ export class SceneInput {
     if (this.mouseLook.active) return;
     this.updatePointerLook(event);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (this.pointers.size === 2) {
+    if (this.pointers.size === 2 && !this.drag?.card) {
       this.pinch();
       return;
     }
@@ -206,9 +222,7 @@ export class SceneInput {
       rig.addPitch(-(event.clientY - drag.lastY) * LOOK_SPEED);
       return;
     }
-    // Lift the card as it is dragged up, and slide it along with the pointer.
-    drag.card.position.y = 0.03 + Math.min(0.25, (drag.startY - event.clientY) * 0.001);
-    drag.card.position.x += (event.clientX - drag.lastX) * 0.001;
+    this.cardDrag.move(drag.card, event.clientX, event.clientY);
     this.target.reach(true);
   }
 
@@ -235,8 +249,16 @@ export class SceneInput {
     if (drag?.pointerId !== event.pointerId) return;
     this.drag = null;
     if (event.type !== 'pointercancel') this.finishDrag(drag, event);
+    this.returnSeatedLook(drag);
     this.target.reach(false);
     this.target.afterDrag();
+  }
+
+  private returnSeatedLook(drag: Drag): void {
+    if (!SEATED_CAMERA.returnOnLookRelease || drag.card) return;
+    if (this.target.mode !== 'first' || this.target.freeLook) return;
+    this.target.rig.returnOrientation();
+    this.resetPointerLook();
   }
 
   private finishDrag(drag: Drag, event: PointerEvent): void {
@@ -245,11 +267,20 @@ export class SceneInput {
     if (target.mode === 'top' && !drag.moved) target.inspect(drag.card);
     if (target.mode === 'first' && drag.moved) {
       const slotShift = Math.round((event.clientX - drag.startX) / SLOT_WIDTH_PX);
-      target.dropHandCard(drag.card, drag.startY - event.clientY > PLAY_DISTANCE_PX, slotShift);
+      const playDistance = Math.min(PLAY_DISTANCE_PX, this.canvas.clientHeight * PLAY_HEIGHT_FRACTION);
+      const onTable =
+        drag.startY - event.clientY > playDistance && this.cardDrag.overTable(event.clientX, event.clientY);
+      target.dropHandCard(drag.card, onTable, slotShift);
     }
   }
 
   private wheel(event: WheelEvent): void {
+    if (this.target.mode === 'first') {
+      event.preventDefault();
+      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      this.target.rig.addFirstPersonZoom(delta);
+      return;
+    }
     if (this.target.mode === 'third') {
       event.preventDefault();
       this.target.rig.addOrbitZoom(event.deltaY * WHEEL_ZOOM);

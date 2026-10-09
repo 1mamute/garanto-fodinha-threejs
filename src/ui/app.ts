@@ -45,6 +45,7 @@ export class App {
       game: null,
       connectionStatus: '',
       selectedCardId: null,
+      handOpen: false,
       rooms: [],
       roomsError: '',
       roomsLoading: false,
@@ -200,6 +201,7 @@ export class App {
       session: null,
       game: null,
       selectedCardId: null,
+      handOpen: false,
       watchedPlayerId: null,
       inspection: null,
       savedSession: null,
@@ -296,24 +298,14 @@ export class App {
       return this.refreshRooms();
     },
     'refresh-rooms': () => this.refreshRooms(),
-    create: () => {
-      this.openModal({ type: 'create' });
-    },
+    create: this.openModal.bind(this, { type: 'create' }),
     join: button => {
       this.openModal({ type: 'join', room: button.dataset.room ?? '' });
     },
-    'join-code': () => {
-      this.openModal({ type: 'join' });
-    },
-    practice: () => {
-      this.openModal({ type: 'practice' });
-    },
-    help: () => {
-      this.openModal({ type: 'help' });
-    },
-    'close-modal': () => {
-      this.openModal(null);
-    },
+    'join-code': this.openModal.bind(this, { type: 'join' }),
+    practice: this.openModal.bind(this, { type: 'practice' }),
+    help: this.openModal.bind(this, { type: 'help' }),
+    'close-modal': this.openModal.bind(this, null),
     resume: () => {
       const saved = this.ui.savedSession;
       if (!saved) return;
@@ -350,6 +342,10 @@ export class App {
     'play-selected': () => {
       if (this.ui.selectedCardId) this.playCard(this.ui.selectedCardId);
     },
+    'hand-toggle': () => {
+      this.ui.handOpen = !this.ui.handOpen;
+      this.render();
+    },
     camera: () => {
       this.scene.toggleMode();
     },
@@ -376,9 +372,7 @@ export class App {
       this.watchPlayer(null);
     },
     invite: () => copyInvite(this.ui.session?.roomId ?? null),
-    leave: () => {
-      this.openModal({ type: 'leave' });
-    },
+    leave: this.openModal.bind(this, { type: 'leave' }),
     'confirm-leave': () => {
       this.leaveTable();
     },

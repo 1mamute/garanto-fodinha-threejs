@@ -2,7 +2,9 @@
 import * as THREE from 'three';
 import type { Card } from '../game';
 import { CardMesh } from './cards';
-import { DARK, sphere, tube, WHITE } from './primitives';
+import { FIRST_PERSON_CAMERA } from './cameraSettings';
+import { tube } from './primitives';
+import { buildGripper, JOINT, TRIM } from './robotParts';
 
 /** How a hand fans out its cards. */
 export interface FanLayout {
@@ -62,35 +64,49 @@ export class FirstPersonHands {
   readonly cards = new THREE.Group();
   private readonly leftHand = new THREE.Group();
   private readonly rightGlove = new THREE.Group();
+  private readonly gripPosition = new THREE.Vector3();
+  private readonly gripOrientation = new THREE.Quaternion();
+  private readonly cameraOrientation = new THREE.Quaternion();
+  private gripping = false;
 
-  constructor(camera: THREE.Camera) {
+  constructor(private readonly camera: THREE.Camera) {
     camera.add(this.leftHand, this.rightGlove);
-    this.leftHand.position.set(-0.23, -0.54, -0.95);
+    this.leftHand.position.set(-0.12, -0.4, -0.95);
     this.leftHand.rotation.x = 1.25;
+    const clamp = new THREE.Group();
+    clamp.position.set(0, 0.03, -0.06);
+    this.leftHand.add(clamp);
+    buildGripper(clamp);
     tube(
       this.leftHand,
       [
-        [-0.3, -0.05, 0.15],
-        [-0.22, 0, 0],
-        [-0.08, 0.04, -0.1],
+        [-0.32, -0.15, 0.48],
+        [-0.18, -0.055, 0.36],
+        [0, -0.005, 0.24],
       ],
-      DARK,
-      0.035,
+      JOINT,
+      0.045,
     );
-    sphere(this.leftHand, WHITE, 0.09, { at: [-0.09, 0.025, -0.08] });
     this.leftHand.add(this.cards);
-    this.rightGlove.position.set(0.55, -0.65, -1.05);
-    sphere(this.rightGlove, WHITE, 0.1, { at: [0, 0, 0], scale: [1.2, 0.65, 1.2] });
+    this.rightGlove.position.set(0.42, -0.3, -1.05);
+    this.rightGlove.rotation.x = 1.25;
+    buildGripper(this.rightGlove);
     tube(
       this.rightGlove,
       [
-        [0, -0.04, 0.1],
-        [0.12, -0.15, 0.2],
-        [0.25, -0.25, 0.3],
+        [0, -0.035, 0.3],
+        [0.12, -0.08, 0.42],
+        [0.25, -0.15, 0.6],
       ],
-      DARK,
-      0.035,
+      TRIM,
+      0.045,
     );
+    this.leftHand.traverse(object => {
+      object.layers.set(1);
+    });
+    this.rightGlove.traverse(object => {
+      object.layers.set(1);
+    });
   }
 
   set visible(visible: boolean) {
@@ -99,21 +115,69 @@ export class FirstPersonHands {
   }
 
   show(cards: readonly Card[]): void {
-    const spread = Math.min(0.085, 0.75 / Math.max(1, cards.length));
+    const spread = Math.min(0.085, 0.85 / Math.max(1, cards.length));
     syncFan(this.cards, cards, false, { scale: 0.65, spread, y: 0.03, z: -0.06, tilt: -0.055 });
+    this.cards.traverse(object => {
+      object.layers.set(1);
+    });
+  }
+
+  /** Draw the existing hands after the room, so the visible torso cannot occlude held cards. */
+  render(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
+    if (!this.leftHand.visible) return;
+    const previousLayers = this.camera.layers.mask;
+    const previousClear = renderer.autoClear;
+    const previousMatrixUpdate = scene.matrixWorldAutoUpdate;
+    // The room pass already updated transforms; reuse them for the hands.
+    scene.matrixWorldAutoUpdate = false;
+    renderer.autoClear = false;
+    renderer.clearDepth();
+    this.camera.layers.set(1);
+    try {
+      renderer.render(scene, this.camera);
+    } finally {
+      this.camera.layers.mask = previousLayers;
+      renderer.autoClear = previousClear;
+      scene.matrixWorldAutoUpdate = previousMatrixUpdate;
+    }
   }
 
   /** The right glove reaches forward while a card is being dragged. */
   reach(reaching: boolean): void {
-    this.rightGlove.position.y = reaching ? -0.5 : -0.65;
+    this.rightGlove.position.x = 0.42 * this.rightGlove.scale.x;
+    this.rightGlove.position.y = reaching ? -0.2 : -0.3;
+    this.rightGlove.position.z = reaching ? -1.25 : -1.05;
+    this.rightGlove.rotation.set(reaching ? 0.85 : 1.25, 0, 0);
+  }
+
+  /** Keep the clamp attached to a dragged card, even when the fan or camera is rotated. */
+  followCard(dragged: THREE.Object3D | null): void {
+    if (!dragged) {
+      if (this.gripping) this.reach(false);
+      this.gripping = false;
+      return;
+    }
+    dragged.updateWorldMatrix(true, false);
+    dragged.getWorldPosition(this.gripPosition);
+    this.camera.worldToLocal(this.gripPosition);
+    dragged.getWorldQuaternion(this.gripOrientation);
+    this.camera.getWorldQuaternion(this.cameraOrientation);
+    this.rightGlove.position.copy(this.gripPosition);
+    this.rightGlove.quaternion.copy(this.cameraOrientation.invert()).multiply(this.gripOrientation);
+    this.gripping = true;
   }
 
   /** Narrow portrait screens shrink the hands so they stay inside the view. */
-  fitTo(aspect: number): void {
-    const scale = Math.min(1, aspect);
+  fitTo(aspect: number, fieldOfView: number = FIRST_PERSON_CAMERA.fieldOfView): void {
+    const perspective =
+      Math.tan(THREE.MathUtils.degToRad(fieldOfView / 2)) /
+      Math.tan(THREE.MathUtils.degToRad(FIRST_PERSON_CAMERA.fieldOfView / 2));
+    const scale = 0.7 * (aspect < 1 ? aspect * 0.9 : 1) * perspective;
     this.leftHand.scale.setScalar(scale);
-    this.leftHand.position.x = -0.23 * scale;
+    this.leftHand.position.x = (aspect < 1 ? 0 : -0.12) * perspective;
+    this.leftHand.position.y = -0.4 * perspective;
     this.rightGlove.scale.setScalar(scale);
-    this.rightGlove.position.x = 0.55 * scale;
+    this.rightGlove.position.x = 0.42 * scale;
+    if (!this.gripping) this.rightGlove.position.y = -0.3 * perspective;
   }
 }

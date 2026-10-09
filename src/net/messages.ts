@@ -7,6 +7,8 @@
 export interface Pose {
   yaw: number;
   pitch: number;
+  /** Normalized first-person magnification, used for the robot's squint. */
+  squint?: number;
   position?: [number, number, number];
 }
 
@@ -59,12 +61,13 @@ const isAngle = (value: unknown): value is number => typeof value === 'number' &
 /** Validates a pose from another player and clamps it to sane values. */
 export function sanitizePose(value: unknown): Pose | null {
   if (typeof value !== 'object' || value === null) return null;
-  const { yaw, pitch, position } = value as Record<string, unknown>;
+  const { yaw, pitch, position, squint } = value as Record<string, unknown>;
   if (!isAngle(yaw) || !isAngle(pitch)) return null;
   const pose: Pose = {
     yaw: Math.max(-Math.PI * 8, Math.min(Math.PI * 8, yaw)),
     pitch: Math.max(-1.2, Math.min(1.2, pitch)),
   };
+  if (isAngle(squint)) pose.squint = Math.max(0, Math.min(1, squint));
   if (Array.isArray(position) && position.length === 3 && position.every(isAngle)) {
     pose.position = position as [number, number, number];
   }

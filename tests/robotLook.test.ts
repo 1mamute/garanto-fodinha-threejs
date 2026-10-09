@@ -38,7 +38,7 @@ test('a cabeça acompanha um alvo no mundo sem mover o corpo, inclusive com um p
 test('desligar o acompanhamento restaura suavemente a posição neutra da cabeça', () => {
   const robot = new Robot('#c38e67', 'standing');
   const head = headOf(robot);
-  robot.lookAt(new THREE.Vector3(1, 2, 2), 1);
+  robot.lookAt(new THREE.Vector3(1, head.position.y + 0.35, 2), 1);
   const turned = head.rotation.y;
   const tilted = head.rotation.x;
   robot.lookAt(null, smoothing(1 / 60, 7));

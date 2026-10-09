@@ -8,16 +8,20 @@
  */
 import * as THREE from 'three';
 import { WALK_OUTER_RADIUS } from './roomDimensions';
+import { FIRST_PERSON_CAMERA, SEATED_CAMERA } from './cameraSettings';
+import { ROBOT_DIMENSIONS } from './robotDimensions';
 import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
 const MIN_ZOOM = 3;
-const MAX_ZOOM = 17;
 const DEFAULT_ZOOM = 4.8;
 const TABLE_HEIGHT = 1.68;
+/** Stay below the lamp's lower disc at 4.61, including the near clipping plane. */
+const MAX_TABLE_VIEW_HEIGHT = 4.3;
 const CARD_FRAME_MARGIN = 0.12;
-const EYE_HEIGHT = 1.99;
+const EYE_HEIGHT = 3.05;
+const DEFAULT_PITCH = -0.436;
 const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
 const WALK_INNER_RADIUS = 3;
@@ -27,6 +31,12 @@ const VIEW_TRANSITION_SECONDS = 1.2;
 interface ViewTransition {
   position: THREE.Vector3;
   rotation: THREE.Quaternion;
+  elapsed: number;
+}
+
+interface LookReturn {
+  yaw: number;
+  pitch: number;
   elapsed: number;
 }
 
@@ -44,14 +54,16 @@ export interface FrameContext {
 }
 
 export class CameraRig {
-  readonly camera = new THREE.PerspectiveCamera(48, 1, 0.04, 60);
+  readonly camera = new THREE.PerspectiveCamera(FIRST_PERSON_CAMERA.fieldOfView, 1, 0.04, 60);
+  firstPersonZoom = 1;
+  maxFirstPersonZoom: number = FIRST_PERSON_CAMERA.maxZoom;
   /** Head turn relative to facing the table centre. */
   yaw = 0;
-  pitch = -0.12;
+  pitch = DEFAULT_PITCH;
   /** Height of the top view; changed by the wheel and pinch. */
   zoom = DEFAULT_ZOOM;
   orbitDistance = 4;
-  readonly spectatorPosition = new THREE.Vector3(0, 2, 5.5);
+  readonly spectatorPosition = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
   readonly joystick = { x: 0, y: 0 };
   /** Keyboard codes currently pressed. */
@@ -64,10 +76,52 @@ export class CameraRig {
   private readonly aim = new THREE.PerspectiveCamera();
   private previousMode: InspectionCameraMode | null = null;
   private transition: ViewTransition | null = null;
+  private lookReturn: LookReturn | null = null;
 
   resetView(): void {
+    this.resetOrientation();
+    this.firstPersonZoom = 1;
+  }
+
+  /** Restore the look target; the camera and robot already ease towards it each frame. */
+  resetOrientation(): void {
+    this.cancelLookReturn();
     this.yaw = 0;
-    this.pitch = -0.12;
+    this.pitch = DEFAULT_PITCH;
+  }
+
+  returnOrientation(): void {
+    this.lookReturn = { yaw: this.yaw, pitch: this.pitch, elapsed: 0 };
+  }
+
+  cancelLookReturn(): void {
+    this.lookReturn = null;
+  }
+
+  private animateLookReturn(deltaSeconds: number, context: FrameContext): void {
+    if (context.mode !== 'first') this.cancelLookReturn();
+    const returning = this.lookReturn;
+    if (!returning) return;
+    returning.elapsed += deltaSeconds;
+    const duration = Math.max(0.01, SEATED_CAMERA.returnDurationSeconds);
+    const progress = Math.min(1, returning.elapsed / duration);
+    // Ease the look target itself so camera placement and the shared head pose return together.
+    const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
+    this.yaw = THREE.MathUtils.lerp(returning.yaw, 0, eased);
+    this.pitch = THREE.MathUtils.lerp(returning.pitch, DEFAULT_PITCH, eased);
+    if (progress === 1) this.cancelLookReturn();
+  }
+
+  addFirstPersonZoom(wheelDelta: number): void {
+    const maximum = Number.isFinite(this.maxFirstPersonZoom) ? Math.max(1, this.maxFirstPersonZoom) : 1;
+    const multiplier = Math.exp(-wheelDelta * FIRST_PERSON_CAMERA.wheelSensitivity);
+    this.firstPersonZoom = THREE.MathUtils.clamp(this.firstPersonZoom * multiplier, 1, maximum);
+  }
+
+  get squint(): number {
+    const range = this.maxFirstPersonZoom - 1;
+    if (!Number.isFinite(range) || range <= 0) return 0;
+    return THREE.MathUtils.clamp((this.firstPersonZoom - 1) / range, 0, 1);
   }
 
   addPitch(delta: number): void {
@@ -75,7 +129,7 @@ export class CameraRig {
   }
 
   addZoom(delta: number): void {
-    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, MAX_ZOOM);
+    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, DEFAULT_ZOOM);
   }
 
   addOrbitZoom(delta: number): void {
@@ -88,17 +142,36 @@ export class CameraRig {
   }
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
+    this.animateLookReturn(deltaSeconds, context);
+    const snapToFirst = context.mode === 'first' && this.previousMode !== 'first';
+    this.updateFieldOfView(context, snapToFirst ? 1 : blend);
     this.chooseTargets(deltaSeconds, context);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
     this.aim.lookAt(this.lookTarget);
     this.updateTransition(context);
-    if (this.transition) this.animateTransition(deltaSeconds);
+    if (snapToFirst) {
+      this.camera.position.copy(this.positionTarget);
+      this.camera.quaternion.copy(this.aim.quaternion);
+    } else if (this.transition) this.animateTransition(deltaSeconds);
     else {
       this.camera.position.lerp(this.positionTarget, blend);
       this.camera.quaternion.slerp(this.aim.quaternion, blend);
     }
     this.camera.up.copy(this.upTarget);
+  }
+
+  private updateFieldOfView(context: FrameContext, blend: number): void {
+    const base = FIRST_PERSON_CAMERA.fieldOfView;
+    const firstPerson = context.mode === 'first' && !context.inspected;
+    const magnification = firstPerson ? this.firstPersonZoom : 1;
+    const halfAngle = Math.tan(THREE.MathUtils.degToRad(base / 2)) / magnification;
+    const target =
+      context.mode === 'top' && !context.inspected
+        ? this.tableView(context.tableBounds).fieldOfView
+        : THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2;
+    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, target, blend);
+    this.camera.updateProjectionMatrix();
   }
 
   private updateTransition(context: FrameContext): void {
@@ -112,8 +185,7 @@ export class CameraRig {
     if (previous === context.mode) return;
     this.transition = null;
     const ascending = previous === 'first' && context.mode === 'top';
-    const descending = previous === 'top' && context.mode === 'first';
-    if (ascending || descending) {
+    if (ascending) {
       this.transition = {
         position: this.camera.position.clone(),
         rotation: this.camera.quaternion.clone(),
@@ -147,7 +219,9 @@ export class CameraRig {
 
   private aimThirdPerson(deltaSeconds: number): void {
     this.walk(deltaSeconds, 0);
-    this.lookTarget.copy(this.spectatorPosition).setY(1.3);
+    this.lookTarget
+      .copy(this.spectatorPosition)
+      .setY(ROBOT_DIMENSIONS.torsoHeight + ROBOT_DIMENSIONS.standingOffset);
     const horizontal = Math.cos(this.pitch) * this.orbitDistance;
     this.positionTarget
       .copy(this.lookTarget)
@@ -163,8 +237,8 @@ export class CameraRig {
   /** Home screen: the table seen from a corner, shifted so the menu does not cover it. */
   private aimLanding(): void {
     const narrow = innerWidth < NARROW_SCREEN_PX;
-    this.positionTarget.set(7.9, 7.4, 10.5);
-    this.lookTarget.set(narrow ? 0 : -2.4, narrow ? 3 : 1.2, 0);
+    this.positionTarget.set(narrow ? 5.4 : 6.4, 3.6, narrow ? 8 : 7.8);
+    this.lookTarget.set(narrow ? 0 : -1.5, 1.65, 0);
   }
 
   /** Close-up above an inspected card, with the card's top edge pointing up on screen. */
@@ -177,17 +251,27 @@ export class CameraRig {
 
   /** Straight down on the table, rotated so the player's seat is at the bottom of the screen. */
   private aimTop(seatAngle: number, bounds: FrameContext['tableBounds']): void {
-    const halfFov = THREE.MathUtils.degToRad(this.camera.fov / 2);
-    const cardDistance = bounds
-      ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
-      : 0;
-    // Fit card corners in the narrower screen dimension, rather than framing the whole room.
-    const distance = Math.max(this.zoom - TABLE_HEIGHT, cardDistance);
-    const height = TABLE_HEIGHT + distance / Math.min(1, this.camera.aspect);
+    const { height } = this.tableView(bounds);
     // A tiny z offset keeps the view direction from being exactly vertical.
     this.positionTarget.set(0, height, 0.001);
     this.lookTarget.set(0, TABLE_HEIGHT, 0);
     this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
+  }
+
+  private tableView(bounds: FrameContext['tableBounds']): { height: number; fieldOfView: number } {
+    const halfFov = THREE.MathUtils.degToRad(FIRST_PERSON_CAMERA.fieldOfView / 2);
+    const cardDistance = bounds
+      ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
+      : 0;
+    // Fit all cards at the initial view; zooming in may crop that footprint intentionally.
+    const initialDistance = DEFAULT_ZOOM - TABLE_HEIGHT;
+    const zoomRatio = (this.zoom - TABLE_HEIGHT) / initialDistance;
+    const distance = Math.max(initialDistance, cardDistance) * zoomRatio;
+    const requestedDistance = distance / Math.min(1, this.camera.aspect);
+    const height = Math.min(MAX_TABLE_VIEW_HEIGHT, TABLE_HEIGHT + requestedDistance);
+    // Widen the lens instead of crossing the lamp, preserving card framing and wheel zoom.
+    const halfAngle = (Math.tan(halfFov) * requestedDistance) / (height - TABLE_HEIGHT);
+    return { height, fieldOfView: THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2 };
   }
 
   private aimFirstPerson(deltaSeconds: number, seatAngle: number, context: FrameContext): void {
@@ -199,6 +283,9 @@ export class CameraRig {
     }
     // Facing the table centre is the seat angle turned half a circle.
     const heading = seatAngle + this.yaw + Math.PI;
+    // Keep the viewpoint ahead of the torso even when looking down; pitch must not pull it inside.
+    this.positionTarget.x += Math.sin(heading) * ROBOT_DIMENSIONS.eyeForward;
+    this.positionTarget.z += Math.cos(heading) * ROBOT_DIMENSIONS.eyeForward;
     const horizontal = Math.cos(this.pitch);
     const direction = new THREE.Vector3(
       Math.sin(heading) * horizontal,

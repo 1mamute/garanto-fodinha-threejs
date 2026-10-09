@@ -16,6 +16,9 @@ export class DealerIndicator {
   private readonly element = document.createElement('div');
   private readonly arrow: HTMLElement;
   private readonly caption: HTMLElement;
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewProjection = new THREE.Matrix4();
+  private readonly chipBounds = new THREE.Sphere();
   private name = '';
 
   constructor() {
@@ -38,8 +41,9 @@ export class DealerIndicator {
     seat: THREE.Vector3 | null;
     name: string;
     visible: boolean;
+    chip?: THREE.Mesh;
   }): void {
-    this.element.hidden = !options.visible || !options.seat;
+    this.element.hidden = !options.visible || !options.seat || this.chipOnScreen(options);
     if (this.element.hidden || !options.seat) return;
     if (this.name !== options.name) {
       this.name = options.name;
@@ -53,5 +57,20 @@ export class DealerIndicator {
     this.element.style.left = `${(1 + direction.x * edge) * 50}%`;
     this.element.style.top = `${(1 + direction.y * edge) * 50}%`;
     this.arrow.style.transform = `rotate(${Math.atan2(vertical, horizontal)}rad)`;
+  }
+
+  private chipOnScreen(options: { camera: THREE.Camera; chip?: THREE.Mesh }): boolean {
+    const { camera, chip } = options;
+    if (!chip?.visible) return false;
+    chip.updateWorldMatrix(true, false);
+    if (!chip.geometry.boundingSphere) chip.geometry.computeBoundingSphere();
+    const bounds = chip.geometry.boundingSphere;
+    if (!bounds) return false;
+    camera.updateMatrixWorld();
+    this.viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.viewProjection);
+    this.chipBounds.copy(bounds).applyMatrix4(chip.matrixWorld);
+    // Any part of the coin in the viewport is enough to hide the duplicate indicator.
+    return this.frustum.intersectsSphere(this.chipBounds);
   }
 }

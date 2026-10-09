@@ -20,7 +20,7 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
 - Escolha uma cor disponível, sente e marque pronto. A cor fica bloqueada ao sentar. O host pode adicionar bots e inicia quando todos os jogadores sentados estiverem prontos.
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.
-- Na primeira pessoa, arraste cartas para ordenar; arraste para cima para jogar. Também pode selecionar a carta e usar o botão de jogar. Arraste a área livre para olhar.
+- Na primeira pessoa, arraste cartas para ordenar; arraste para cima para jogar. Arraste a área livre para olhar. A roda do mouse aproxima e afasta a visão da mesa, enquanto o robô espreme os olhos. As cartas da mão mantêm seu tamanho na tela.
 - **Espaço** alterna entre primeira pessoa e visão de cima. Nesta última, a mão fica bloqueada. Use a roda do mouse ou pinça para zoom; passe o mouse por dois segundos ou toque prolongadamente para inspecionar cartas e vazas coletadas. **ESC** ou clique fora encerra a inspeção.
 - Eliminados podem ver todas as mãos e passear em primeira pessoa: no computador, use **WASD** e clique na cena para capturar o mouse e olhar como em um FPS (**Esc** libera o cursor); no celular, use o joystick para andar e arraste na cena para olhar. Toque no nome de um jogador para consultar sua mão como espectador.
 - Participantes que chegam durante uma partida entram como espectadores. Use o chat para conversar.
@@ -28,6 +28,19 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 - O host é transferido automaticamente para um participante conectado. O antigo host pode voltar como jogador. Recarregue a página e use **Retomar minha sala** na mesma aba; a sessão e o último estado recebido são guardados no armazenamento da aba.
 
 As regras completas estão em [garanto_regras.md](garanto_regras.md); decisões adicionais, em [docs/decisoes-do-jogo.md](docs/decisoes-do-jogo.md).
+
+O zoom máximo em primeira pessoa é configurado em `src/scene/cameraSettings.ts`,
+na propriedade `FIRST_PERSON_CAMERA.maxZoom` (padrão: `2.5`, ou 2,5×; `1` desativa
+o zoom). Cada `CameraRig` também permite ajustar `maxFirstPersonZoom`.
+
+Ao soltar o mouse ou toque depois de olhar ao redor enquanto sentado, a câmera e
+a cabeça voltam suavemente à direção inicial, preservando o zoom. Para manter o
+último olhar como antes, defina `SEATED_CAMERA.returnOnLookRelease` como `false`
+em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
+A duração do retorno é ajustável em `SEATED_CAMERA.returnDurationSeconds` (padrão: 1,2 segundo).
+Na visão da mesa, o zoom permite aproximar e voltar ao enquadramento inicial, sem afastar além dele.
+A seta do dealer aparece apenas para jogadores vivos, em primeira pessoa ou na visão da mesa,
+quando a moeda do dealer está fora da tela. Observadores e eliminados não veem essa seta.
 
 ## Publicar na Cloudflare
 

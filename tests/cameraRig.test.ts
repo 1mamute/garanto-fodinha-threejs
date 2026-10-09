@@ -9,13 +9,31 @@ function advance(rig: CameraRig, mode: InspectionCameraMode, seconds = 0.05): vo
   rig.update(seconds, 1, { mode, observer: true, seat: null, inspected: null });
 }
 
+test('a câmera sentada mostra a face do kicker acima da área da mão', () => {
+  for (const aspect of [390 / 844, 16 / 10]) {
+    const rig = new CameraRig();
+    rig.resize(aspect);
+    rig.update(0.05, 1, {
+      mode: 'first',
+      observer: false,
+      seat: new Vector3(0, 0, 3.35),
+      inspected: null,
+    });
+    rig.camera.updateMatrixWorld();
+    const farEdge = new Vector3(0, 1.68, -0.295).project(rig.camera);
+    const nearEdge = new Vector3(0, 1.68, 0.295).project(rig.camera);
+    assert.ok(farEdge.y - nearEdge.y > 0.08, 'o tampo não achata a face da carta');
+    assert.ok(nearEdge.y > -0.45, 'o kicker fica acima da mão em repouso');
+  }
+});
+
 test('a vista da mesa sobe e centraliza em um único movimento contínuo', () => {
   const rig = new CameraRig();
   advance(rig, 'first');
   const head = rig.camera.position.clone();
   rig.update(1 / 60, 0.1, { mode: 'top', observer: true, seat: null, inspected: null });
   assert.ok(rig.camera.position.y > head.y);
-  assert.equal(rig.camera.position.x, head.x);
+  assert.ok(Math.abs(rig.camera.position.x - head.x) < 1e-10);
   assert.ok(rig.camera.position.z < head.z);
 });
 
@@ -36,38 +54,35 @@ test('a vista da mesa mantém o assento embaixo e não inverte os lados', () => 
   }
 });
 
-test('voltar da mesa aproxima e desce até a cabeça em um único movimento', () => {
-  const rig = new CameraRig();
-  advance(rig, 'top');
-  const height = rig.camera.position.y;
-  for (let frame = 0; frame < 27; frame++) {
-    rig.update(1 / 60, 0.1, { mode: 'first', observer: true, seat: null, inspected: null });
-    assert.ok(rig.camera.position.y < height);
-    assert.ok(rig.camera.position.z > 0.001);
+test('voltar à primeira pessoa é instantâneo para jogadores e observadores', () => {
+  for (const mode of ['top', 'third'] as const) {
+    for (const observer of [false, true]) {
+      const rig = new CameraRig();
+      const expected = new CameraRig();
+      const context = { observer, seat: new Vector3(3.35, 0, 0), inspected: null };
+      rig.update(0.05, 1, { ...context, mode });
+      rig.yaw = expected.yaw = 0.3;
+      rig.pitch = expected.pitch = -0.2;
+      rig.firstPersonZoom = expected.firstPersonZoom = 1.5;
+      rig.update(1 / 60, 0.01, { ...context, mode: 'first' });
+      expected.update(1 / 60, 1, { ...context, mode: 'first' });
+      assert.ok(rig.camera.position.distanceTo(expected.camera.position) < 1e-10);
+      assert.ok(rig.camera.quaternion.angleTo(expected.camera.quaternion) < 1e-7);
+      assert.equal(rig.camera.fov, expected.camera.fov);
+    }
   }
-  assert.ok(rig.camera.position.z < rig.spectatorPosition.z);
-  for (let frame = 0; frame < 60; frame++) {
-    rig.update(1 / 60, 0.1, { mode: 'first', observer: true, seat: null, inspected: null });
-  }
-  assert.ok(rig.camera.position.distanceTo(rig.spectatorPosition) < 1e-10);
 });
 
-test('alternar durante a subida retoma da posição atual sem saltar', () => {
+test('voltar durante a subida cancela a transição imediatamente', () => {
   const rig = new CameraRig();
   advance(rig, 'first');
+  const firstPosition = rig.camera.position.clone();
   const context = { observer: true, seat: null, inspected: null };
   for (let frame = 0; frame < 12; frame++) {
     rig.update(1 / 60, 0.1, { ...context, mode: 'top' });
   }
-  const position = rig.camera.position.clone();
-  const rotation = rig.camera.quaternion.clone();
   rig.update(0, 0.1, { ...context, mode: 'first' });
-  assert.ok(rig.camera.position.distanceTo(position) < 1e-10);
-  assert.ok(rig.camera.quaternion.angleTo(rotation) < 1e-7);
-  for (let frame = 0; frame < 90; frame++) {
-    rig.update(1 / 60, 0.1, { ...context, mode: 'first' });
-  }
-  assert.ok(rig.camera.position.distanceTo(rig.spectatorPosition) < 1e-10);
+  assert.ok(rig.camera.position.distanceTo(firstPosition) < 1e-10);
 });
 
 test('a vista padrão enquadra cartas centrais de perto e recua para incluir as pilhas', () => {
