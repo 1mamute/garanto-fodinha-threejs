@@ -28,7 +28,7 @@ export function buildRoom(world: THREE.Group): RoomProps {
 function buildFloorAndWalls(world: THREE.Group): void {
   mesh(
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
-    material('#ffffff', { map: floorTexture(), roughness: 1 }),
+    material('#8a8780', { map: floorTexture(), roughness: 1 }),
     world,
     [0, -0.1, 0],
   ).rotation.y = Math.PI / 12;

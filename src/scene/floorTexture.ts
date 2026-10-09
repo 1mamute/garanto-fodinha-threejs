@@ -19,11 +19,11 @@ function drawFloor(context: CanvasRenderingContext2D): void {
     seed = (seed * 16807) % 2147483647;
     return seed / 2147483647;
   };
-  context.fillStyle = '#100e0c';
+  context.fillStyle = '#070808';
   context.fillRect(0, 0, SIZE, SIZE);
   let x = 0;
   while (x < SIZE) {
-    const width = 18 + random() * 10;
+    const width = 24 + random() * 14;
     let y = -random() * 180;
     while (y < SIZE) {
       const height = 110 + random() * 170;
@@ -44,36 +44,53 @@ interface Plank {
 
 function drawPlank(context: CanvasRenderingContext2D, plank: Plank, random: Random): void {
   const { x, y, width, height } = plank;
-  const shade = Math.floor(38 + random() * 26);
-  context.fillStyle = `rgb(${shade + 13}, ${shade + 2}, ${shade - 9})`;
+  const shade = Math.floor(23 + random() * 12);
+  context.fillStyle = `rgb(${shade + 5}, ${shade + 1}, ${shade - 3})`;
   context.fillRect(x + 0.6, y + 0.6, width - 1.2, height - 1.2);
   context.save();
   context.beginPath();
   context.rect(x + 1, y + 1, width - 2, height - 2);
   context.clip();
   drawGrain(context, plank, random);
-  if (random() > 0.55) drawKnot(context, plank, random);
+  if (random() > 0.72) drawKnot(context, plank, random);
+  drawWear(context, plank, random);
   context.restore();
-  context.fillStyle = 'rgba(168, 127, 79, 0.12)';
-  context.fillRect(x + 1, y + 1, 0.7, height - 2);
 }
 
 function drawGrain(context: CanvasRenderingContext2D, plank: Plank, random: Random): void {
   const { x, y, width, height } = plank;
-  for (let index = 0; index < 22; index++) {
+  for (let index = 0; index < 9; index++) {
     const start = x + random() * width;
-    const bend = (random() - 0.5) * 7;
-    context.strokeStyle = index % 3 ? 'rgba(12, 8, 5, 0.24)' : 'rgba(170, 126, 76, 0.14)';
-    context.lineWidth = 0.3 + random() * 0.7;
+    const bend = (random() - 0.5) * 5;
+    context.strokeStyle = index % 3 ? 'rgba(4, 5, 5, 0.42)' : 'rgba(87, 73, 53, 0.17)';
+    context.lineWidth = 0.7 + random() * 0.8;
     context.beginPath();
     context.moveTo(start, y);
-    context.bezierCurveTo(start + bend, y + height * 0.3, start - bend, y + height * 0.7, start, y + height);
+    context.lineTo(start + bend, y + height * 0.3);
+    context.lineTo(start - bend * 0.4, y + height * 0.7);
+    context.lineTo(start, y + height);
     context.stroke();
   }
-  for (let index = 0; index < 45; index++) {
-    context.fillStyle = 'rgba(8, 6, 4, 0.12)';
-    context.fillRect(x + random() * width, y + random() * height, 0.6, 2 + random() * 15);
+}
+
+function drawWear(context: CanvasRenderingContext2D, plank: Plank, random: Random): void {
+  const { x, y, width, height } = plank;
+  // Broken edge highlights and end splits read as worn boards without bright, uniform outlines.
+  context.fillStyle = 'rgba(95, 80, 60, 0.18)';
+  for (let chip = 0; chip < 6; chip++) {
+    context.fillRect(x + 1, y + random() * height, 1, 3 + random() * 14);
   }
+  const split = x + width * (0.2 + random() * 0.6);
+  context.strokeStyle = 'rgba(2, 3, 3, 0.65)';
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(split, y);
+  context.lineTo(split + 2, y + 8);
+  context.lineTo(split - 1, y + 15 + random() * 15);
+  context.stroke();
+  context.fillStyle = '#101110';
+  context.fillRect(x + 4, y + 4, 1.5, 1.5);
+  context.fillRect(x + width - 5, y + 4, 1.5, 1.5);
 }
 
 function drawKnot(context: CanvasRenderingContext2D, plank: Plank, random: Random): void {
@@ -81,13 +98,13 @@ function drawKnot(context: CanvasRenderingContext2D, plank: Plank, random: Rando
   const y = plank.y + random() * plank.height;
   const width = 1.5 + random() * 2.5;
   for (let ring = 4; ring > 0; ring--) {
-    context.strokeStyle = 'rgba(16, 10, 6, 0.35)';
-    context.lineWidth = 0.7;
+    context.strokeStyle = 'rgba(5, 6, 5, 0.4)';
+    context.lineWidth = 1;
     context.beginPath();
-    context.ellipse(x, y, width * ring, width * ring * 3, 0, 0, TAU);
+    context.ellipse(x, y, width * ring, width * ring * 3, 0.08, 0.3, TAU - 0.4);
     context.stroke();
   }
-  context.fillStyle = '#211810';
+  context.fillStyle = '#0d0e0c';
   context.beginPath();
   context.ellipse(x, y, width, width * 2.5, 0, 0, TAU);
   context.fill();
