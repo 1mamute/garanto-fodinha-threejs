@@ -42,6 +42,10 @@ export class LabScene implements InputTarget {
   private readonly controlled = new Robot('#648bc1', 'standing');
   private readonly stationary = new Robot('#c38e67', 'standing');
   private headTracking = false;
+  private zoomDemoEnabled = true;
+  private zoomDemoElapsed = 0;
+  private zoomRobot: Robot | null = null;
+  private readonly zoomTarget = new THREE.Vector3(0, TABLE_TOP, 0);
   private readonly walking: RobotWalking;
   private readonly timer = new THREE.Timer();
   private readonly budget = new RenderBudget(isMobileRenderer());
@@ -69,6 +73,11 @@ export class LabScene implements InputTarget {
         this.headTracking = !this.headTracking;
         this.renderUi();
       }
+      if (event.target.closest('[data-action="toggle-zoom-demo"]')) {
+        this.zoomDemoEnabled = !this.zoomDemoEnabled;
+        this.zoomDemoElapsed = 0;
+        this.renderUi();
+      }
     });
     this.renderUi();
     this.renderer.setAnimationLoop(() => {
@@ -86,6 +95,7 @@ export class LabScene implements InputTarget {
       player.hand = deck.slice(index * 2, index * 2 + 2);
       const angle = (index * TAU) / state.players.length;
       const robot = new Robot(player.color);
+      if (player.id === state.turn) this.zoomRobot = robot;
       robot.group.position.set(Math.sin(angle) * SEAT_RADIUS, 0, Math.cos(angle) * SEAT_RADIUS);
       robot.group.rotation.y = angle + Math.PI;
       const chair = buildChair();
@@ -191,11 +201,26 @@ export class LabScene implements InputTarget {
     });
     this.controlled.group.visible = this.mode !== 'first';
     this.stationary.lookAt(this.headTracking ? this.rig.spectatorPosition : null, blend);
+    this.animateZoomDemo(deltaSeconds, blend);
     this.input.checkLongPress(performance.now());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
     const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
     if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
     this.renderer.render(this.scene, this.rig.camera);
+  }
+
+  private animateZoomDemo(deltaSeconds: number, blend: number): void {
+    if (!this.zoomRobot) return;
+    if (this.zoomDemoEnabled) this.zoomDemoElapsed += deltaSeconds;
+    // One second to squint, two to hold, one to relax and two resting before repeating.
+    const phase = this.zoomDemoElapsed % 6;
+    const squint =
+      phase < 3 ? THREE.MathUtils.smoothstep(phase, 0, 1) : 1 - THREE.MathUtils.smoothstep(phase, 3, 4);
+    this.zoomRobot.lookAt(
+      this.zoomDemoEnabled ? this.zoomTarget : null,
+      blend,
+      this.zoomDemoEnabled ? squint : 0,
+    );
   }
 
   private renderUi(): void {
@@ -206,6 +231,8 @@ export class LabScene implements InputTarget {
       <strong>Laboratório de cena</strong>
       <p>Câmera: ${MODE_LABELS[this.mode]}</p>
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
+      <button class="button subtle" data-action="toggle-zoom-demo" aria-pressed="${String(this.zoomDemoEnabled)}">Robô sentado: demonstrar zoom ${this.zoomDemoEnabled ? 'ligado' : 'desligado'}</button>
+      <p>O robô sentado à sua frente olha para o centro, espreme os olhos, espera e relaxa. O ciclo repete a cada 6 segundos; caminhe ao redor para observar.</p>
       <button class="button subtle" data-action="toggle-head-tracking" aria-pressed="${String(this.headTracking)}">Robô de inspeção: seguir com a cabeça ${this.headTracking ? 'ligado' : 'desligado'}</button>
       <p>Ative para o robô de inspeção olhar para seu personagem. Caminhe à frente dele e para os lados para observar a cabeça.</p>
       <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom em todas as perspectivas</p>

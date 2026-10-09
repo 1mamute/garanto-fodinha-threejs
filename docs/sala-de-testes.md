@@ -5,6 +5,7 @@ Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena n
 ## Composição
 
 - Quatro robôs sentados, cada um com duas cartas abertas na mão.
+- O robô sentado em frente à posição inicial demonstra o zoom automaticamente: 1 segundo para espremer os olhos, 2 segurando a expressão, 1 relaxando e 2 de pausa. O botão **Robô sentado: demonstrar zoom** liga ou desliga o ciclo. A câmera do visitante continua livre.
 - Duas cartas jogadas no centro da mesa, um kicker, o marcador do dealer e o destaque do jogador da vez.
 - Um robô laranja imóvel em pé para inspeção, sem identificação flutuante, na posição `(2, 0, 8)`, afastado da mesa e com espaço para caminhar ao redor.
 - Um robô azul controlável, oculto em primeira pessoa e visível nas outras perspectivas.

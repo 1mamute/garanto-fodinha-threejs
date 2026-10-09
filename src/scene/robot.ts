@@ -117,7 +117,7 @@ export class Robot {
   }
 
   /** Track a world-space target through a full horizontal turn; null restores a neutral look. */
-  lookAt(target: THREE.Vector3 | null, blend: number): void {
+  lookAt(target: THREE.Vector3 | null, blend: number, squint = 0): void {
     let pose: Pose = { yaw: 0, pitch: 0 };
     if (target) {
       this.group.updateWorldMatrix(true, false);
@@ -128,6 +128,7 @@ export class Robot {
       };
     }
     this.animateHead(pose, blend, true);
+    this.animateSquint(squint, blend);
   }
 
   private animateHead(pose: Pose, blend: number, fullTurn = false): void {
