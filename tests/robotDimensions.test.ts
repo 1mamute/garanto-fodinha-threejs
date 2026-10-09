@@ -23,6 +23,14 @@ test('o robô em pé mantém as proporções do sentado e a câmera coincide com
   const rig = new CameraRig();
   rig.update(0, 1, { mode: 'first', observer: true, seat: null, inspected: null });
   assert.equal(rig.camera.position.y, eyePosition.y);
+  assert.ok(Math.abs(rig.camera.position.z - rig.spectatorPosition.z + ROBOT_DIMENSIONS.eyeForward) < 1e-8);
+  const forwardPosition = rig.camera.position.clone();
+  rig.pitch = -1.2;
+  rig.update(0, 1, { mode: 'first', observer: true, seat: null, inspected: null });
+  assert.ok(
+    rig.camera.position.distanceTo(forwardPosition) < 1e-8,
+    'olhar para baixo não leva a câmera de volta para dentro do tronco',
+  );
   rig.update(0, 1, { mode: 'third', observer: true, seat: null, inspected: null });
   rig.update(0, 0.01, { mode: 'first', observer: true, seat: null, inspected: null });
   assert.equal(rig.camera.position.y, eyePosition.y);

@@ -9,6 +9,7 @@ export const ROBOT_DIMENSIONS = {
   headHeight: HEAD_HEIGHT,
   shoulderHeight: 2.2,
   eyeOffset: EYE_OFFSET,
+  eyeForward: 0.56,
   eyeHeight: HEAD_HEIGHT + EYE_OFFSET + THIGH_LENGTH,
   thighLength: THIGH_LENGTH,
   seatedHipHeight: 0.9,

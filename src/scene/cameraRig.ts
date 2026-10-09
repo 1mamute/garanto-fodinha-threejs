@@ -232,6 +232,9 @@ export class CameraRig {
     }
     // Facing the table centre is the seat angle turned half a circle.
     const heading = seatAngle + this.yaw + Math.PI;
+    // Keep the viewpoint ahead of the torso even when looking down; pitch must not pull it inside.
+    this.positionTarget.x += Math.sin(heading) * ROBOT_DIMENSIONS.eyeForward;
+    this.positionTarget.z += Math.cos(heading) * ROBOT_DIMENSIONS.eyeForward;
     const horizontal = Math.cos(this.pitch);
     const direction = new THREE.Vector3(
       Math.sin(heading) * horizontal,

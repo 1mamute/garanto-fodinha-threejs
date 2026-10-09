@@ -33,7 +33,7 @@ test('a vista da mesa sobe e centraliza em um único movimento contínuo', () =>
   const head = rig.camera.position.clone();
   rig.update(1 / 60, 0.1, { mode: 'top', observer: true, seat: null, inspected: null });
   assert.ok(rig.camera.position.y > head.y);
-  assert.equal(rig.camera.position.x, head.x);
+  assert.ok(Math.abs(rig.camera.position.x - head.x) < 1e-10);
   assert.ok(rig.camera.position.z < head.z);
 });
 
@@ -76,12 +76,13 @@ test('voltar à primeira pessoa é instantâneo para jogadores e observadores', 
 test('voltar durante a subida cancela a transição imediatamente', () => {
   const rig = new CameraRig();
   advance(rig, 'first');
+  const firstPosition = rig.camera.position.clone();
   const context = { observer: true, seat: null, inspected: null };
   for (let frame = 0; frame < 12; frame++) {
     rig.update(1 / 60, 0.1, { ...context, mode: 'top' });
   }
   rig.update(0, 0.1, { ...context, mode: 'first' });
-  assert.ok(rig.camera.position.distanceTo(rig.spectatorPosition) < 1e-10);
+  assert.ok(rig.camera.position.distanceTo(firstPosition) < 1e-10);
 });
 
 test('a vista padrão enquadra cartas centrais de perto e recua para incluir as pilhas', () => {

@@ -42,6 +42,7 @@ O corpo gira suavemente na direção do deslocamento efetivo, incluindo diagonai
 - Sala com diâmetro de 27 unidades; piso, paredes e painéis usam o mesmo raio de 13,5 unidades.
 - Área permitida: anel entre os raios de 3 e 12 unidades ao redor da mesa, mantendo 1,5 unidade de distância das paredes. Passos que saiam desse anel são rejeitados, como no jogo.
 - Sem colisões adicionais com objetos, salto ou voo. A câmera de terceira pessoa também não resolve colisões com a geometria.
+- Em primeira pessoa, a câmera fica 0,56 unidade à frente do centro do corpo, na região dos olhos. Olhar para baixo mantém esse deslocamento, evitando enxergar o interior do tronco.
 
 O laboratório serve para avaliar o deslocamento dos eliminados sem iniciar uma partida. Eliminação, sincronização de posições, migração de host e reconexão devem ser verificadas nos testes do jogo e da rede. A iluminação é ajustada no código; não há painel de edição de luzes.
 
