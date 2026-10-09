@@ -39,6 +39,8 @@ a cabeça voltam suavemente à direção inicial, preservando o zoom. Para mante
 em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
 A duração do retorno é ajustável em `SEATED_CAMERA.returnDurationSeconds` (padrão: 1,2 segundo).
 Na visão da mesa, o zoom permite aproximar e voltar ao enquadramento inicial, sem afastar além dele.
+A seta do dealer aparece apenas para jogadores vivos, em primeira pessoa ou na visão da mesa,
+quando a moeda do dealer está fora da tela. Observadores e eliminados não veem essa seta.
 
 ## Publicar na Cloudflare
 

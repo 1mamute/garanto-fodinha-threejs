@@ -22,7 +22,7 @@ A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** al
 | --- | --- |
 | Primeira pessoa | A roda aproxima e afasta a visão sem deslocar o personagem, inclusive com o mouse capturado. WASD e joystick continuam funcionando durante o zoom. O limite é compartilhado com o jogo em `FIRST_PERSON_CAMERA.maxZoom`. |
 | Terceira pessoa | Arraste na cena para orbitar o robô controlado; a roda do mouse ajusta a distância. WASD ou joystick continuam movendo o personagem. |
-| Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. Uma seta com o nome do dealer aponta para seu assento. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
+| Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. A seta do dealer fica oculta, pois o visitante é um observador. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
 
 Para examinar o robô imóvel em terceira pessoa, caminhe até perto dele e ajuste o ângulo e a distância. Orbitar parado não desloca o personagem. Essa perspectiva está disponível apenas no laboratório.
 

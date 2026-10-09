@@ -193,7 +193,7 @@ export class LabScene implements InputTarget {
       camera: this.rig.camera,
       seat: this.dealerSeat,
       name: this.dealerName,
-      visible: this.mode === 'top' && !this.inspected,
+      visible: false,
     });
     this.walking.update({
       position: this.rig.spectatorPosition,

@@ -316,11 +316,13 @@ export class TableScene implements InputTarget {
 
   private updateDealerIndicator(): void {
     const dealer = this.state ? findPlayer(this.state, this.state.dealer) : undefined;
+    const player = this.state ? findPlayer(this.state, this.myId) : undefined;
     this.dealerIndicator.update({
       camera: this.rig.camera,
       seat: dealer ? (this.seats.get(dealer.id)?.robot.group.position ?? null) : null,
       name: dealer?.name ?? '',
-      visible: this.mode === 'top' && !this.inspected,
+      chip: this.room.dealerChip,
+      visible: !isObserver(player) && (this.mode === 'first' || this.mode === 'top'),
     });
   }
 
