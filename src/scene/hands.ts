@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import type { Card } from '../game';
 import { CardMesh } from './cards';
+import { FIRST_PERSON_CAMERA } from './cameraSettings';
 import { tube } from './primitives';
 import { buildGripper, JOINT, TRIM } from './robotParts';
 
@@ -138,11 +139,16 @@ export class FirstPersonHands {
   }
 
   /** Narrow portrait screens shrink the hands so they stay inside the view. */
-  fitTo(aspect: number): void {
-    const scale = 0.7 * (aspect < 1 ? aspect * 0.9 : 1);
+  fitTo(aspect: number, fieldOfView: number = FIRST_PERSON_CAMERA.fieldOfView): void {
+    const perspective =
+      Math.tan(THREE.MathUtils.degToRad(fieldOfView / 2)) /
+      Math.tan(THREE.MathUtils.degToRad(FIRST_PERSON_CAMERA.fieldOfView / 2));
+    const scale = 0.7 * (aspect < 1 ? aspect * 0.9 : 1) * perspective;
     this.leftHand.scale.setScalar(scale);
-    this.leftHand.position.x = aspect < 1 ? 0 : -0.12;
+    this.leftHand.position.x = (aspect < 1 ? 0 : -0.12) * perspective;
+    this.leftHand.position.y = -0.4 * perspective;
     this.rightGlove.scale.setScalar(scale);
     this.rightGlove.position.x = 0.42 * scale;
+    if (!this.gripping) this.rightGlove.position.y = -0.3 * perspective;
   }
 }

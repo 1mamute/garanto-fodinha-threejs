@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { WALK_OUTER_RADIUS } from './roomDimensions';
+import { FIRST_PERSON_CAMERA } from './cameraSettings';
 import type { InspectionCameraMode } from './types';
 
 export const MIN_PITCH = -1.2;
@@ -45,7 +46,9 @@ export interface FrameContext {
 }
 
 export class CameraRig {
-  readonly camera = new THREE.PerspectiveCamera(55, 1, 0.04, 60);
+  readonly camera = new THREE.PerspectiveCamera(FIRST_PERSON_CAMERA.fieldOfView, 1, 0.04, 60);
+  firstPersonZoom = 1;
+  maxFirstPersonZoom: number = FIRST_PERSON_CAMERA.maxZoom;
   /** Head turn relative to facing the table centre. */
   yaw = 0;
   pitch = DEFAULT_PITCH;
@@ -69,6 +72,19 @@ export class CameraRig {
   resetView(): void {
     this.yaw = 0;
     this.pitch = DEFAULT_PITCH;
+    this.firstPersonZoom = 1;
+  }
+
+  addFirstPersonZoom(wheelDelta: number): void {
+    const maximum = Number.isFinite(this.maxFirstPersonZoom) ? Math.max(1, this.maxFirstPersonZoom) : 1;
+    const multiplier = Math.exp(-wheelDelta * FIRST_PERSON_CAMERA.wheelSensitivity);
+    this.firstPersonZoom = THREE.MathUtils.clamp(this.firstPersonZoom * multiplier, 1, maximum);
+  }
+
+  get squint(): number {
+    const range = this.maxFirstPersonZoom - 1;
+    if (!Number.isFinite(range) || range <= 0) return 0;
+    return THREE.MathUtils.clamp((this.firstPersonZoom - 1) / range, 0, 1);
   }
 
   addPitch(delta: number): void {
@@ -89,6 +105,7 @@ export class CameraRig {
   }
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
+    this.updateFieldOfView(context.mode === 'first' && !context.inspected, blend);
     this.chooseTargets(deltaSeconds, context);
     this.aim.position.copy(this.positionTarget);
     this.aim.up.copy(this.upTarget);
@@ -100,6 +117,15 @@ export class CameraRig {
       this.camera.quaternion.slerp(this.aim.quaternion, blend);
     }
     this.camera.up.copy(this.upTarget);
+  }
+
+  private updateFieldOfView(firstPerson: boolean, blend: number): void {
+    const base = FIRST_PERSON_CAMERA.fieldOfView;
+    const magnification = firstPerson ? this.firstPersonZoom : 1;
+    const halfAngle = Math.tan(THREE.MathUtils.degToRad(base / 2)) / magnification;
+    const target = THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2;
+    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, target, blend);
+    this.camera.updateProjectionMatrix();
   }
 
   private updateTransition(context: FrameContext): void {

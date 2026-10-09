@@ -124,6 +124,7 @@ export class SceneInput {
     return {
       yaw: this.target.rig.yaw + this.pointerLook.yaw,
       pitch: this.target.rig.pitch + this.pointerLook.pitch,
+      squint: this.target.mode === 'first' ? this.target.rig.squint : 0,
     };
   }
 
@@ -262,6 +263,12 @@ export class SceneInput {
   }
 
   private wheel(event: WheelEvent): void {
+    if (this.target.mode === 'first') {
+      event.preventDefault();
+      const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
+      this.target.rig.addFirstPersonZoom(delta);
+      return;
+    }
     if (this.target.mode === 'third') {
       event.preventDefault();
       this.target.rig.addOrbitZoom(event.deltaY * WHEEL_ZOOM);

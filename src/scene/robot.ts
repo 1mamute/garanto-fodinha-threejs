@@ -104,7 +104,16 @@ export class Robot {
     this.rightArm.rotation.z = -swing * 0.25;
     // Keep the pelvis on the cushion and the feet on the floor throughout idle/play.
     group.position.y = 0;
+    this.animateSquint(pose?.squint ?? 0, blend);
     this.animateDeath(time);
+  }
+
+  private animateSquint(amount: number, blend: number): void {
+    const squint = this.diedAt === null ? THREE.MathUtils.clamp(amount, 0, 1) : 0;
+    for (const eye of this.eyes) {
+      eye.scale.y = THREE.MathUtils.lerp(eye.scale.y, 1 - squint * 0.72, blend);
+      eye.scale.x = THREE.MathUtils.lerp(eye.scale.x, 1 + squint * 0.1, blend);
+    }
   }
 
   /** Track a world-space target through a full horizontal turn; null restores a neutral look. */
@@ -145,7 +154,6 @@ export class Robot {
     if (this.diedAt === null) {
       group.rotation.z = 0;
       head.rotation.z = 0;
-      for (const eye of this.eyes) eye.scale.y = 1;
       return;
     }
     const progress = THREE.MathUtils.clamp((time - this.diedAt) / 1.1, 0, 1);

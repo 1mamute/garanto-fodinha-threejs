@@ -288,6 +288,7 @@ export class TableScene implements InputTarget {
       tableBounds: this.tableCards.framingBounds,
     });
     this.updateDealerIndicator();
+    this.firstPerson.fitTo(this.rig.camera.aspect, this.rig.camera.fov);
     // In first person you are your robot: hide it and show your own hands instead.
     const embodied = this.mode === 'first' && !observer;
     this.firstPerson.visible = embodied;
