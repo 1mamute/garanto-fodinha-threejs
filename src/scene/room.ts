@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { floorTexture } from './floorTexture';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
-import { ROOM_RADIUS } from './roomDimensions';
+import { FLOOR_ROTATION, ROOM_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
 
 /** Table surface height; cards lie just above it. */
@@ -28,10 +28,10 @@ export function buildRoom(world: THREE.Group): RoomProps {
 function buildFloorAndWalls(world: THREE.Group): void {
   mesh(
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
-    material('#8a8780', { map: floorTexture(), roughness: 1 }),
+    material('#b0ada5', { map: floorTexture(), roughness: 1 }),
     world,
     [0, -0.1, 0],
-  ).rotation.y = Math.PI / 12;
+  ).rotation.y = FLOOR_ROTATION;
   const wallMaterial = material('#313a39', { side: THREE.BackSide, map: wornTexture('metal') });
   mesh(
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 6, 40, 1, true),
@@ -79,21 +79,22 @@ function buildLamp(world: THREE.Group): void {
 function buildWallLamps(world: THREE.Group): void {
   const glowTexture = canvasTexture(128, 128, context => {
     const gradient = context.createRadialGradient(64, 64, 4, 64, 64, 64);
-    gradient.addColorStop(0, 'rgba(229, 149, 63, 0.35)');
+    gradient.addColorStop(0, 'rgba(255, 183, 94, 0.65)');
+    gradient.addColorStop(0.4, 'rgba(229, 149, 63, 0.22)');
     gradient.addColorStop(1, 'rgba(229, 149, 63, 0)');
     context.fillStyle = gradient;
     context.fillRect(0, 0, 128, 128);
   });
   const halo = new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, depthWrite: false });
-  const bulb = new THREE.MeshBasicMaterial({ color: '#e9b16b', toneMapped: false });
+  const bulb = new THREE.MeshBasicMaterial({ color: '#ffd59a', toneMapped: false });
   const casing = material('#3e3024', { roughness: 0.9 });
-  for (const angle of [Math.PI - 0.65, Math.PI + 0.65, -0.65, 0.65]) {
+  for (const angle of WALL_LAMP_ANGLES) {
     const fixture = new THREE.Group();
     const radius = ROOM_RADIUS - 0.2;
     fixture.position.set(Math.sin(angle) * radius, 3, Math.cos(angle) * radius);
     fixture.rotation.y = angle + Math.PI;
     world.add(fixture);
-    mesh(new THREE.PlaneGeometry(3.4, 3.4), halo, fixture, [0, 0, 0.04]);
+    mesh(new THREE.PlaneGeometry(4.4, 4.4), halo, fixture, [0, 0, 0.04]);
     mesh(new THREE.BoxGeometry(0.32, 0.75, 0.16), casing, fixture);
     mesh(new THREE.BoxGeometry(0.18, 0.48, 0.02), bulb, fixture, [0, 0, 0.1]);
   }

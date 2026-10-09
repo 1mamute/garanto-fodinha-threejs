@@ -1,6 +1,7 @@
 /** One unique map covers the whole floor; grain and scorch marks cost nothing per frame. */
 import type * as THREE from 'three';
 import { canvasTexture, TAU } from './primitives';
+import { FLOOR_ROTATION, WALL_LAMP_ANGLES } from './roomDimensions';
 
 const SIZE = 1024;
 let texture: THREE.CanvasTexture | undefined;
@@ -33,6 +34,7 @@ function drawFloor(context: CanvasRenderingContext2D): void {
     x += width;
   }
   drawScorch(context, random);
+  drawLampPools(context);
 }
 
 interface Plank {
@@ -44,7 +46,7 @@ interface Plank {
 
 function drawPlank(context: CanvasRenderingContext2D, plank: Plank, random: Random): void {
   const { x, y, width, height } = plank;
-  const shade = Math.floor(23 + random() * 12);
+  const shade = Math.floor(30 + random() * 14);
   context.fillStyle = `rgb(${shade + 5}, ${shade + 1}, ${shade - 3})`;
   context.fillRect(x + 0.6, y + 0.6, width - 1.2, height - 1.2);
   context.save();
@@ -125,4 +127,24 @@ function drawScorch(context: CanvasRenderingContext2D, random: Random): void {
     context.fillRect(-radius, -radius, radius * 2, radius * 2);
     context.restore();
   }
+}
+
+/** Bake the side lamps into the wood, preserving grain without four extra real-time lights. */
+function drawLampPools(context: CanvasRenderingContext2D): void {
+  context.save();
+  context.globalCompositeOperation = 'screen';
+  for (const angle of WALL_LAMP_ANGLES) {
+    const localAngle = angle - FLOOR_ROTATION;
+    // Cylinder cap UVs use cosine horizontally and sine vertically; canvas Y is inverted.
+    const x = SIZE * (0.5 + Math.cos(localAngle) * 0.43);
+    const y = SIZE * (0.5 - Math.sin(localAngle) * 0.43);
+    const radius = SIZE * 0.19;
+    const gradient = context.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, 'rgba(104, 73, 39, 0.42)');
+    gradient.addColorStop(0.4, 'rgba(75, 48, 23, 0.2)');
+    gradient.addColorStop(1, 'rgba(75, 48, 23, 0)');
+    context.fillStyle = gradient;
+    context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  }
+  context.restore();
 }
