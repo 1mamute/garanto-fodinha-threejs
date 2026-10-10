@@ -10,6 +10,7 @@ import type { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
 import { createRenderer, createScene } from './environment';
+import { GraphicsRenderer } from './graphicsRenderer';
 import { animateFan, FirstPersonHands, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { disposeMaterials, smoothing, TAU } from './primitives';
@@ -44,6 +45,7 @@ export class TableScene implements InputTarget {
   inspected: CardMesh | null = null;
 
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly graphics: GraphicsRenderer;
   private readonly scene = createScene();
   private readonly world = new THREE.Group();
   private readonly physics = new PhysicsWorld(physicsRuntime());
@@ -74,6 +76,14 @@ export class TableScene implements InputTarget {
     this.rig.resolveWalk = this.walker.move;
     this.tableCards = new TableCards(this.world, this.cardPhysics);
     this.firstPerson = new FirstPersonHands(this.rig.camera);
+    this.graphics = new GraphicsRenderer({
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.rig.camera,
+      overlay: () => {
+        this.firstPerson.render(this.renderer, this.scene);
+      },
+    });
     this.input = new SceneInput(canvas, this);
     this.resize();
     window.addEventListener('resize', () => {
@@ -83,6 +93,7 @@ export class TableScene implements InputTarget {
     window.addEventListener('pagehide', event => {
       if (event.persisted) return;
       this.renderer.setAnimationLoop(null);
+      this.graphics.dispose();
       this.walker.dispose();
       this.cardPhysics.dispose();
       this.physics.dispose();
@@ -298,7 +309,7 @@ export class TableScene implements InputTarget {
   // ── Render loop ────────────────────────────────────────────────────────────
 
   private resize(): void {
-    this.renderer.setSize(innerWidth, innerHeight);
+    this.graphics.resize(innerWidth, innerHeight);
     this.rig.resize(innerWidth / innerHeight);
     this.firstPerson.fitTo(this.rig.camera.aspect);
   }
@@ -397,10 +408,7 @@ export class TableScene implements InputTarget {
   }
 
   private render(): void {
-    const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
-    if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
-    this.renderer.render(this.scene, this.rig.camera);
-    this.firstPerson.render(this.renderer, this.scene);
+    this.graphics.render(this.budget.pixelRatio(devicePixelRatio));
   }
 }
 

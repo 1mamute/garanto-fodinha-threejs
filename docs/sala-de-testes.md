@@ -13,6 +13,11 @@ Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena n
 
 A rodada permanece congelada, sem avanço de turnos ou animações de partida. `LabScene.populate()` parte de `demoState()` e preenche as mãos com cartas que não estejam na mesa ou no kicker. A postura em pé usa o modelo `Robot` com ajustes nos braços e pernas.
 
+O menu **Gráficos** usa os mesmos modos de suavização de bordas do jogo e a mesma
+preferência salva no navegador. Alterne os modos para comparar cartas, robôs e bordas da mesa
+sem reiniciar a cena. Para observar TAA acumulando uma imagem parada, desligue a demonstração
+de zoom e o acompanhamento da cabeça e aguarde a câmera e os objetos se estabilizarem.
+
 ## Particularidades dos controles
 
 A primeira pessoa usa os [controles dos eliminados descritos no README](../README.md#jogar). O joystick e o giro por toque podem ser usados simultaneamente. No computador, perder o foco ou trocar de perspectiva libera a captura do mouse; o aviso permite tentar novamente se o navegador a recusar.
@@ -90,5 +95,9 @@ Use os comandos de [Verificar no README](../README.md#verificar). No laboratóri
 6. Confira os controles compartilhados no jogo como observador/eliminado e a manipulação de cartas com cursor livre para jogadores sentados.
 7. Ligue o acompanhamento da cabeça do robô de inspeção, caminhe ao redor dele nos dois sentidos e confira o giro de 360° com o corpo imóvel, incluindo a passagem por trás. Alterne as câmeras, confira que o botão continua ligado e desligue para observar o retorno suave da cabeça à posição neutra pelo arco mais curto.
 8. Caminhe contra um robô sentado, a mesa, as cadeiras e a parede: o personagem deve parar ou deslizar, sem atravessar a geometria. Empurre a cadeira vazia, solte uma carta sobre ela e confira o pouso. Empurre novamente: a carta deve reagir à cadeira e pode cair no chão.
+9. Alterne todos os modos em **Gráficos**, incluindo desligado, e confira que a escolha persiste
+   ao recarregar e voltar ao jogo. Redimensione a janela e troque de perspectiva em cada modo.
+   Com TAA, confirme que caminhada, zoom, queda de cartas e movimento dos robôs descartam a
+   imagem anterior; parado, o resultado deve acumular sem congelar movimentos posteriores.
 
 O build de produção elimina o módulo do laboratório. Com `npm run preview`, `/?scene=lab` deve abrir a tela inicial normal; `dist/assets` não deve conter um módulo `labScene` nem o texto **Laboratório de cena**.

@@ -68,13 +68,18 @@ function morphNode(current: Node, next: Node): void {
 function syncAttributes(current: Element, next: Element): void {
   for (const { name } of [...current.attributes]) {
     // Inline styles absent from the markup were set by scripts (drag, joystick knob): keep them.
-    if (!next.hasAttribute(name) && name !== 'style') current.removeAttribute(name);
+    // Native disclosures also own their open state across game updates.
+    if (!next.hasAttribute(name) && !preservesAttribute(current, name)) current.removeAttribute(name);
   }
   for (const { name, value } of [...next.attributes]) {
     if (current.getAttribute(name) === value) continue;
     current.setAttribute(name, value);
     if (name === 'value' && current instanceof HTMLInputElement) current.value = value;
   }
+}
+
+function preservesAttribute(element: Element, name: string): boolean {
+  return name === 'style' || (name === 'open' && element instanceof HTMLDetailsElement);
 }
 
 function selectedAttribute(select: HTMLSelectElement): string | null {

@@ -25,6 +25,58 @@
 .lab-panel p {
   margin: 8px 0;
 }
+.graphics-menu {
+  position: relative;
+  font-size: 12px;
+  pointer-events: auto;
+}
+.graphics-menu summary {
+  cursor: pointer;
+  padding: 12px 8px;
+  min-height: 44px;
+  color: #ead4aa;
+}
+.graphics-menu summary:focus-visible {
+  outline: 3px solid #e9b767;
+  outline-offset: 2px;
+}
+.graphics-options {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 25;
+  width: min(290px, calc(100vw - 24px));
+  padding: 16px;
+  background: #17211bf5;
+  border: 1px solid #746348;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px #0008;
+}
+.graphics-options select {
+  width: 100%;
+  margin-top: 8px;
+}
+.graphics-options p {
+  color: #eee3ce;
+  line-height: 1.5;
+}
+.graphics-options small {
+  color: #bbb09b;
+  line-height: 1.5;
+}
+.lab-panel .graphics-options {
+  position: static;
+  width: 100%;
+}
+@media (max-width: 700px) {
+  .graphics-options {
+    position: fixed;
+    top: 108px;
+    right: 12px;
+    max-height: calc(100dvh - 120px);
+    overflow-y: auto;
+  }
+}
 .lab-cameras {
   display: flex;
   flex-wrap: wrap;

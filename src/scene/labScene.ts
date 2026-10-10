@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createDeck } from '../game';
 import { morph } from '../ui/dom';
 import { html } from '../ui/html';
+import { graphicsMenu } from '../ui/graphicsMenu';
 import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
 import { TABLE_CAMERA } from './cameraSettings';
@@ -10,6 +11,7 @@ import { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
 import { createRenderer, createScene } from './environment';
+import { GraphicsRenderer } from './graphicsRenderer';
 import { animateFan, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { smoothing, TAU } from './primitives';
@@ -43,6 +45,7 @@ export class LabScene implements InputTarget {
   private readonly cardPhysics = new PhysicsCards(this.physics);
   private readonly walker = new PhysicsCharacter(this.physics, this.rig.spectatorPosition);
   private readonly renderer: THREE.WebGLRenderer;
+  private readonly graphics: GraphicsRenderer;
   private readonly tableCards = new TableCards(this.world, this.cardPhysics);
   private readonly dealerIndicator = new DealerIndicator();
   private dealerSeat: THREE.Vector3 | null = null;
@@ -67,6 +70,11 @@ export class LabScene implements InputTarget {
     canvas: HTMLCanvasElement,
   ) {
     this.renderer = createRenderer(canvas);
+    this.graphics = new GraphicsRenderer({
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.rig.camera,
+    });
     this.scene.add(this.world, this.rig.camera);
     this.populate();
     this.rig.resolveWalk = this.walker.move;
@@ -101,6 +109,7 @@ export class LabScene implements InputTarget {
     window.addEventListener('pagehide', event => {
       if (event.persisted) return;
       this.renderer.setAnimationLoop(null);
+      this.graphics.dispose();
       this.walker.dispose();
       this.cardPhysics.dispose();
       this.physics.dispose();
@@ -220,7 +229,7 @@ export class LabScene implements InputTarget {
   readonly afterDrag = (): void => undefined;
 
   private resize(): void {
-    this.renderer.setSize(innerWidth, innerHeight);
+    this.graphics.resize(innerWidth, innerHeight);
     this.rig.resize(innerWidth / innerHeight);
   }
 
@@ -254,9 +263,7 @@ export class LabScene implements InputTarget {
     this.animateZoomDemo(deltaSeconds, blend);
     this.input.checkLongPress(performance.now());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
-    const pixelRatio = this.budget.pixelRatio(devicePixelRatio);
-    if (this.renderer.getPixelRatio() !== pixelRatio) this.renderer.setPixelRatio(pixelRatio);
-    this.renderer.render(this.scene, this.rig.camera);
+    this.graphics.render(this.budget.pixelRatio(devicePixelRatio));
   }
 
   private animateZoomDemo(deltaSeconds: number, blend: number): void {
@@ -279,6 +286,7 @@ export class LabScene implements InputTarget {
       this.root,
       html`<aside class="lab-panel">
       <strong>Laboratório de cena</strong>
+      ${graphicsMenu()}
       <p>Câmera: ${MODE_LABELS[this.mode]}</p>
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
       <button class="button subtle" data-action="toggle-zoom-demo" aria-pressed="${String(this.zoomDemoEnabled)}">Robô sentado: demonstrar zoom ${this.zoomDemoEnabled ? 'ligado' : 'desligado'}</button>

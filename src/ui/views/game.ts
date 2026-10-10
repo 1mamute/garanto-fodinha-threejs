@@ -2,6 +2,7 @@ import { findPlayer, livingPlayers, manilhaRank, type GameState, type Phase, typ
 import type { Session } from '../../net/session';
 import { html, type SafeHtml } from '../html';
 import { icon } from '../icons';
+import { graphicsMenu } from '../graphicsMenu';
 import type { UiState } from '../state';
 import { dialog, helpDialog, logo, suitClass } from './common';
 import { centerCard } from './center';
@@ -63,6 +64,7 @@ function gameHeader({ ui, game, session }: GameView): SafeHtml {
       <span class="tag">${tag}</span><strong>${title}</strong><span>${PHASE_LABELS[game.phase]}</span>
     </div>
     <div class="game-toolbar">
+      ${graphicsMenu()}
       <button class="icon-button" data-action="sound" aria-label="${soundLabel}" title="${soundLabel}">
         ${icon('volume')}${!ui.soundEnabled && html`<span class="off-line"></span>`}
       </button>

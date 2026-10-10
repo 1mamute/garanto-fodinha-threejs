@@ -3,6 +3,7 @@ import type { LabScene } from './scene/labScene';
 import { App } from './ui/app';
 import { morph } from './ui/dom';
 import { html } from './ui/html';
+import { bindGraphicsMenu } from './ui/graphicsMenu';
 import { initializePhysics } from './scene/physicsRuntime';
 
 const root = document.querySelector<HTMLElement>('#app');
@@ -15,6 +16,7 @@ export let lab: LabScene | undefined;
 
 async function start(root: HTMLElement, canvas: HTMLCanvasElement): Promise<void> {
   await initializePhysics();
+  bindGraphicsMenu(root);
   if (import.meta.env.DEV && new URLSearchParams(location.search).get('scene') === 'lab') {
     const { LabScene } = await import('./scene/labScene');
     lab = new LabScene(root, canvas);

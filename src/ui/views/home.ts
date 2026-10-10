@@ -1,6 +1,7 @@
 import type { PublicRoom } from '../../shared/protocol';
 import { html, type SafeHtml } from '../html';
 import { icon } from '../icons';
+import { graphicsMenu } from '../graphicsMenu';
 import type { UiState } from '../state';
 import { dialog, helpDialog, logo } from './common';
 
@@ -10,6 +11,7 @@ export function homeView(ui: UiState): SafeHtml {
       <header class="site-header">
         ${logo()}
         <nav>
+          ${graphicsMenu()}
           ${import.meta.env.DEV && html`<a class="text-button" href="/?scene=lab">Sala de testes</a>`}
           <button class="text-button" data-action="help">Como jogar</button>
           <span class="nav-pill">${icon('users', 16)} 2–10 jogadores</span>
