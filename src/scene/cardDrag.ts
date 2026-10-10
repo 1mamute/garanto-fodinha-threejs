@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TABLE_TOP } from './room';
+import { DragMomentum } from './dragMomentum';
 
 const FELT_RADIUS = 2.65;
 
@@ -9,23 +10,37 @@ export class CardDrag {
   private readonly plane = new THREE.Plane();
   private readonly point = new THREE.Vector3();
   private readonly offset = new THREE.Vector3();
+  private readonly momentum = new DragMomentum();
 
   constructor(
     private readonly camera: THREE.Camera,
     private readonly canvas: Pick<HTMLCanvasElement, 'getBoundingClientRect'>,
   ) {}
 
-  begin(card: THREE.Object3D, x: number, y: number): void {
+  begin(card: THREE.Object3D, x: number, y: number, time = performance.now()): void {
+    this.momentum.reset();
     const centre = card.getWorldPosition(new THREE.Vector3());
     this.plane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), centre);
     this.setRay(x, y);
     if (this.ray.ray.intersectPlane(this.plane, this.point)) this.offset.copy(centre).sub(this.point);
+    this.sampleMomentum(x, y, time);
   }
 
-  move(card: THREE.Object3D, x: number, y: number): void {
+  move(card: THREE.Object3D, x: number, y: number, time = performance.now()): void {
     this.setRay(x, y);
     if (!card.parent || !this.ray.ray.intersectPlane(this.plane, this.point)) return;
     card.position.copy(card.parent.worldToLocal(this.point.add(this.offset)));
+    this.sampleMomentum(x, y, time);
+  }
+
+  releaseVelocity(x: number, y: number, time = performance.now()): THREE.Vector3 {
+    this.sampleMomentum(x, y, time);
+    return this.momentum.velocity().setY(0);
+  }
+
+  private sampleMomentum(x: number, y: number, time: number): void {
+    const point = this.tablePoint(x, y);
+    if (point) this.momentum.sample(point, time);
   }
 
   overTable(x: number, y: number): boolean {

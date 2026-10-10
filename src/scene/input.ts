@@ -38,7 +38,7 @@ export interface InputTarget {
   toggleMode(): void;
   /** A first-person hand card is being dragged (or was released). */
   reach(reaching: boolean): void;
-  dropHandCard(card: CardMesh, tablePoint: Vector3 | null, slotShift: number): void;
+  dropHandCard(card: CardMesh, tablePoint: Vector3 | null, slotShift: number, velocity?: Vector3): void;
   /** Called after any drag ends so state updates held back during it can be applied. */
   afterDrag(): void;
 }
@@ -185,7 +185,7 @@ export class SceneInput {
       startedAt: performance.now(),
     };
     if (card && target.mode === 'first') {
-      this.cardDrag.begin(card, clientX, clientY);
+      this.cardDrag.begin(card, clientX, clientY, event.timeStamp);
       target.reach(true);
     }
     // Clicking beside the inspected card closes it.
@@ -221,7 +221,7 @@ export class SceneInput {
       rig.addPitch(-(event.clientY - drag.lastY) * LOOK_SPEED);
       return;
     }
-    this.cardDrag.move(drag.card, event.clientX, event.clientY);
+    this.cardDrag.move(drag.card, event.clientX, event.clientY, event.timeStamp);
     this.target.reach(true);
   }
 
@@ -271,7 +271,9 @@ export class SceneInput {
         drag.startY - event.clientY > DRAG_THRESHOLD_PX
           ? this.cardDrag.tablePoint(event.clientX, event.clientY)
           : null;
-      target.dropHandCard(drag.card, tablePoint, slotShift);
+      this.cardDrag.move(drag.card, event.clientX, event.clientY, event.timeStamp);
+      const velocity = this.cardDrag.releaseVelocity(event.clientX, event.clientY, event.timeStamp);
+      target.dropHandCard(drag.card, tablePoint, slotShift, velocity);
     }
   }
 

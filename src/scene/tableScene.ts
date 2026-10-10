@@ -178,9 +178,14 @@ export class TableScene implements InputTarget {
     this.firstPerson.reach(reaching);
   }
 
-  dropHandCard(card: CardMesh, tablePoint: THREE.Vector3 | null, slotShift: number): void {
+  dropHandCard(
+    card: CardMesh,
+    tablePoint: THREE.Vector3 | null,
+    slotShift: number,
+    velocity?: THREE.Vector3,
+  ): void {
     if (tablePoint) {
-      this.tableCards.releaseFromHand(card, tablePoint);
+      this.tableCards.releaseFromHand(card, tablePoint, velocity);
       this.callbacks.onPlay(card.card.id);
       return;
     }

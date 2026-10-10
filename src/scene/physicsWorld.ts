@@ -2,6 +2,7 @@ import type Jolt from 'jolt-physics';
 import * as THREE from 'three';
 import { CARD_SIZE } from './cardGeometry';
 import { CardMesh } from './cards';
+import { CARD_MOTION, type CardMotionSettings } from './cardMotionSettings';
 import { createPhysicsSystem, MOVING_LAYER, STATIC_LAYER } from './physicsLayers';
 import { boxShape, furnitureShape, meshShape, robotMeshShape } from './physicsShapes';
 
@@ -63,12 +64,12 @@ export class PhysicsWorld {
     });
   }
 
-  addCard(object: THREE.Object3D, dynamic: boolean): void {
+  addCard(object: THREE.Object3D, dynamic: boolean, settings: CardMotionSettings = CARD_MOTION): void {
     const { width, height, depth } = CARD_SIZE;
     const scale = object.getWorldScale(new THREE.Vector3());
     const extent = new THREE.Vector3(width, height, depth).multiply(scale).multiplyScalar(0.5);
     const shape = boxShape(this.runtime, extent);
-    this.addBody(object, shape, dynamic ? 'dynamic' : 'kinematic', true);
+    this.addBody(object, shape, dynamic ? 'dynamic' : 'kinematic', settings);
   }
 
   syncHand(root: THREE.Group): void {
@@ -81,7 +82,12 @@ export class PhysicsWorld {
     this.addBody(object, furnitureShape(this.runtime, object), movable ? 'dynamic' : 'static');
   }
 
-  addBody(object: THREE.Object3D, shape: Jolt.Shape, motion: Motion, card = false): void {
+  addBody(
+    object: THREE.Object3D,
+    shape: Jolt.Shape,
+    motion: Motion,
+    card: CardMotionSettings | false = false,
+  ): void {
     this.remove(object);
     this.readTransform(object);
     const runtime = this.runtime;
@@ -99,9 +105,9 @@ export class PhysicsWorld {
       layer,
     );
     shape.Release();
-    settings.mFriction = card ? 0.45 : 0.8;
+    settings.mFriction = card ? card.friction : 0.8;
     settings.mRestitution = card ? 0.04 : 0;
-    if (card) this.configureCard(settings);
+    if (card) this.configureCard(settings, card);
     else if (motion === 'dynamic') {
       settings.mOverrideMassProperties = runtime.EOverrideMassProperties_CalculateInertia;
       settings.mMassPropertiesOverride.mMass = 8;
@@ -113,12 +119,12 @@ export class PhysicsWorld {
     this.records.set(object, { body, object, motion });
   }
 
-  private configureCard(settings: Jolt.BodyCreationSettings): void {
+  private configureCard(settings: Jolt.BodyCreationSettings, motion: CardMotionSettings): void {
     const runtime = this.runtime;
     settings.mOverrideMassProperties = runtime.EOverrideMassProperties_CalculateInertia;
     settings.mMassPropertiesOverride.mMass = 0.002;
     settings.mMotionQuality = runtime.EMotionQuality_LinearCast;
-    settings.mLinearDamping = 0.15;
+    settings.mLinearDamping = motion.linearDamping;
     // Cards stay readable, while translation, gravity, friction and contact are simulated.
     settings.mAllowedDOFs =
       runtime.EAllowedDOFs_TranslationX |

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';
 import { CardThrow } from '../src/scene/cardThrow';
+import { CARD_MOTION } from '../src/scene/cardMotionSettings';
 
 test('carta pousa no ponto escolhido e depois se acomoda à frente do jogador', () => {
   const card = new THREE.Object3D();
@@ -14,10 +15,12 @@ test('carta pousa no ponto escolhido e depois se acomoda à frente do jogador', 
   assert.equal(animation.animate(card, 0.28, target, Math.PI), false);
   assert.ok(card.position.distanceTo(landing) < 0.000001);
   assert.ok(card.scale.distanceTo(new THREE.Vector3(1, 1, 1)) < 0.000001);
-  animation.animate(card, 0.18, target, Math.PI);
+  animation.animate(card, CARD_MOTION.slideSeconds, target, Math.PI);
+  assert.ok(card.position.distanceTo(landing) < 0.000001, 'a carta aguarda antes de retornar');
+  animation.animate(card, CARD_MOTION.returnSeconds / 2, target, Math.PI);
   assert.ok(card.position.distanceTo(target) < landing.distanceTo(target));
   assert.equal(card.position.y, target.y);
-  assert.equal(animation.animate(card, 0.18, target, Math.PI), true);
+  assert.equal(animation.animate(card, CARD_MOTION.returnSeconds / 2, target, Math.PI), true);
   assert.ok(card.position.distanceTo(target) < 0.000001);
   assert.ok(
     card.quaternion.angleTo(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)) <

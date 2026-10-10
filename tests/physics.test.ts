@@ -48,6 +48,20 @@ function simulate(world: PhysicsWorld, seconds: number, step = 1 / 60): void {
   for (let index = 0; index < Math.round(seconds / step); index++) world.step(step);
 }
 
+function addFelt(world: PhysicsWorld, root: THREE.Group): void {
+  const felt = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.65, 0.035, 64));
+  felt.position.y = 1.62;
+  root.add(felt);
+  world.addSolids(felt);
+}
+
+function animateCard(world: PhysicsWorld, physics: PhysicsCards, card: CardMesh, seconds: number): void {
+  for (let index = 0; index < Math.round(seconds * 60); index++) {
+    world.step(1 / 60);
+    physics.animate(card, 1 / 60, null);
+  }
+}
+
 test('Jolt aplica gravidade e impede que uma carta fina atravesse o chão', () => {
   const { world, root } = fixture();
   try {
@@ -157,10 +171,7 @@ test('carta cai no feltro e a coleta preserva seu corpo e sua identidade', () =>
   const { world, root } = fixture();
   const physics = new PhysicsCards(world);
   try {
-    const felt = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.65, 0.035, 64));
-    felt.position.y = 1.62;
-    root.add(felt);
-    world.addSolids(felt);
+    addFelt(world, root);
     const state = demoState();
     const entry = state.table[0];
     const player = state.players[0];
@@ -174,7 +185,7 @@ test('carta cai no feltro e a coleta preserva seu corpo e sua identidade', () =>
     cards.releaseFromHand(card, new THREE.Vector3(0, TABLE_TOP, 1.45));
     const seats = new Map([[entry.playerId, { position: new THREE.Vector3(0, 0, 3.35), rotation: Math.PI }]]);
     cards.sync(state, seats);
-    for (let index = 0; index < 120; index++) {
+    for (let index = 0; index < 360; index++) {
       world.step(1 / 60);
       cards.animate(1 / 60, 0.1, null);
     }
@@ -184,7 +195,7 @@ test('carta cai no feltro e a coleta preserva seu corpo e sua identidade', () =>
     player.tricks = [{ entries: [entry], winningCardId: entry.card.id }];
     seats.set(player.id, { position: new THREE.Vector3(3.35, 0, 0), rotation: Math.PI * 1.5 });
     cards.sync(state, seats);
-    for (let index = 0; index < 120; index++) {
+    for (let index = 0; index < 180; index++) {
       world.step(1 / 60);
       cards.animate(1 / 60, 0.1, null);
     }
@@ -217,6 +228,104 @@ test('passos fixos produzem a mesma queda a 30 e 60 quadros por segundo', () => 
     }
   }
   assert.equal(results[0], results[1]);
+});
+
+test('a carta permanece livre no feltro por alguns segundos antes de retornar ao jogador', () => {
+  const { world, root } = fixture();
+  const physics = new PhysicsCards(world);
+  try {
+    addFelt(world, root);
+    const card = cardMesh();
+    card.position.set(0, 2.2, 2.2);
+    card.target.set(0, TABLE_TOP, 1.45);
+    root.add(card);
+    physics.add(card, new THREE.Vector3(0, TABLE_TOP, -0.5));
+    animateCard(world, physics, card, 1.5);
+    assert.ok(
+      card.position.distanceTo(card.target) > 0.5,
+      'o retorno não deve começar logo após o primeiro contato com o feltro',
+    );
+  } finally {
+    physics.dispose();
+    world.dispose();
+  }
+});
+
+test('um arraste mais rápido aumenta o impacto e o deslizamento físico da carta', () => {
+  const results = [0.5, 4].map(speed => {
+    const { world, root } = fixture();
+    const physics = new PhysicsCards(world);
+    try {
+      addFelt(world, root);
+      const card = cardMesh();
+      card.position.set(0, 2.2, 1.8);
+      card.target.set(0, TABLE_TOP, 1.45);
+      root.add(card);
+      physics.add(card, new THREE.Vector3(0, TABLE_TOP, 1.5), new THREE.Vector3(0, 0, -speed));
+      animateCard(world, physics, card, 0.1);
+      const height = card.position.y;
+      animateCard(world, physics, card, 0.5);
+      return { height, distance: 1.8 - card.position.z };
+    } finally {
+      physics.dispose();
+      world.dispose();
+    }
+  });
+  const [slow, fast] = results;
+  if (!slow || !fast) assert.fail('Lançamentos ausentes');
+  assert.ok(fast.height < slow.height - 0.05, 'o gesto rápido lança a carta para baixo com mais força');
+  assert.ok(fast.distance > slow.distance + 0.3, 'o atrito desacelera o impulso maior ao longo do feltro');
+});
+
+test('a espera configurada precede um retorno lento que começa e termina suavemente', () => {
+  const { world, root } = fixture();
+  const physics = new PhysicsCards(world, { slideSeconds: 1, returnSeconds: 2 });
+  try {
+    addFelt(world, root);
+    const card = cardMesh();
+    card.position.set(0, TABLE_TOP + 0.1, 1);
+    card.target.set(1.4, TABLE_TOP, 1);
+    root.add(card);
+    physics.add(card, new THREE.Vector3(0, TABLE_TOP, 1));
+    animateCard(world, physics, card, 1);
+    const waitingX = card.position.x;
+    assert.equal(waitingX, 0, 'a carta não é guiada durante a espera');
+    animateCard(world, physics, card, 0.15);
+    assert.ok(card.position.x > 0 && card.position.x < 0.015, 'o retorno começa sem tranco');
+    animateCard(world, physics, card, 0.5);
+    assert.ok(card.position.distanceTo(card.target) > 0.8, 'meio segundo não basta para voltar ao lugar');
+    animateCard(world, physics, card, 1.7);
+    assert.ok(card.position.distanceTo(card.target) < 1e-6, 'a duração configurada completa o retorno');
+  } finally {
+    physics.dispose();
+    world.dispose();
+  }
+});
+
+test('coletar a vaza durante o deslizamento interrompe a espera sem trocar o corpo da carta', () => {
+  const { world, root } = fixture();
+  const physics = new PhysicsCards(world, { slideSeconds: 10, returnSeconds: 1.5 });
+  try {
+    addFelt(world, root);
+    const card = cardMesh();
+    card.position.set(0, 2.2, 1.8);
+    card.target.set(0, TABLE_TOP, 1.45);
+    root.add(card);
+    physics.add(card, new THREE.Vector3(0, TABLE_TOP, 0.5), new THREE.Vector3(0, 0, -2));
+    animateCard(world, physics, card, 0.5);
+    const count = world.bodyCount;
+    card.target.set(1, TABLE_TOP, 1);
+    world.step(1 / 60);
+    const position = card.position.clone();
+    physics.animate(card, 1 / 60, null);
+    assert.ok(card.position.distanceTo(position) < 0.002, 'a coleta parte da posição física atual');
+    animateCard(world, physics, card, 1.6);
+    assert.ok(card.position.distanceTo(card.target) < 1e-6, 'a coleta não aguarda os dez segundos');
+    assert.equal(world.bodyCount, count);
+  } finally {
+    physics.dispose();
+    world.dispose();
+  }
 });
 
 test('corpos de robôs removidos e descarte repetido liberam o mundo', () => {

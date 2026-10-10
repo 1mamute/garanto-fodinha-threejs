@@ -78,16 +78,16 @@ function screenPoint(camera: THREE.Camera, point: THREE.Vector3): [number, numbe
   return [(projected.x + 1) * 422, (1 - projected.y) * 195];
 }
 
-function pointer(canvas: TestCanvas, type: string, point: [number, number]): void {
-  canvas.dispatchEvent(
-    Object.assign(new Event(type), {
-      pointerId: 1,
-      pointerType: 'mouse',
-      button: 0,
-      clientX: point[0],
-      clientY: point[1],
-    }),
-  );
+function pointer(canvas: TestCanvas, type: string, point: [number, number], time = performance.now()): void {
+  const event = Object.assign(new Event(type), {
+    pointerId: 1,
+    pointerType: 'mouse',
+    button: 0,
+    clientX: point[0],
+    clientY: point[1],
+  });
+  Object.defineProperty(event, 'timeStamp', { value: time });
+  canvas.dispatchEvent(event);
 }
 
 function fixture(context: TestContext): {
@@ -95,6 +95,7 @@ function fixture(context: TestContext): {
   rig: CameraRig;
   start: [number, number];
   drops: boolean[];
+  velocities: THREE.Vector3[];
 } {
   browserGlobals(context);
   const canvas = new TestCanvas();
@@ -110,6 +111,7 @@ function fixture(context: TestContext): {
   rig.camera.updateMatrixWorld();
   const start = screenPoint(rig.camera, card.getWorldPosition(new THREE.Vector3()));
   const drops: boolean[] = [];
+  const velocities: THREE.Vector3[] = [];
   const target: InputTarget = {
     mode: 'first',
     inspected: null,
@@ -121,12 +123,13 @@ function fixture(context: TestContext): {
     toggleMode: () => undefined,
     reach: () => undefined,
     afterDrag: () => undefined,
-    dropHandCard: (_card, play) => {
+    dropHandCard: (_card, play, _shift, velocity) => {
       drops.push(play !== null);
+      velocities.push(velocity?.clone() ?? new THREE.Vector3());
     },
   };
   new SceneInput(canvas as unknown as HTMLCanvasElement, target);
-  return { canvas, rig, start, drops };
+  return { canvas, rig, start, drops, velocities };
 }
 
 test('soltar a carta no feltro à frente do jogador registra a jogada mesmo com arrasto curto', context => {
@@ -174,4 +177,18 @@ test('arrasto cancelado não joga nem reordena a carta', context => {
   pointer(canvas, 'pointermove', end);
   pointer(canvas, 'pointercancel', end);
   assert.deepEqual(drops, []);
+});
+
+test('a soltura transmite ao lançamento a velocidade medida nos eventos do ponteiro', context => {
+  const { canvas, rig, start, drops, velocities } = fixture(context);
+  const middle = screenPoint(rig.camera, new THREE.Vector3(0, 1.6465, 1.5));
+  const end = screenPoint(rig.camera, new THREE.Vector3(0, 1.6465, 1));
+  pointer(canvas, 'pointerdown', start, 0);
+  pointer(canvas, 'pointermove', middle, 40);
+  pointer(canvas, 'pointerup', end, 80);
+  assert.deepEqual(drops, [true]);
+  const velocity = velocities[0];
+  if (!velocity) assert.fail('Impulso ausente');
+  assert.ok(velocity.z < -1, 'o gesto fornece impulso para a mesa mesmo sem pointermove na posição final');
+  assert.equal(velocity.y, 0, 'a gravidade e o impacto vertical ficam a cargo do lançamento físico');
 });

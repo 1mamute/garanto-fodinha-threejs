@@ -60,3 +60,47 @@ test('soltura aceita o feltro e rejeita parede ou fora da mesa', () => {
   assert.equal(drag.overTable(...screenPoint(new THREE.Vector3(4, 1.68, 0))), false);
   assert.equal(drag.overTable(195, 0), false);
 });
+
+test('a mesma trajetória gera mais impulso quando arrastada mais rápido, em retrato e paisagem', () => {
+  for (const [width, height] of [
+    [390, 844],
+    [844, 390],
+  ]) {
+    if (!width || !height) assert.fail('Dimensões ausentes');
+    const speeds = [40, 100].map(duration => {
+      const { camera, drag } = fixture(width, height);
+      const card = new THREE.Object3D();
+      camera.add(card);
+      card.position.set(0, -0.2, -1);
+      const pointerAt = (z: number): [number, number] => {
+        const point = new THREE.Vector3(0, 1.6465, z).project(camera);
+        return [((point.x + 1) * width) / 2, ((1 - point.y) * height) / 2];
+      };
+      const start = pointerAt(1.8);
+      const middle = pointerAt(1.5);
+      const end = pointerAt(1.2);
+      drag.begin(card, ...start, 0);
+      drag.move(card, ...middle, duration / 2);
+      drag.move(card, ...end, duration);
+      const velocity = drag.releaseVelocity(...end, duration + 1);
+      assert.ok(velocity.z < 0, 'o impulso aponta para a mesa');
+      return velocity.length();
+    });
+    const [fast, slow] = speeds;
+    if (fast === undefined || slow === undefined) assert.fail('Velocidades ausentes');
+    assert.ok(fast > slow * 2, 'o tempo do gesto determina sua força, independentemente da tela');
+  }
+});
+
+test('parar antes de soltar a carta descarta o impulso antigo', () => {
+  const { camera, drag } = fixture(390, 844);
+  const card = new THREE.Object3D();
+  camera.add(card);
+  const start = new THREE.Vector3(0, 1.6465, 1.8).project(camera);
+  const end = new THREE.Vector3(0, 1.6465, 1).project(camera);
+  const startPoint: [number, number] = [(start.x + 1) * 195, (1 - start.y) * 422];
+  const endPoint: [number, number] = [(end.x + 1) * 195, (1 - end.y) * 422];
+  drag.begin(card, ...startPoint, 0);
+  drag.move(card, ...endPoint, 40);
+  assert.equal(drag.releaseVelocity(...endPoint, 300).length(), 0);
+});

@@ -35,6 +35,13 @@ interface Placement {
   details: CardInspection;
 }
 
+interface ReleasedCard {
+  card: CardMesh;
+  transform: THREE.Matrix4;
+  landing: THREE.Vector3;
+  velocity: THREE.Vector3 | undefined;
+}
+
 function placeTrick(
   state: GameState,
   seats: ReadonlyMap<string, Seat>,
@@ -92,7 +99,7 @@ export class TableCards {
   readonly framingBounds = { radius: 0, height: TABLE_TOP };
   private readonly meshes = new Map<string, CardMesh>();
   private kicker: CardMesh | null = null;
-  private released: { card: CardMesh; transform: THREE.Matrix4; landing: THREE.Vector3 } | null = null;
+  private released: ReleasedCard | null = null;
   private readonly throws = new Map<string, CardThrow>();
   private readonly restingOrientation = new THREE.Quaternion();
 
@@ -101,9 +108,14 @@ export class TableCards {
     private readonly physics?: PhysicsCards,
   ) {}
 
-  releaseFromHand(card: CardMesh, landing: THREE.Vector3): void {
+  releaseFromHand(card: CardMesh, landing: THREE.Vector3, velocity?: THREE.Vector3): void {
     card.updateWorldMatrix(true, false);
-    this.released = { card, transform: card.matrixWorld.clone(), landing: landing.clone() };
+    this.released = {
+      card,
+      transform: card.matrixWorld.clone(),
+      landing: landing.clone(),
+      velocity: velocity?.clone(),
+    };
   }
 
   /** Everything that can be clicked to inspect. */
@@ -140,9 +152,16 @@ export class TableCards {
     for (const card of this.pickable) {
       const { width, depth, height } = CARD_SIZE;
       // The circumradius fits every rotation of the card, including during its animation.
-      const radius = Math.hypot(card.target.x, card.target.z) + Math.hypot(width, depth) / 2;
+      const centreRadius = Math.max(
+        Math.hypot(card.target.x, card.target.z),
+        Math.hypot(card.position.x, card.position.z),
+      );
+      const radius = centreRadius + Math.hypot(width, depth) / 2;
       this.framingBounds.radius = Math.max(this.framingBounds.radius, radius);
-      this.framingBounds.height = Math.max(this.framingBounds.height, card.target.y + height / 2);
+      this.framingBounds.height = Math.max(
+        this.framingBounds.height,
+        Math.max(card.target.y, card.position.y) + height / 2,
+      );
     }
   }
 
@@ -168,13 +187,14 @@ export class TableCards {
     this.world.add(card);
     card.target.copy(placement.position);
     card.targetRotation = placement.rotation;
-    this.startMotion(card, placement.onTable ? (released?.landing ?? placement.position) : undefined);
+    this.startMotion(card, placement, released);
     this.meshes.set(placement.entry.card.id, card);
     return card;
   }
 
-  private startMotion(card: CardMesh, landing?: THREE.Vector3): void {
-    if (this.physics) this.physics.add(card, landing);
+  private startMotion(card: CardMesh, placement: Placement, released: ReleasedCard | null): void {
+    const landing = placement.onTable ? (released?.landing ?? placement.position) : undefined;
+    if (this.physics) this.physics.add(card, landing, released?.velocity);
     else if (landing) this.throws.set(card.card.id, new CardThrow(card, landing));
   }
 
@@ -216,5 +236,6 @@ export class TableCards {
       card.quaternion.slerp(this.restingOrientation, blend);
       card.scale.lerp(FULL_SIZE, blend);
     }
+    this.updateFraming();
   }
 }
