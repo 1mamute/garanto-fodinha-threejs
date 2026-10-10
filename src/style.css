@@ -1,3 +1,10 @@
+body.ui-hidden #app,
+body.ui-hidden #toast,
+body.ui-hidden .mouse-look-prompt,
+body.ui-hidden .dealer-indicator {
+  display: none;
+}
+
 .mouse-look-prompt {
   position: fixed;
   left: 50%;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isUiHidden } from '../ui/visibility';
 import { canWalk, type GameState, type Player } from '../game';
 import type { Pose } from '../net/messages';
 import { CardMesh } from './cards';
@@ -93,7 +94,7 @@ export class PlayerMotion {
     const pose = (mine ? context.pose : this.poseFor(id)) ?? { yaw: 0, pitch: 0 };
     avatar.robot.setFirstPerson(mine && context.firstPerson);
     avatar.robot.group.visible = mine || Boolean(pose.position);
-    avatar.label.visible = avatar.robot.group.visible && !(mine && context.firstPerson);
+    avatar.label.visible = !isUiHidden() && avatar.robot.group.visible && !(mine && context.firstPerson);
     if (mine) avatar.position.copy(context.position);
     else if (pose.position) avatar.position.lerp(new THREE.Vector3().fromArray(pose.position), context.blend);
     avatar.walking.update({

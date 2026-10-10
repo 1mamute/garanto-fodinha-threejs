@@ -5,10 +5,12 @@ import { morph } from './ui/dom';
 import { html } from './ui/html';
 import { bindGraphicsMenu } from './ui/graphicsMenu';
 import { initializePhysics } from './scene/physicsRuntime';
+import { bindUiVisibilityShortcut } from './ui/visibility';
 
 const root = document.querySelector<HTMLElement>('#app');
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!root || !canvas) throw new Error('index.html must contain #app and #scene.');
+if (import.meta.env.DEV) bindUiVisibilityShortcut();
 
 /** Exposed for the browser integration checks in `tests/browser.integration.ts`. */
 export let app: App | undefined;

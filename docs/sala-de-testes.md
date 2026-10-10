@@ -20,6 +20,11 @@ de zoom e o acompanhamento da cabeça e aguarde a câmera e os objetos se estabi
 
 ## Particularidades dos controles
 
+**Shift + V** oculta ou restaura toda a interface, incluindo o painel, o joystick e o
+aviso de captura do mouse. A cena, WASD e os atalhos de câmera continuam ativos.
+O mesmo atalho funciona durante o jogo, apenas em modo desenvolvedor, e ignora campos
+de edição. Recarregar a página restaura a interface.
+
 A primeira pessoa usa os [controles dos eliminados descritos no README](../README.md#jogar). O joystick e o giro por toque podem ser usados simultaneamente. No computador, perder o foco ou trocar de perspectiva libera a captura do mouse; o aviso permite tentar novamente se o navegador a recusar.
 
 A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** alternam na ordem: primeira pessoa → vista superior → terceira pessoa → primeira pessoa.

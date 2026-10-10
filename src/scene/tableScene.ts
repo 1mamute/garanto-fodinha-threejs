@@ -3,6 +3,7 @@
  * cards and camera. The UI talks to it through `setState`, `setMode` and the `SceneCallbacks`.
  */
 import * as THREE from 'three';
+import { isUiHidden } from '../ui/visibility';
 import { canWalk, findPlayer, type GameState, type Player } from '../game';
 import { CameraRig } from './cameraRig';
 import type { CardFrame, CardRelease } from '../net/sceneMessages';
@@ -360,7 +361,7 @@ export class TableScene implements InputTarget {
     for (const [playerId, { robot, label }] of this.seats) {
       const mine = playerId === this.myId;
       robot.setFirstPerson(mine && embodied);
-      label.visible = !(mine && embodied);
+      label.visible = !isUiHidden() && !(mine && embodied);
       const pose = mine ? this.localPose() : this.motion.poseFor(playerId);
       robot.animate(time, pose, blend);
       this.motion.animateHand(robot, pose, blend);

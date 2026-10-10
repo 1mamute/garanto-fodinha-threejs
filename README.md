@@ -88,6 +88,11 @@ Cloudflare anuncia uma franquia mensal compartilhada de 1.000 GB para TURN/SFU; 
 
 ## Laboratório de cena
 
+Em modo desenvolvedor (`npm run dev`), **Shift + V** oculta ou restaura toda a interface,
+incluindo painéis, avisos e nomes flutuantes, tanto no jogo quanto na sala de testes.
+A cena e os controles de câmera continuam ativos. O atalho ignora campos de edição e
+não está disponível no build de produção. Recarregar a página restaura a interface.
+
 Com `npm run dev`, abra `http://localhost:5173/?scene=lab` para inspecionar a sala, iluminação, robôs e cartas do jogo em uma cena local exclusiva de desenvolvimento. Ela inclui uma rodada congelada, um robô imóvel em pé e um robô controlável com a caminhada dos eliminados, além de câmeras em primeira pessoa, terceira pessoa e vista superior. Acesso, controles e manutenção estão em [docs/sala-de-testes.md](docs/sala-de-testes.md).
 
 ## Playwright MCP no Codex
