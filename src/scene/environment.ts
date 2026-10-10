@@ -17,6 +17,8 @@ export function createRenderer(canvas: HTMLCanvasElement): THREE.WebGLRenderer {
 
 export function createScene(): THREE.Scene {
   const scene = new THREE.Scene();
+  // An explicit background keeps postprocessing from treating the renderer clear color as sRGB.
+  scene.background = new THREE.Color('#080d0e');
   scene.fog = new THREE.Fog('#080d0e', 8, 23);
   // A single overhead pool and two cheap fill lights keep cards readable without shadow maps.
   const lamp = new THREE.PointLight('#ffd298', 32, 15, 2);
