@@ -14,9 +14,7 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
   const cached = faceTextures.get(key);
   if (cached) return cached;
   const texture = canvasTexture(CARD_WIDTH, CARD_HEIGHT, context => {
-    drawCardArtwork(context, card, () => {
-      texture.needsUpdate = true;
-    });
+    drawCardArtwork(context, card);
   });
   texture.anisotropy = 4;
   texture.userData.cached = true;
@@ -25,7 +23,7 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
 }
 
 const CARD_GEOMETRY = createCardGeometry();
-const EDGE = material('#ded3ba');
+const EDGE = material('#e5d8be');
 
 /** A card in the world. It eases towards `target`/`targetRotation` every frame. */
 export class CardMesh extends THREE.Mesh<THREE.BufferGeometry, THREE.Material[]> {

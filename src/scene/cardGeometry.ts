@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
-const WIDTH = 0.42;
-const HEIGHT = 0.59;
-const THICKNESS = 0.012;
-const CORNER_RADIUS = 0.021;
+const WIDTH = 0.35;
+const HEIGHT = 0.49;
+// Real playing-card stock is about 0.3 mm thick for a 63 mm wide card.
+const THICKNESS = 0.0017;
+const CORNER_RADIUS = 0.017;
 export const CARD_SIZE = { width: WIDTH, height: THICKNESS, depth: HEIGHT } as const;
 
 /** One shared, thin rounded card; four segments per corner keep the mesh inexpensive. */

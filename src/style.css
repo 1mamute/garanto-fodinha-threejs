@@ -2189,14 +2189,14 @@ input::placeholder {
   color: #bfb29a;
 }
 .card-face {
-  background: #eee3ca;
-  color: #26342b;
-  border-color: #a99875;
+  background: #f4ecda;
+  color: #252e2b;
+  border-color: #d4c5aa;
   border-radius: 5px;
 }
 .card-face.red,
 .kicker-info > strong.red {
-  color: #b94938;
+  color: #a63238;
 }
 .manilha-badge {
   background: #e9b767;
