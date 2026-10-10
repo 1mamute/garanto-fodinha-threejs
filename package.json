@@ -18,6 +18,7 @@
     "deploy": "npm run check && npm run build && wrangler deploy"
   },
   "dependencies": {
+    "jolt-physics": "^1.1.0",
     "three": "^0.180.0"
   },
   "devDependencies": {

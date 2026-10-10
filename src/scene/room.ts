@@ -6,23 +6,26 @@ import { FLOOR_ROTATION, ROOM_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions'
 import { wornTexture } from './surfaceTextures';
 
 /** Table surface height; cards lie just above it. */
-export const TABLE_TOP = 1.68;
+export const TABLE_TOP = 1.6465;
 const WALL_PANEL_INSET = 0.25;
 let shadowMaterial: THREE.MeshBasicMaterial | undefined;
 
 export interface RoomProps {
+  solids: THREE.Group;
   /** Spotlight over the player whose turn it is. */
   spotlight: THREE.Group;
   dealerChip: THREE.Mesh;
 }
 
 export function buildRoom(world: THREE.Group): RoomProps {
-  buildFloorAndWalls(world);
-  buildTable(world);
-  buildLamp(world);
-  buildWallLamps(world);
-  buildUtilities(world);
-  return { spotlight: buildSpotlight(world), dealerChip: buildDealerChip(world) };
+  const solids = new THREE.Group();
+  world.add(solids);
+  buildFloorAndWalls(solids);
+  buildTable(solids);
+  buildLamp(solids);
+  buildWallLamps(solids);
+  buildUtilities(solids);
+  return { solids, spotlight: buildSpotlight(world), dealerChip: buildDealerChip(world) };
 }
 
 function buildFloorAndWalls(world: THREE.Group): void {
@@ -30,7 +33,7 @@ function buildFloorAndWalls(world: THREE.Group): void {
     new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
     material('#b0ada5', { map: floorTexture(), roughness: 1 }),
     world,
-    [0, -0.1, 0],
+    [0, -0.075, 0],
   ).rotation.y = FLOOR_ROTATION;
   const wallMaterial = material('#313a39', { side: THREE.BackSide, map: wornTexture('metal') });
   mesh(

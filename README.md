@@ -1,6 +1,6 @@
 # Garanto
 
-Jogo de cartas 3D para reunir de 2 a 10 jogadores, com personagens robóticos próprios, palpites, manilhas e cinco vidas. Three.js renderiza a mesa; WebRTC transmite a partida; Cloudflare Workers e Durable Objects cuidam das salas e da sinalização.
+Jogo de cartas 3D para reunir de 2 a 10 jogadores, com personagens robóticos próprios, palpites, manilhas e cinco vidas. Three.js renderiza a mesa; JoltPhysics simula colisões e gravidade; WebRTC transmite a partida; Cloudflare Workers e Durable Objects cuidam das salas e da sinalização.
 
 ## Executar
 
@@ -126,5 +126,7 @@ Todo o código é TypeScript estrito.
 - `worker/`: Durable Object `Lobby` (salas, admissão com senha, WebSockets com hibernação, eleição de host, credenciais TURN) e limites de uso.
 
 Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular, não usa sombras em tempo real e transmite poses com frequência reduzida. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
+
+A física usa JoltPhysics em WebAssembly, servido junto com o jogo, com passos fixos de 60 Hz. Mesa, chão, paredes e cadeiras ocupadas têm colisores fixos; os corpos dos robôs e as cartas seguradas acompanham suas animações. Observadores colidem com a sala e deslizam ao longo dos obstáculos. Cartas jogadas caem com gravidade, atrito e colisão contínua; depois são organizadas nos espaços e pilhas da partida, mantendo a face legível e a espessura das cartas. A simulação visual é local em cada navegador; as regras e os resultados continuam definidos pelo estado validado da partida. No laboratório, uma cadeira vazia pode ser empurrada e o botão **Soltar carta na cadeira** demonstra a queda sobre os móveis e o chão.
 
 É um jogo casual entre amigos: o host valida jogadas, mas as cópias de recuperação contêm todas as mãos. A interface as esconde dos jogadores vivos; inspecionar os dados internos do navegador pode revelá-las. Se todos fecharem suas abas, não há servidor de partidas para continuar o jogo; retomar depende de uma aba que conserve o backup. Navegadores móveis podem suspender o host ao bloquear a tela, por isso mantenha a aba aberta durante a partida.

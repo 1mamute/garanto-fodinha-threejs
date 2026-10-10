@@ -10,6 +10,7 @@ import type { Card, GameState, TableEntry } from '../game';
 import { CardMesh } from './cards';
 import { CARD_SIZE } from './cardGeometry';
 import { CardThrow } from './cardThrow';
+import type { PhysicsCards } from './physicsCards';
 import { TABLE_TOP } from './room';
 import type { CardInspection } from './types';
 
@@ -60,14 +61,18 @@ function placePiles(
     const seat = seats.get(player.id);
     if (!seat) continue;
     const base = seat.position.clone().multiplyScalar(0.63);
-    base.y = TABLE_TOP + 0.01;
+    base.y = TABLE_TOP;
+    const heights = new Map<number, number>();
+    const sideways = new THREE.Vector3(Math.cos(seat.rotation), 0, -Math.sin(seat.rotation));
     player.tricks.forEach((trick, trickIndex) => {
+      const stack = trickIndex % 3;
+      const height = heights.get(stack) ?? 0;
       trick.entries.forEach((entry, layer) => {
         // While the trick is being collected its cards are still listed on the table: keep them there.
         if (placements.has(entry.card.id)) return;
         const position = base.clone();
-        position.y += trickIndex * 0.045 + layer * 0.009;
-        position.x += ((trickIndex % 3) - 1) * 0.18;
+        position.y += (height + layer) * CARD_SIZE.height;
+        position.addScaledVector(sideways, (stack - 1) * (CARD_SIZE.width + 0.05));
         const details = {
           card: entry.card,
           playerName: entry.playerName,
@@ -78,6 +83,7 @@ function placePiles(
         const rotation = seat.rotation - Math.PI;
         placements.set(entry.card.id, { entry, position, rotation, onTable: false, details });
       });
+      heights.set(stack, height + trick.entries.length);
     });
   }
 }
@@ -90,7 +96,10 @@ export class TableCards {
   private readonly throws = new Map<string, CardThrow>();
   private readonly restingOrientation = new THREE.Quaternion();
 
-  constructor(private readonly world: THREE.Group) {}
+  constructor(
+    private readonly world: THREE.Group,
+    private readonly physics?: PhysicsCards,
+  ) {}
 
   releaseFromHand(card: CardMesh, landing: THREE.Vector3): void {
     card.updateWorldMatrix(true, false);
@@ -108,6 +117,7 @@ export class TableCards {
     placePiles(state, seats, placements);
     for (const [cardId, card] of this.meshes) {
       if (placements.has(cardId)) continue;
+      this.physics?.remove(card);
       card.destroy();
       this.meshes.delete(cardId);
       this.throws.delete(cardId);
@@ -156,16 +166,21 @@ export class TableCards {
       card.rotation.y = placement.rotation;
     }
     this.world.add(card);
-    if (placement.onTable) {
-      const landing = released?.landing ?? placement.position;
-      this.throws.set(card.card.id, new CardThrow(card, landing));
-    }
+    card.target.copy(placement.position);
+    card.targetRotation = placement.rotation;
+    this.startMotion(card, placement.onTable ? (released?.landing ?? placement.position) : undefined);
     this.meshes.set(placement.entry.card.id, card);
     return card;
   }
 
+  private startMotion(card: CardMesh, landing?: THREE.Vector3): void {
+    if (this.physics) this.physics.add(card, landing);
+    else if (landing) this.throws.set(card.card.id, new CardThrow(card, landing));
+  }
+
   private syncKicker(kicker: Card | null): void {
     if (this.kicker?.card.id === kicker?.id) return;
+    if (this.kicker) this.physics?.remove(this.kicker);
     this.kicker?.destroy();
     this.kicker = null;
     if (!kicker) return;
@@ -176,12 +191,17 @@ export class TableCards {
     card.details = { card: kicker, playerName: 'Kicker da rodada', kicker: true };
     this.world.add(card);
     this.kicker = card;
+    this.physics?.add(card);
   }
 
   /** Eases every card towards its target; the inspected card turns to face the camera. */
   animate(deltaSeconds: number, blend: number, inspected: THREE.Object3D | null): void {
     const slide = 1 - Math.exp(-deltaSeconds * 5);
     for (const card of this.pickable) {
+      if (this.physics) {
+        this.physics.animate(card, deltaSeconds, inspected);
+        continue;
+      }
       const throwing = this.throws.get(card.card.id);
       if (throwing) {
         if (throwing.animate(card, deltaSeconds, card.target, card.targetRotation)) {

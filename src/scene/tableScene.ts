@@ -12,6 +12,10 @@ import { createRenderer, createScene } from './environment';
 import { animateFan, FirstPersonHands, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { disposeMaterials, smoothing, TAU } from './primitives';
+import { PhysicsCards } from './physicsCards';
+import { PhysicsCharacter } from './physicsCharacter';
+import { physicsRuntime } from './physicsRuntime';
+import { PhysicsWorld } from './physicsWorld';
 import { nowSeconds, Robot } from './robot';
 import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP, type RoomProps } from './room';
@@ -43,6 +47,9 @@ export class TableScene implements InputTarget {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = createScene();
   private readonly world = new THREE.Group();
+  private readonly physics = new PhysicsWorld(physicsRuntime());
+  private readonly cardPhysics = new PhysicsCards(this.physics);
+  private readonly walker = new PhysicsCharacter(this.physics, this.rig.spectatorPosition);
   private readonly room: RoomProps;
   private readonly seats = new Map<string, SeatProps>();
   private readonly tableCards: TableCards;
@@ -66,7 +73,9 @@ export class TableScene implements InputTarget {
     this.renderer = createRenderer(canvas);
     this.scene.add(this.rig.camera, this.world);
     this.room = buildRoom(this.world);
-    this.tableCards = new TableCards(this.world);
+    this.physics.addSolids(this.room.solids);
+    this.rig.resolveWalk = this.walker.move;
+    this.tableCards = new TableCards(this.world, this.cardPhysics);
     this.firstPerson = new FirstPersonHands(this.rig.camera);
     this.input = new SceneInput(canvas, this);
     this.resize();
@@ -74,6 +83,13 @@ export class TableScene implements InputTarget {
       this.resize();
     });
     this.demo();
+    window.addEventListener('pagehide', event => {
+      if (event.persisted) return;
+      this.renderer.setAnimationLoop(null);
+      this.walker.dispose();
+      this.cardPhysics.dispose();
+      this.physics.dispose();
+    });
     this.renderer.setAnimationLoop(() => {
       this.frame();
     });
@@ -195,6 +211,7 @@ export class TableScene implements InputTarget {
       // Other players' cards are face down, unless you are only watching.
       const faceDown = !observer && player.id !== this.myId;
       syncFan(props.robot.hand, player.hand.slice(0, MAX_FAN_CARDS), faceDown, ROBOT_FAN);
+      this.physics.syncHand(props.robot.hand);
     });
   }
 
@@ -207,6 +224,8 @@ export class TableScene implements InputTarget {
     props.chair.position.copy(position);
     props.chair.rotation.y = angle + Math.PI;
     props.label.position.copy(position).setY(3.15);
+    this.physics.removeObject(props.chair);
+    this.physics.addChair(props.chair);
     return props;
   }
 
@@ -218,11 +237,14 @@ export class TableScene implements InputTarget {
       props = { robot: new Robot(player.color), chair: buildChair(), label: nameLabel(caption), caption };
       this.world.add(props.robot.group, props.chair, props.label);
       this.seats.set(player.id, props);
+      this.physics.addRobot(props.robot.group);
     }
     if (props.robot.color !== player.color) {
+      this.physics.removeObject(props.robot.group);
       props.robot.group.removeFromParent();
       props.robot = new Robot(player.color);
       this.world.add(props.robot.group);
+      this.physics.addRobot(props.robot.group);
     }
     if (props.caption !== caption) {
       disposeMaterials(props.label);
@@ -235,6 +257,8 @@ export class TableScene implements InputTarget {
   private removeSeat(playerId: string): void {
     const props = this.seats.get(playerId);
     if (!props) return;
+    this.physics.removeObject(props.robot.group);
+    this.physics.removeObject(props.chair);
     props.robot.group.removeFromParent();
     props.chair.removeFromParent();
     props.label.removeFromParent();
@@ -278,6 +302,7 @@ export class TableScene implements InputTarget {
     const time = this.timer.getElapsed();
     const deltaSeconds = this.budget.takeFrame(time, document.hidden);
     if (!deltaSeconds) return;
+    this.physics.step(deltaSeconds);
     const blend = smoothing(deltaSeconds, 7);
     const observer = isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
     const mySeat = this.myId ? this.seats.get(this.myId) : undefined;

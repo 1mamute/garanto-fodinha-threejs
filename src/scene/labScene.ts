@@ -5,13 +5,17 @@ import { morph } from '../ui/dom';
 import { html } from '../ui/html';
 import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
-import type { CardMesh } from './cards';
+import { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
 import { createRenderer, createScene } from './environment';
 import { animateFan, ROBOT_FAN, syncFan } from './hands';
 import { SceneInput, type InputTarget } from './input';
 import { smoothing, TAU } from './primitives';
+import { PhysicsCards } from './physicsCards';
+import { PhysicsCharacter } from './physicsCharacter';
+import { physicsRuntime } from './physicsRuntime';
+import { PhysicsWorld } from './physicsWorld';
 import { Robot } from './robot';
 import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { RobotWalking } from './robotWalking';
@@ -34,13 +38,18 @@ export class LabScene implements InputTarget {
   inspected: CardMesh | null = null;
   private readonly scene = createScene();
   private readonly world = new THREE.Group();
+  private readonly physics = new PhysicsWorld(physicsRuntime());
+  private readonly cardPhysics = new PhysicsCards(this.physics);
+  private readonly walker = new PhysicsCharacter(this.physics, this.rig.spectatorPosition);
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly tableCards = new TableCards(this.world);
+  private readonly tableCards = new TableCards(this.world, this.cardPhysics);
   private readonly dealerIndicator = new DealerIndicator();
   private dealerSeat: THREE.Vector3 | null = null;
   private dealerName = '';
   private readonly controlled = new Robot('#648bc1', 'standing');
   private readonly stationary = new Robot('#c38e67', 'standing');
+  private readonly looseChair = buildChair();
+  private looseCard: CardMesh | null = null;
   private headTracking = false;
   private zoomDemoEnabled = true;
   private zoomDemoElapsed = 0;
@@ -59,6 +68,7 @@ export class LabScene implements InputTarget {
     this.renderer = createRenderer(canvas);
     this.scene.add(this.world, this.rig.camera);
     this.populate();
+    this.rig.resolveWalk = this.walker.move;
     this.walking = new RobotWalking(this.controlled, this.rig.spectatorPosition);
     this.input = new SceneInput(canvas, this);
     this.resize();
@@ -78,8 +88,16 @@ export class LabScene implements InputTarget {
         this.zoomDemoElapsed = 0;
         this.renderUi();
       }
+      if (event.target.closest('[data-action="drop-physics-card"]')) this.dropPhysicsCard();
     });
     this.renderUi();
+    window.addEventListener('pagehide', event => {
+      if (event.persisted) return;
+      this.renderer.setAnimationLoop(null);
+      this.walker.dispose();
+      this.cardPhysics.dispose();
+      this.physics.dispose();
+    });
     this.renderer.setAnimationLoop(() => {
       this.frame();
     });
@@ -87,6 +105,7 @@ export class LabScene implements InputTarget {
 
   private populate(): void {
     const room = buildRoom(this.world);
+    this.physics.addSolids(room.solids);
     const state = demoState();
     const visibleIds = new Set([state.kicker?.id, ...state.table.map(entry => entry.card.id)]);
     const deck = createDeck().filter(card => !visibleIds.has(card.id));
@@ -106,12 +125,16 @@ export class LabScene implements InputTarget {
       // The printed side faces its owner; keep the top edge above the gripper.
       for (const card of robot.hand.children) card.rotation.z = Math.PI;
       this.world.add(robot.group, chair);
+      this.physics.addRobot(robot.group);
+      this.physics.addChair(chair);
+      this.physics.syncHand(robot.hand);
       seats.set(player.id, { position: robot.group.position.clone(), rotation: robot.group.rotation.y });
     });
     this.tableCards.sync(state, seats);
     for (const card of this.tableCards.pickable) {
       card.position.copy(card.target);
       card.rotation.y = card.targetRotation;
+      this.cardPhysics.settle(card);
     }
     const dealer = seats.get(state.dealer);
     this.dealerSeat = dealer?.position.clone() ?? null;
@@ -124,6 +147,23 @@ export class LabScene implements InputTarget {
     stationary.group.position.set(2, 0, 8);
     stationary.group.rotation.y = Math.PI;
     this.world.add(stationary.group, this.controlled.group);
+    this.physics.addRobot(stationary.group);
+    this.looseChair.position.set(-2, 0, 6.5);
+    this.world.add(this.looseChair);
+    this.physics.addChair(this.looseChair, true);
+  }
+
+  private dropPhysicsCard(): void {
+    if (this.looseCard) {
+      this.physics.remove(this.looseCard);
+      this.looseCard.destroy();
+    }
+    const card = createDeck().at(-1);
+    if (!card) return;
+    this.looseCard = new CardMesh(card);
+    this.looseCard.position.copy(this.looseChair.position).setY(3.5);
+    this.world.add(this.looseCard);
+    this.physics.addCard(this.looseCard, true);
   }
 
   toggleMode(): void {
@@ -181,6 +221,7 @@ export class LabScene implements InputTarget {
     this.timer.update();
     const deltaSeconds = this.budget.takeFrame(this.timer.getElapsed(), document.hidden);
     if (!deltaSeconds) return;
+    this.physics.step(deltaSeconds);
     const blend = smoothing(deltaSeconds, 7);
     this.rig.update(deltaSeconds, blend, {
       mode: this.mode,
@@ -239,6 +280,8 @@ export class LabScene implements InputTarget {
       <p>Ative para o robô de inspeção olhar para seu personagem. Caminhe à frente dele e para os lados para observar a cabeça.</p>
       <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom em todas as perspectivas</p>
       <p>Vista superior: clique numa carta para inspecionar. Esc: sair da inspeção.</p>
+      <button class="button subtle" data-action="drop-physics-card">Soltar carta na cadeira</button>
+      <p>A cadeira vazia atrás de você pode ser empurrada ao caminhar. A carta cai e colide com a cadeira ou o chão.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}
       <a class="text-button" href="/">← Voltar ao jogo</a>
     </aside>${this.mode !== 'top' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}`,

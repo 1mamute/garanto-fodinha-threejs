@@ -9,6 +9,7 @@ Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena n
 - Duas cartas jogadas no centro da mesa, um kicker, o marcador do dealer e o destaque do jogador da vez.
 - Um robô laranja imóvel em pé para inspeção, sem identificação flutuante, na posição `(2, 0, 8)`, afastado da mesa e com espaço para caminhar ao redor.
 - Um robô azul controlável, com corpo visível ao olhar para baixo em primeira pessoa. A cabeça fica oculta nessa perspectiva e reaparece nas demais.
+- Uma cadeira vazia na posição `(-2, 0, 6.5)`, com corpo dinâmico no JoltPhysics. Caminhe contra ela para empurrá-la. O botão **Soltar carta na cadeira** solta uma carta de 3,5 unidades de altura acima da posição atual da cadeira; repetir o botão substitui a carta anterior.
 
 A rodada permanece congelada, sem avanço de turnos ou animações de partida. `LabScene.populate()` parte de `demoState()` e preenche as mãos com cartas que não estejam na mesa ou no kicker. A postura em pé usa o modelo `Robot` com ajustes nos braços e pernas.
 
@@ -41,8 +42,9 @@ O corpo gira suavemente na direção do deslocamento efetivo, incluindo diagonai
 - Posição inicial do personagem: `(0, 0, 5.5)`; a câmera do observador fica na altura dos olhos do modelo em pé (3,16 unidades). Tronco e cabeça compartilham as proporções dos robôs sentados. Em pé, a coxa estendida eleva o corpo em 0,52 unidade, mantendo os pés no chão.
 - Velocidade: 2,7 unidades por segundo, com diagonais normalizadas e direção relativa à orientação horizontal da câmera.
 - Sala com diâmetro de 27 unidades; piso, paredes e painéis usam o mesmo raio de 13,5 unidades.
-- Área permitida: anel entre os raios de 3 e 12 unidades ao redor da mesa, mantendo 1,5 unidade de distância das paredes. Passos que saiam desse anel são rejeitados, como no jogo.
-- Sem colisões adicionais com objetos, salto ou voo. A câmera de terceira pessoa também não resolve colisões com a geometria.
+- A caminhada usa uma cápsula física com gravidade e contato com o chão. Mesa, cadeiras, robôs e paredes impedem a passagem; movimentos diagonais deslizam ao longo dos obstáculos. O limite radial antigo foi substituído pelas colisões da sala, também no jogo.
+- As cadeiras ocupadas ficam fixas; os robôs sentados mantêm suas animações com colisores que acompanham tronco, cabeça e membros. A cadeira vazia reage ao contato, pode tombar e colide com o piso e a mesa.
+- Sem salto ou voo. A câmera de terceira pessoa continua sem resolver colisões próprias com a geometria; as colisões controlam o personagem.
 - Em primeira pessoa, a câmera fica 0,56 unidade à frente do centro do corpo, na região dos olhos. Olhar para baixo mantém esse deslocamento, evitando enxergar o interior do tronco.
 
 O laboratório serve para avaliar o deslocamento dos eliminados sem iniciar uma partida. Eliminação, sincronização de posições, migração de host e reconexão devem ser verificadas nos testes do jogo e da rede. A iluminação é ajustada no código; não há painel de edição de luzes.
@@ -61,6 +63,8 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/dealerIndicator.ts` | Seta compartilhada que indica o dealer na vista superior, ocultada durante a inspeção de cartas. |
 | `src/scene/roomDimensions.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
 | `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
+| `src/scene/physicsWorld.ts`, `physicsShapes.ts` e `physicsLayers.ts` | Corpos Jolt, colisores derivados da geometria, filtros de colisão, passo fixo e descarte da memória nativa. |
+| `src/scene/physicsCharacter.ts` e `physicsCards.ts` | Caminhada com colisões e queda/organização de cartas, compartilhadas com o jogo. |
 | `src/scene/input.ts`, `mouseLook.ts` e `src/ui/joystick.ts` | Controles compartilhados com o jogo. |
 | `src/scene/types.ts` | `InspectionCameraMode` acrescenta `third` aos modos do jogo. |
 | `src/style.css` | Aparência do painel e do aviso de captura. |
@@ -79,5 +83,6 @@ Use os comandos de [Verificar no README](../README.md#verificar). No laboratóri
 5. Troque as câmeras pelos botões e por espaço, conferindo posição preservada, encerramento da inspeção e joystick zerado.
 6. Confira os controles compartilhados no jogo como observador/eliminado e a manipulação de cartas com cursor livre para jogadores sentados.
 7. Ligue o acompanhamento da cabeça do robô de inspeção, caminhe ao redor dele nos dois sentidos e confira o giro de 360° com o corpo imóvel, incluindo a passagem por trás. Alterne as câmeras, confira que o botão continua ligado e desligue para observar o retorno suave da cabeça à posição neutra pelo arco mais curto.
+8. Caminhe contra um robô sentado, a mesa, as cadeiras e a parede: o personagem deve parar ou deslizar, sem atravessar a geometria. Empurre a cadeira vazia, solte uma carta sobre ela e confira o pouso. Empurre novamente: a carta deve reagir à cadeira e pode cair no chão.
 
 O build de produção elimina o módulo do laboratório. Com `npm run preview`, `/?scene=lab` deve abrir a tela inicial normal; `dist/assets` não deve conter um módulo `labScene` nem o texto **Laboratório de cena**.

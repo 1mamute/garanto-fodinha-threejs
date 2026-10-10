@@ -68,6 +68,8 @@ export class CameraRig {
   readonly joystick = { x: 0, y: 0 };
   /** Keyboard codes currently pressed. */
   readonly keys = new Set<string>();
+  resolveWalk: ((from: THREE.Vector3, next: THREE.Vector3, deltaSeconds: number) => THREE.Vector3) | null =
+    null;
 
   private readonly positionTarget = new THREE.Vector3();
   private readonly lookTarget = new THREE.Vector3();
@@ -301,7 +303,6 @@ export class CameraRig {
     const pressed = (code: string): number => (this.keys.has(code) ? 1 : 0);
     const forward = pressed('KeyW') - pressed('KeyS') - this.joystick.y;
     const sideways = pressed('KeyD') - pressed('KeyA') + this.joystick.x;
-    if (forward === 0 && sideways === 0) return;
     // Diagonals are not faster than straight lines.
     const step = (WALK_SPEED * deltaSeconds) / Math.max(1, Math.hypot(forward, sideways));
     const heading = seatAngle + this.yaw + Math.PI;
@@ -309,6 +310,8 @@ export class CameraRig {
     next.x += (Math.sin(heading) * forward - Math.cos(heading) * sideways) * step;
     next.z += (Math.cos(heading) * forward + Math.sin(heading) * sideways) * step;
     const distance = Math.hypot(next.x, next.z);
-    if (distance > WALK_INNER_RADIUS && distance < WALK_OUTER_RADIUS) this.spectatorPosition.copy(next);
+    if (this.resolveWalk)
+      this.spectatorPosition.copy(this.resolveWalk(this.spectatorPosition, next, deltaSeconds));
+    else if (distance > WALK_INNER_RADIUS && distance < WALK_OUTER_RADIUS) this.spectatorPosition.copy(next);
   }
 }
