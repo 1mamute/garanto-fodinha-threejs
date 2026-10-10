@@ -7,8 +7,6 @@ export const ROOM_IDLE_TTL_MS = 24 * 3600_000;
 export const UNUSED_ROOM_TTL_MS = 10 * 60_000;
 export const MAX_STORED_ROOMS = 300;
 export const MAX_OPEN_ROOMS = 100;
-/** Players in a running match may be joined by this many spectators beyond capacity. */
-export const SPECTATOR_SLOTS = 12;
 export const RECONNECT_MS = 180_000;
 
 export interface Member {
@@ -92,9 +90,8 @@ export function isAbandoned(room: Room, now: number): boolean {
   return now - room.updatedAt > ttl;
 }
 
-/** Lobby seats are limited by capacity (bots included); running matches also take spectators. */
+/** Every member reserves a playing seat, with bots included in the capacity. */
 export function isFull(room: Room): boolean {
   const activeMembers = room.members.filter(member => !member.retired).length;
-  if (room.phase === 'lobby') return activeMembers + (room.botCount ?? 0) >= room.settings.capacity;
-  return activeMembers >= room.settings.capacity + SPECTATOR_SLOTS;
+  return activeMembers + (room.botCount ?? 0) >= room.settings.capacity;
 }

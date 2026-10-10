@@ -1,7 +1,7 @@
 // Runs against `npm run dev:cloudflare`: GARANTO_INTEGRATION_URL=http://localhost:8787 npm test
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { PublicRoom, RoomIdentity, ServerMessage } from '../src/shared/protocol';
+import { ROOM_PHASES, type PublicRoom, type RoomIdentity, type ServerMessage } from '../src/shared/protocol';
 
 const baseUrl = process.env.GARANTO_INTEGRATION_URL ?? '';
 
@@ -41,13 +41,69 @@ async function connect(identity: RoomIdentity): Promise<Connection> {
   return { socket, messages };
 }
 
-async function until(predicate: () => boolean): Promise<void> {
+async function until(predicate: () => boolean | Promise<boolean>): Promise<void> {
   for (let attempt = 0; attempt < 80; attempt++) {
-    if (predicate()) return;
+    if (await predicate()) return;
     await wait(50);
   }
   assert.fail('Evento esperado não chegou.');
 }
+
+test(
+  'Cloudflare local: entrada apenas na espera, capacidade com bots e reconexão durante partida',
+  { skip: !baseUrl, timeout: 20_000 },
+  async () => {
+    const created = await post('/api/rooms', { playerName: 'Host', capacity: 3 });
+    assert.equal(created.status, 201);
+    const { roomId } = created.data;
+    const host = await connect(created.data);
+    const sockets = [host.socket];
+    const joinPath = `/api/rooms/${roomId}/join`;
+    const status = async (phase: PublicRoom['phase'], botCount = 0): Promise<void> => {
+      host.socket.send(JSON.stringify({ type: 'status', phase, botCount, spectatorIds: [] }));
+      await until(async () => {
+        const rooms = (await (await fetch(`${baseUrl}/api/rooms`)).json()) as PublicRoom[];
+        const room = rooms.find(candidate => candidate.id === roomId);
+        return room?.phase === phase && room.count === 1 + botCount;
+      });
+    };
+    try {
+      await until(() => lastRoster(host) !== undefined);
+      await status('lobby', 2);
+      assert.equal((await post(joinPath, { playerName: 'Sem vaga' })).status, 409);
+      for (const phase of ROOM_PHASES.filter(phase => phase !== 'lobby')) {
+        await status(phase);
+        const rejected = await fetch(`${baseUrl}${joinPath}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerName: 'Espectador' }),
+        });
+        assert.equal(rejected.status, 409, `entrada bloqueada na fase ${phase}`);
+        assert.deepEqual(await rejected.json(), {
+          error: 'Esta partida já começou. Aguarde o host abrir uma nova partida para entrar.',
+        });
+      }
+      await status('play');
+      host.socket.close();
+      await wait(100);
+      const returned = await connect(created.data);
+      sockets.push(returned.socket);
+      await until(() => lastRoster(returned) !== undefined);
+      assert.equal(lastRoster(returned)?.members.length, 1);
+      assert.equal(lastRoster(returned)?.members[0]?.id, created.data.memberId);
+      assert.equal(lastRoster(returned)?.room.phase, 'play');
+      returned.socket.send(JSON.stringify({ type: 'status', phase: 'lobby', botCount: 0, spectatorIds: [] }));
+      await until(async () => {
+        const rooms = (await (await fetch(`${baseUrl}/api/rooms`)).json()) as PublicRoom[];
+        return rooms.find(room => room.id === roomId)?.phase === 'lobby';
+      });
+      assert.equal((await post(joinPath, { playerName: 'Próxima partida' })).status, 201);
+      returned.socket.send(JSON.stringify({ type: 'leave' }));
+    } finally {
+      for (const socket of sockets) socket.close();
+    }
+  },
+);
 
 function lastRoster(connection: Connection): RosterMessage | undefined {
   return connection.messages.filter((message): message is RosterMessage => message.type === 'roster').at(-1);

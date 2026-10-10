@@ -10,7 +10,7 @@ Confirmadas na conversa em 7 de outubro de 2026. Estas decisões prevalecem sobr
 - Não há limite de tempo para apostar ou jogar.
 - Bots opcionais, para jogar sozinho ou preencher salas.
 - Cada pessoa senta automaticamente ao entrar na sala. Antes da partida, escolhe uma cor disponível e marca que está pronta; a cor fica bloqueada enquanto estiver pronta. O host inicia quando todos os jogadores da partida estiverem prontos.
-- Participantes que chegam durante a partida ficam sentados como espectadores, sem caminhar, até haver vaga na próxima partida. A revanche respeita a capacidade da mesa.
+- Não há entrada de espectadores por enquanto. Novos participantes entram apenas na sala de espera com vaga; após o início, devem aguardar o host abrir a revanche. Participantes existentes podem reconectar durante a partida. A revanche respeita a capacidade da mesa.
 - Personagens próprios, robóticos, com visual cômico, simples e estiloso; luvas brancas e braços no estilo Rubber Hose.
 - Mesa redonda com pano verde, sala aconchegante e cartunesca, cartas tradicionais legíveis e efeitos sonoros discretos.
 - Computador e celular, com prioridade para desempenho leve. Interface em português, sem necessidade de conta.

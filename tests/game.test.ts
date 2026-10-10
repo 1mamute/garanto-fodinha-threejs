@@ -274,16 +274,30 @@ test('prazo expirado na tela de placar avança para a próxima rodada em vez de 
   assert.equal(state.phase, 'bet');
 });
 
-test('novo participante durante partida fica sentado como espectador sem andar nem apostar', () => {
-  let state = startedMatch(2);
-  state = reconcilePresence(state, [
+test('novo participante durante partida não entra como espectador', () => {
+  const state = startedMatch(2);
+  const next = reconcilePresence(state, [
     { id: 'human', name: 'Humano', connected: true },
     { id: 'late', name: 'Chegou depois', connected: true },
   ]);
-  assert.equal(playerById(state, 'late').spectator, true);
-  assert.equal(playerById(state, 'late').seated, true);
-  assert.equal(canWalk(playerById(state, 'late')), false);
-  assert.throws(() => applyAction(state, 'late', { type: 'bid', value: 0 }), /Espectadores/);
+  assert.equal(next, state);
+  assert.equal(findPlayer(next, 'late'), undefined);
+  assert.throws(() => applyAction(next, 'late', { type: 'bid', value: 0 }), /não está nesta mesa/);
+});
+
+test('sala de espera cheia não adiciona novos participantes como espectadores', () => {
+  const state = createState(createPlayer('human', 'Humano'), { capacity: 2 });
+  state.players.push(createPlayer('bot', 'Robô', COLORS[1], true));
+  const next = reconcilePresence(
+    state,
+    [
+      { id: 'human', name: 'Humano', connected: true },
+      { id: 'late', name: 'Chegou depois', connected: true },
+    ],
+    100,
+  );
+  assert.equal(next, state);
+  assert.equal(findPlayer(next, 'late'), undefined);
 });
 
 test('caminhada só é liberada após eliminação e volta a ser bloqueada na revanche', () => {
@@ -299,16 +313,11 @@ test('caminhada só é liberada após eliminação e volta a ser bloqueada na re
   assert.ok(state.players.every(player => player.seated && !canWalk(player)));
 });
 
-test('revanche mantém espectadores sentados e respeita a capacidade da partida', () => {
+test('revanche de estado antigo mantém espectadores sentados e respeita a capacidade da partida', () => {
   let state = startedMatch(2, 1);
-  state = reconcilePresence(
-    state,
-    [
-      { id: 'human', name: 'Humano', connected: true },
-      { id: 'late', name: 'Chegou depois', connected: true },
-    ],
-    100,
-  );
+  const legacySpectator = createPlayer('late', 'Chegou depois', COLORS[2]);
+  legacySpectator.spectator = true;
+  state.players.push(legacySpectator);
   let now = 100;
   const random = seededRandom(3);
   while (state.phase !== 'finished') [state, now] = advanceWithBots(state, now, random);

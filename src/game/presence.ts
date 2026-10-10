@@ -2,11 +2,11 @@ import { COLORS } from './constants';
 import { cloneState, createPlayer, findPlayer, firstFreeColor, livingPlayers } from './state';
 import type { GameState, Player, PresenceMember } from './types';
 
-/** Newcomers sit immediately, but watch if the match is running or its playing seats are full. */
-function addNewcomer(state: GameState, member: PresenceMember): Player {
+/** Only an open lobby with a playing seat accepts new players; existing players may reconnect. */
+function addNewcomer(state: GameState, member: PresenceMember): Player | undefined {
+  if (state.phase !== 'lobby' || livingPlayers(state).length >= state.settings.capacity) return undefined;
   const color = firstFreeColor(state) ?? COLORS[COLORS.length - 1];
   const newcomer = createPlayer(member.id, member.name, color);
-  newcomer.spectator = state.phase !== 'lobby' || livingPlayers(state).length >= state.settings.capacity;
   state.players.push(newcomer);
   return newcomer;
 }

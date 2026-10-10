@@ -80,8 +80,9 @@ function roomList(ui: UiState): SafeHtml {
 }
 
 function roomRow(room: PublicRoom): SafeHtml {
-  const phase = room.phase === 'lobby' ? 'Na sala de espera' : 'Partida em andamento · entrar para assistir';
-  return html`<button class="room-row" data-action="join" data-room="${room.id}" data-key="${room.id}">
+  const unavailable = room.phase !== 'lobby' || room.count >= room.capacity;
+  const phase = room.phase === 'lobby' ? 'Na sala de espera' : 'Entrada fechada · aguarde a próxima partida';
+  return html`<button class="room-row" data-action="join" data-room="${room.id}" data-key="${room.id}" ${unavailable && 'disabled'}>
     <span class="room-symbol">${icon(room.locked ? 'lock' : 'cards', 24)}</span>
     <span class="room-name"><strong>${room.name}</strong><small>${phase} · ${room.id}</small></span>
     <span class="room-count">${room.count}/${room.capacity}${icon('arrow', 18)}</span>

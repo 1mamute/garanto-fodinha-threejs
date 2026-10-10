@@ -241,6 +241,9 @@ export class Lobby extends DurableObject<Env> {
     if (room.password && room.password !== (await hashPassword(password, room.salt))) {
       throw new HttpError(403, 'Senha incorreta.');
     }
+    if (room.phase !== 'lobby') {
+      throw new HttpError(409, 'Esta partida já começou. Aguarde o host abrir uma nova partida para entrar.');
+    }
     if (isFull(room)) throw new HttpError(409, 'Sala cheia.');
     return this.admit(room, playerName);
   }
