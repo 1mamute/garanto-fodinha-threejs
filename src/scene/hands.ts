@@ -128,9 +128,12 @@ export class FirstPersonHands {
     const previousLayers = this.camera.layers.mask;
     const previousClear = renderer.autoClear;
     const previousMatrixUpdate = scene.matrixWorldAutoUpdate;
+    const previousBackground = scene.background;
     // The room pass already updated transforms; reuse them for the hands.
     scene.matrixWorldAutoUpdate = false;
     renderer.autoClear = false;
+    // Three clears a color background even with autoClear disabled; preserve the room pass.
+    scene.background = null;
     renderer.clearDepth();
     this.camera.layers.set(1);
     try {
@@ -139,6 +142,7 @@ export class FirstPersonHands {
       this.camera.layers.mask = previousLayers;
       renderer.autoClear = previousClear;
       scene.matrixWorldAutoUpdate = previousMatrixUpdate;
+      scene.background = previousBackground;
     }
   }
 
