@@ -29,10 +29,14 @@ export class CardDrag {
   }
 
   overTable(x: number, y: number): boolean {
+    return this.tablePoint(x, y) !== null;
+  }
+
+  tablePoint(x: number, y: number): THREE.Vector3 | null {
     this.setRay(x, y);
     const table = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_TOP);
     const hit = this.ray.ray.intersectPlane(table, this.point);
-    return Boolean(hit && Math.hypot(hit.x, hit.z) < FELT_RADIUS);
+    return hit && Math.hypot(hit.x, hit.z) < FELT_RADIUS ? hit.clone() : null;
   }
 
   private setRay(x: number, y: number): void {

@@ -7,6 +7,7 @@
  * the wheel or a pinch zooms.
  */
 import type { CameraRig } from './cameraRig';
+import type { Vector3 } from 'three';
 import type { CardMesh } from './cards';
 import { CardDrag } from './cardDrag';
 import { SEATED_CAMERA } from './cameraSettings';
@@ -15,8 +16,6 @@ import type { InspectionCameraMode, Pose } from './types';
 
 const DRAG_THRESHOLD_PX = 7;
 const LOOK_SPEED = 0.004;
-const PLAY_DISTANCE_PX = 65;
-const PLAY_HEIGHT_FRACTION = 0.08;
 /** Horizontal drag distance that moves a card one slot in the hand. */
 const SLOT_WIDTH_PX = 35;
 const HOLD_TO_INSPECT_MS = 2000;
@@ -39,7 +38,7 @@ export interface InputTarget {
   toggleMode(): void;
   /** A first-person hand card is being dragged (or was released). */
   reach(reaching: boolean): void;
-  dropHandCard(card: CardMesh, playUpwards: boolean, slotShift: number): void;
+  dropHandCard(card: CardMesh, tablePoint: Vector3 | null, slotShift: number): void;
   /** Called after any drag ends so state updates held back during it can be applied. */
   afterDrag(): void;
 }
@@ -267,10 +266,12 @@ export class SceneInput {
     if (target.mode === 'top' && !drag.moved) target.inspect(drag.card);
     if (target.mode === 'first' && drag.moved) {
       const slotShift = Math.round((event.clientX - drag.startX) / SLOT_WIDTH_PX);
-      const playDistance = Math.min(PLAY_DISTANCE_PX, this.canvas.clientHeight * PLAY_HEIGHT_FRACTION);
-      const onTable =
-        drag.startY - event.clientY > playDistance && this.cardDrag.overTable(event.clientX, event.clientY);
-      target.dropHandCard(drag.card, onTable, slotShift);
+      // The hand overlaps the felt in screen space; lateral motion must still reorder its cards.
+      const tablePoint =
+        drag.startY - event.clientY > DRAG_THRESHOLD_PX
+          ? this.cardDrag.tablePoint(event.clientX, event.clientY)
+          : null;
+      target.dropHandCard(drag.card, tablePoint, slotShift);
     }
   }
 

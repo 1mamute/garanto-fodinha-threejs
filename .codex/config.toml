@@ -1,0 +1,11 @@
+[mcp_servers.playwright]
+command = "node"
+args = ["node_modules/@playwright/mcp/cli.js", "--browser", "chrome", "--headless", "--isolated", "--output-dir", ".tools/playwright"]
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+
+[mcp_servers.playwright.env]
+PLAYWRIGHT_BROWSERS_PATH = ".tools/playwright-browsers"
+
+[mcp_servers.debugmcp]
+url = "http://localhost:3001/mcp"

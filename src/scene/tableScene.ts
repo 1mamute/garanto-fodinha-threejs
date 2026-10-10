@@ -162,9 +162,9 @@ export class TableScene implements InputTarget {
     this.firstPerson.reach(reaching);
   }
 
-  dropHandCard(card: CardMesh, playUpwards: boolean, slotShift: number): void {
-    if (playUpwards) {
-      this.tableCards.releaseFromHand(card);
+  dropHandCard(card: CardMesh, tablePoint: THREE.Vector3 | null, slotShift: number): void {
+    if (tablePoint) {
+      this.tableCards.releaseFromHand(card, tablePoint);
       this.callbacks.onPlay(card.card.id);
       return;
     }

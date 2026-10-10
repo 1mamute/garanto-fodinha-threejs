@@ -269,8 +269,9 @@ export class CameraRig {
     const distance = Math.max(initialDistance, cardDistance) * zoomRatio;
     const requestedDistance = distance / Math.min(1, this.camera.aspect);
     const height = Math.min(MAX_TABLE_VIEW_HEIGHT, TABLE_HEIGHT + requestedDistance);
-    // Widen the lens instead of crossing the lamp, preserving card framing and wheel zoom.
-    const halfAngle = (Math.tan(halfFov) * requestedDistance) / (height - TABLE_HEIGHT);
+    // Fit the tops of piles too: their distance to the lens shrinks when height is capped below the lamp.
+    const cardHeight = bounds?.height ?? TABLE_HEIGHT;
+    const halfAngle = (Math.tan(halfFov) * requestedDistance) / (height - cardHeight);
     return { height, fieldOfView: THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2 };
   }
 

@@ -75,6 +75,17 @@ Cloudflare anuncia uma franquia mensal compartilhada de 1.000 GB para TURN/SFU; 
 
 Com `npm run dev`, abra `http://localhost:5173/?scene=lab` para inspecionar a sala, iluminação, robôs e cartas do jogo em uma cena local exclusiva de desenvolvimento. Ela inclui uma rodada congelada, um robô imóvel em pé e um robô controlável com a caminhada dos eliminados, além de câmeras em primeira pessoa, terceira pessoa e vista superior. Acesso, controles e manutenção estão em [docs/sala-de-testes.md](docs/sala-de-testes.md).
 
+## Playwright MCP no Codex
+
+O servidor está configurado para este repositório em `.codex/config.toml` e o
+pacote `@playwright/mcp` é instalado com `npm install`. Reabra a sessão do Codex
+com este projeto marcado como confiável para carregar as ferramentas `browser_*`.
+
+A configuração usa o Google Chrome instalado na máquina, em modo headless e com
+perfil isolado. Capturas e outros arquivos gerados ficam em `.tools/playwright`,
+ignorado pelo Git. Execute `npm run dev` antes de pedir ao agente para abrir
+`http://localhost:5173`; para testar salas, inicie também `npm run dev:cloudflare`.
+
 ## Verificar
 
 ```sh

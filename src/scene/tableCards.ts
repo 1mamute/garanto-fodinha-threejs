@@ -2,20 +2,22 @@
  * Cards lying on the table: the current trick, every player's pile of won tricks and the kicker.
  *
  * Meshes are keyed by card id only. When a trick is collected, the very same mesh glides from the
- * middle of the table to the winner's pile. (Keying by "table"/"pile" used to throw the table mesh
+ * player's side of the table to the winner's pile. (Keying by "table"/"pile" used to throw the table mesh
  * away and spawn a new one at the seat, so collected cards flew in from the players instead.)
  */
 import * as THREE from 'three';
 import type { Card, GameState, TableEntry } from '../game';
 import { CardMesh } from './cards';
 import { CARD_SIZE } from './cardGeometry';
+import { CardThrow } from './cardThrow';
 import { TABLE_TOP } from './room';
 import type { CardInspection } from './types';
 
-/** Golden angle: successive cards spiral out without overlapping much. */
-const GOLDEN_ANGLE = 2.399;
+/** Leaves the centre for the kicker and the outer edge for won tricks. */
+const PLAYED_CARD_RADIUS = 1.45;
 const KICKER_ROTATION = -0.15;
-const KICKER_CLEARANCE_RADIUS = 0.8;
+const UP = new THREE.Vector3(0, 1, 0);
+const FULL_SIZE = new THREE.Vector3(1, 1, 1);
 
 /** Where a seated robot is, as far as card placement is concerned. */
 export interface Seat {
@@ -32,19 +34,20 @@ interface Placement {
   details: CardInspection;
 }
 
-function placeTrick(state: GameState, placements: Map<string, Placement>): void {
-  const baseRadius = state.kicker ? KICKER_CLEARANCE_RADIUS : 0.28;
-  state.table.forEach((entry, index) => {
-    const angle = index * GOLDEN_ANGLE;
-    const radius = baseRadius + 0.055 * index;
-    const position = new THREE.Vector3(
-      Math.sin(angle) * radius,
-      TABLE_TOP + index * 0.006,
-      Math.cos(angle) * radius,
-    );
+function placeTrick(
+  state: GameState,
+  seats: ReadonlyMap<string, Seat>,
+  placements: Map<string, Placement>,
+): void {
+  for (const entry of state.table) {
+    const seat = seats.get(entry.playerId);
+    if (!seat) continue;
+    const position = seat.position.clone().setY(0).setLength(PLAYED_CARD_RADIUS).setY(TABLE_TOP);
     const details = { card: entry.card, playerName: entry.playerName };
-    placements.set(entry.card.id, { entry, position, rotation: angle * 0.25, onTable: true, details });
-  });
+    // Robots face local +Z; a readable card points its top towards local -Z.
+    const rotation = seat.rotation - Math.PI;
+    placements.set(entry.card.id, { entry, position, rotation, onTable: true, details });
+  }
 }
 
 /** Won tricks are stacked in front of the winner, up to three stacks side by side. */
@@ -72,7 +75,8 @@ function placePiles(
           trickIndex: trickIndex + 1,
           pile: trick.entries,
         };
-        placements.set(entry.card.id, { entry, position, rotation: seat.rotation, onTable: false, details });
+        const rotation = seat.rotation - Math.PI;
+        placements.set(entry.card.id, { entry, position, rotation, onTable: false, details });
       });
     });
   }
@@ -82,12 +86,15 @@ export class TableCards {
   readonly framingBounds = { radius: 0, height: TABLE_TOP };
   private readonly meshes = new Map<string, CardMesh>();
   private kicker: CardMesh | null = null;
-  private released: CardMesh | null = null;
+  private released: { card: CardMesh; transform: THREE.Matrix4; landing: THREE.Vector3 } | null = null;
+  private readonly throws = new Map<string, CardThrow>();
+  private readonly restingOrientation = new THREE.Quaternion();
 
   constructor(private readonly world: THREE.Group) {}
 
-  releaseFromHand(card: CardMesh): void {
-    this.released = card;
+  releaseFromHand(card: CardMesh, landing: THREE.Vector3): void {
+    card.updateWorldMatrix(true, false);
+    this.released = { card, transform: card.matrixWorld.clone(), landing: landing.clone() };
   }
 
   /** Everything that can be clicked to inspect. */
@@ -97,12 +104,13 @@ export class TableCards {
 
   sync(state: GameState, seats: ReadonlyMap<string, Seat>): void {
     const placements = new Map<string, Placement>();
-    placeTrick(state, placements);
+    placeTrick(state, seats, placements);
     placePiles(state, seats, placements);
     for (const [cardId, card] of this.meshes) {
       if (placements.has(cardId)) continue;
       card.destroy();
       this.meshes.delete(cardId);
+      this.throws.delete(cardId);
     }
     for (const [cardId, placement] of placements) {
       const card = this.meshes.get(cardId) ?? this.spawn(placement, seats);
@@ -111,7 +119,8 @@ export class TableCards {
       card.details = placement.details;
     }
     this.syncKicker(state.kicker);
-    this.released = null;
+    // Guest actions can be acknowledged after the hand has already been restored on release.
+    if (this.released && placements.has(this.released.card.card.id)) this.released = null;
     this.updateFraming();
   }
 
@@ -128,21 +137,29 @@ export class TableCards {
   }
 
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {
-    const held = this.released?.card.id === placement.entry.card.id ? this.released : null;
+    const released = this.released?.card.card.id === placement.entry.card.id ? this.released : null;
+    const held = released?.card.parent ? released.card : null;
     const card = held ?? new CardMesh(placement.entry.card);
     card.layers.set(0);
     const seat = placement.onTable ? seats.get(placement.entry.playerId) : undefined;
-    if (held) {
-      this.world.attach(card);
+    if (released) {
+      // Preserve the release transform even if an asynchronous state update removed the hand mesh.
+      this.world.updateWorldMatrix(true, false);
+      const local = this.world.matrixWorld.clone().invert().multiply(released.transform);
+      local.decompose(card.position, card.quaternion, card.scale);
     } else if (seat) {
-      // Thrown from the player's hand: start above their side of the table, slightly turned.
+      // Other players place the card face up without an artificial spin.
       card.position.copy(seat.position).multiplyScalar(0.7).setY(2);
-      card.rotation.y = placement.rotation + 0.5;
+      card.rotation.y = placement.rotation;
     } else {
       card.position.copy(placement.position);
       card.rotation.y = placement.rotation;
     }
     this.world.add(card);
+    if (placement.onTable) {
+      const landing = released?.landing ?? placement.position;
+      this.throws.set(card.card.id, new CardThrow(card, landing));
+    }
     this.meshes.set(placement.entry.card.id, card);
     return card;
   }
@@ -165,12 +182,19 @@ export class TableCards {
   animate(deltaSeconds: number, blend: number, inspected: THREE.Object3D | null): void {
     const slide = 1 - Math.exp(-deltaSeconds * 5);
     for (const card of this.pickable) {
+      const throwing = this.throws.get(card.card.id);
+      if (throwing) {
+        if (throwing.animate(card, deltaSeconds, card.target, card.targetRotation)) {
+          this.throws.delete(card.card.id);
+        }
+        continue;
+      }
       card.position.lerp(card.target, slide);
       const rotation = card === inspected ? 0 : card.targetRotation;
-      card.rotation.y = THREE.MathUtils.lerp(card.rotation.y, rotation, blend);
-      card.rotation.x = THREE.MathUtils.lerp(card.rotation.x, 0, blend);
-      card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, 0, blend);
-      card.scale.lerp(new THREE.Vector3(1, 1, 1), blend);
+      // Euler angles can differ by a full turn after slerp; keep the same rotation representation.
+      this.restingOrientation.setFromAxisAngle(UP, rotation);
+      card.quaternion.slerp(this.restingOrientation, blend);
+      card.scale.lerp(FULL_SIZE, blend);
     }
   }
 }

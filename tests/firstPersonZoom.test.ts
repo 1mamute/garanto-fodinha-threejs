@@ -33,7 +33,9 @@ test('o zoom em primeira pessoa respeita o limite configurável e preserva a pos
   assert.ok(rig.camera.fov < normalFov);
   assert.deepEqual(rig.camera.position, position);
   rig.update(0.05, 1, { ...context, mode: 'top' });
-  assert.equal(rig.camera.fov, normalFov);
+  const unzoomed = new CameraRig();
+  unzoomed.update(0.05, 1, { ...context, mode: 'top' });
+  assert.equal(rig.camera.fov, unzoomed.camera.fov);
   rig.addFirstPersonZoom(100_000);
   assert.equal(rig.firstPersonZoom, 1);
   assert.equal(rig.squint, 0);
