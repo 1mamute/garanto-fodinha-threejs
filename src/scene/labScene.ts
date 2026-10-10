@@ -5,6 +5,7 @@ import { morph } from '../ui/dom';
 import { html } from '../ui/html';
 import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
+import { TABLE_CAMERA } from './cameraSettings';
 import { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
@@ -89,6 +90,12 @@ export class LabScene implements InputTarget {
         this.renderUi();
       }
       if (event.target.closest('[data-action="drop-physics-card"]')) this.dropPhysicsCard();
+    });
+    root.addEventListener('input', event => {
+      if (!(event.target instanceof HTMLInputElement) || event.target.id !== 'table-camera-angle') return;
+      this.rig.tableCamera.angleDegrees = event.target.valueAsNumber;
+      const output = root.querySelector('output[for="table-camera-angle"]');
+      if (output) output.textContent = `${this.rig.tableCamera.angleDegrees}°`;
     });
     this.renderUi();
     window.addEventListener('pagehide', event => {
@@ -279,7 +286,10 @@ export class LabScene implements InputTarget {
       <button class="button subtle" data-action="toggle-head-tracking" aria-pressed="${String(this.headTracking)}">Robô de inspeção: seguir com a cabeça ${this.headTracking ? 'ligado' : 'desligado'}</button>
       <p>Ative para o robô de inspeção olhar para seu personagem. Caminhe à frente dele e para os lados para observar a cabeça.</p>
       <p>Computador: WASD para andar; clique na cena para olhar com o mouse em primeira pessoa. Esc libera o cursor.<br />Celular: joystick para andar e arraste na cena para olhar.<br />Terceira pessoa: arraste para orbitar. Espaço: alternar câmera · Roda: zoom em todas as perspectivas</p>
-      <p>Vista superior: clique numa carta para inspecionar. Esc: sair da inspeção.</p>
+      <p>Vista superior: arraste para mover a câmera até a borda da mesa; solte para voltar ao centro. Clique numa carta para inspecionar. Esc: sair da inspeção.</p>
+      <label for="table-camera-angle">Ângulo da vista superior: <output for="table-camera-angle">${this.rig.tableCamera.angleDegrees}°</output></label>
+      <input id="table-camera-angle" type="range" min="0" max="${TABLE_CAMERA.maxAngleDegrees}" step="1" value="${this.rig.tableCamera.angleDegrees}" />
+      <p>0° olha diretamente de cima; aumente para inclinar a câmera. O ajuste continua ao alternar as perspectivas.</p>
       <button class="button subtle" data-action="drop-physics-card">Soltar carta na cadeira</button>
       <p>A cadeira vazia atrás de você pode ser empurrada ao caminhar. A carta cai e colide com a cadeira ou o chão.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}

@@ -3,6 +3,8 @@
 import { findPlayer, legalBids, type GameState } from '../src/game';
 import { api } from '../src/net/api';
 import { Session } from '../src/net/session';
+import type { Pose } from '../src/net/messages';
+import type { CardFrame, CardRelease } from '../src/net/sceneMessages';
 import type { RoomIdentity } from '../src/shared/protocol';
 
 const SESSION_KEY = 'garanto-session';
@@ -30,6 +32,9 @@ function stateOf(session: Session): GameState {
 interface Harness {
   clients: Session[];
   errors: string[];
+  poses: Map<Session, Map<string, Pose>>;
+  cards: Map<Session, CardFrame>;
+  releases: Map<Session, CardRelease>;
   client(): Session;
 }
 
@@ -37,18 +42,85 @@ function createHarness(): Harness {
   const harness: Harness = {
     clients: [],
     errors: [],
+    poses: new Map(),
+    cards: new Map(),
+    releases: new Map(),
     client() {
       const instance = new Session({
         onState: () => undefined,
         onStatus: () => undefined,
-        onPose: () => undefined,
+        onPose: (id, pose) => harness.poses.get(instance)?.set(id, pose),
+        onCards: frame => harness.cards.set(instance, frame),
+        onCardRelease: release => harness.releases.set(instance, release),
         onError: message => harness.errors.push(message),
       });
       harness.clients.push(instance);
+      harness.poses.set(instance, new Map());
       return instance;
     },
   };
   return harness;
+}
+
+async function verifyMotion(harness: Harness): Promise<void> {
+  const [host, guest, other] = harness.clients;
+  check(host && guest && other, 'três clientes necessários');
+  await until(() => [...host.peers.values()].every(peer => peer.isRealtimeOpen), 'canal de movimento aberto');
+  guest.sendPose({ yaw: 0.7, pitch: -0.2, squint: 0.8, position: [2, 3.16, 5] });
+  host.sendPose({ yaw: -0.4, pitch: 0.1, position: [-2, 3.16, 6] });
+  await until(
+    () => harness.poses.get(other)?.get(guest.memberId)?.yaw === 0.7,
+    'cabeça e caminhada de convidado',
+  );
+  await until(() => harness.poses.get(guest)?.get(host.memberId)?.yaw === -0.4, 'cabeça e caminhada do host');
+  check(harness.poses.get(other)?.get(guest.memberId)?.position?.[0] === 2, 'posição transmitida');
+  check(harness.poses.get(other)?.get(guest.memberId)?.squint === 0.8, 'zoom transmitido');
+}
+
+async function playNetworkCard(harness: Harness): Promise<void> {
+  const [host, guest, other] = harness.clients;
+  check(host && guest && other, 'três clientes necessários');
+  while (stateOf(host).phase === 'bet') {
+    const turn = stateOf(host).turn;
+    const actor = harness.clients.find(client => client.memberId === turn);
+    check(turn && actor, 'jogador da aposta');
+    actor.action({ type: 'bid', value: legalBids(stateOf(host), turn)[0] ?? 0 });
+    await until(() => stateOf(host).turn !== turn || stateOf(host).phase !== 'bet', 'aposta confirmada');
+  }
+  const turn = stateOf(host).turn;
+  const actor = harness.clients.find(client => client.memberId === turn);
+  const card = findPlayer(stateOf(host), turn)?.hand[0];
+  check(actor && card, 'carta jogável');
+  const release: CardRelease = {
+    transform: { id: card.id, position: [1, 2.2, 2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+    landing: [0.5, 1.68, 1],
+    velocity: [1, 0, -2],
+  };
+  actor.sendPose({ yaw: 0.4, pitch: -0.5, reaching: true, heldCard: release.transform });
+  const viewer = actor === other ? guest : other;
+  await until(
+    () => harness.poses.get(viewer)?.get(actor.memberId)?.heldCard?.id === card.id,
+    'braço e carta arrastada',
+  );
+  actor.action({ type: 'play', cardId: card.id }, release);
+  await until(
+    () => guest.state?.table[0]?.card.id === card.id && other.state?.table[0]?.card.id === card.id,
+    'carta jogada',
+  );
+  check(harness.releases.get(viewer)?.velocity[2] === -2, 'impulso de lançamento transmitido');
+  const frame: CardFrame = { version: stateOf(host).version, cards: [release.transform] };
+  host.sendCards(frame);
+  await until(
+    () =>
+      harness.cards.get(guest)?.version === frame.version &&
+      harness.cards.get(other)?.version === frame.version,
+    'física do host replicada',
+  );
+  actor.sendPose({ yaw: 0.4, pitch: -0.5, reaching: false, heldCard: null });
+  await until(
+    () => harness.poses.get(viewer)?.get(actor.memberId)?.heldCard === null,
+    'soltar braço e carta',
+  );
 }
 
 async function seatEveryone(host: Session, players: Session[]): Promise<void> {
@@ -86,6 +158,8 @@ export async function run(): Promise<{ passed: string[]; phase: string; version:
     );
     check(first.peers.get(secondIdentity.memberId)?.isOpen, 'A/B deve usar canal P2P');
     checks.push('3 navegadores lógicos conectados por WebRTC');
+    await verifyMotion(harness);
+    checks.push('cabeça, zoom e caminhada em tempo real nos três clientes');
 
     await seatEveryone(first, [first, second, third]);
     first.action({ type: 'start' });
@@ -108,6 +182,8 @@ export async function run(): Promise<{ passed: string[]; phase: string; version:
       'chat P2P',
     );
     checks.push('aposta e chat transmitidos pelo host');
+    await playNetworkCard(harness);
+    checks.push('braços, arraste, lançamento e física das cartas sincronizados');
 
     const before = structuredClone(stateOf(second));
     const oldEpoch = second.epoch;
@@ -123,6 +199,7 @@ export async function run(): Promise<{ passed: string[]; phase: string; version:
     );
     const migrated = stateOf(second);
     check(migrated.round === before.round, 'migração preserva rodada');
+    check(migrated.table[0]?.card.id === before.table[0]?.card.id, 'migração preserva carta jogada');
     check(findPlayer(migrated, turn)?.bid === findPlayer(before, turn)?.bid, 'migração preserva aposta');
     check(migrated.paused, 'queda de jogador vivo pausa partida');
     checks.push('migração preserva cartas/apostas e pausa a mesa');
@@ -134,7 +211,17 @@ export async function run(): Promise<{ passed: string[]; phase: string; version:
       'reconexão do antigo host',
     );
     check(!returned.isHost && second.isHost, 'antigo host retorna como jogador');
+    await until(() => harness.poses.get(returned)?.has(second.memberId), 'pose atual recebida ao reconectar');
     checks.push('antigo host reconecta e partida retoma');
+    third.sendPose({ yaw: 0.9, pitch: 0.2 });
+    await until(
+      () => harness.poses.get(returned)?.get(third.memberId)?.yaw === 0.9,
+      'movimentos após migração',
+    );
+    const frame: CardFrame = { version: stateOf(second).version, cards: [] };
+    second.sendCards(frame);
+    await until(() => harness.cards.get(returned)?.version === frame.version, 'cartas após migração');
+    checks.push('movimentos e cartas retomam após a troca de host');
 
     check(harness.errors.length === 0, `erros de conexão: ${harness.errors.join('; ')}`);
     return { passed: checks, phase: stateOf(second).phase, version: stateOf(second).version };

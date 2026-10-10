@@ -15,13 +15,16 @@ export interface PeerHandlers {
   onFailed(peer: PeerLink): void;
 }
 
-/** Stop queueing when the receiver is this far behind; the next full state replaces the dropped ones. */
+/** Keep reliable actions queued; replace pending full states when the receiver falls behind. */
 const MAX_BUFFERED_BYTES = 262_144;
+const MAX_REALTIME_BUFFERED_BYTES = 16_384;
 
 export class PeerLink {
   readonly connection: RTCPeerConnection;
   readonly startedAt = Date.now();
   private channel: RTCDataChannel | null = null;
+  private realtime: RTCDataChannel | null = null;
+  private readonly pending: { text: string; state: boolean }[] = [];
   /** ICE candidates can arrive before the remote description; they are applied once it is set. */
   private pendingCandidates: RTCIceCandidateInit[] = [];
 
@@ -47,9 +50,14 @@ export class PeerLink {
     return this.channel?.readyState === 'open';
   }
 
+  get isRealtimeOpen(): boolean {
+    return this.realtime?.readyState === 'open';
+  }
+
   /** The host starts every connection: it opens the channel and sends the offer. */
   async offer(): Promise<void> {
     this.attach(this.connection.createDataChannel('garanto', { ordered: true }));
+    this.attach(this.connection.createDataChannel('garanto-realtime', { ordered: false, maxRetransmits: 0 }));
     await this.connection.setLocalDescription(await this.connection.createOffer());
     this.sendLocalDescription();
   }
@@ -60,13 +68,25 @@ export class PeerLink {
     else if (candidate) await this.acceptCandidate(candidate);
   }
 
-  send(text: string): void {
-    if (this.channel?.readyState === 'open' && this.channel.bufferedAmount < MAX_BUFFERED_BYTES) {
-      this.channel.send(text);
+  send(text: string, state = false): void {
+    if (!this.isOpen) return;
+    if (state) {
+      const index = this.pending.findIndex(frame => frame.state);
+      if (index >= 0) this.pending.splice(index, 1);
+    }
+    this.pending.push({ text, state });
+    this.flush();
+  }
+
+  /** Drop obsolete motion instead of delaying gameplay behind retransmissions. */
+  sendRealtime(text: string): void {
+    if (this.realtime?.readyState === 'open' && this.realtime.bufferedAmount < MAX_REALTIME_BUFFERED_BYTES) {
+      this.realtime.send(text);
     }
   }
 
   close(): void {
+    this.pending.length = 0;
     this.connection.close();
   }
 
@@ -90,7 +110,18 @@ export class PeerLink {
   }
 
   private attach(channel: RTCDataChannel): void {
+    if (channel.label === 'garanto-realtime') {
+      this.realtime = channel;
+      channel.onmessage = event => {
+        this.handlers.onMessage(this, event.data);
+      };
+      return;
+    }
     this.channel = channel;
+    channel.bufferedAmountLowThreshold = MAX_BUFFERED_BYTES / 2;
+    channel.onbufferedamountlow = () => {
+      this.flush();
+    };
     channel.onopen = () => {
       this.handlers.onOpen(this);
     };
@@ -100,6 +131,15 @@ export class PeerLink {
     channel.onmessage = event => {
       this.handlers.onMessage(this, event.data);
     };
+  }
+
+  private flush(): void {
+    const channel = this.channel;
+    if (channel?.readyState !== 'open') return;
+    while (this.pending.length && channel.bufferedAmount < MAX_BUFFERED_BYTES) {
+      const frame = this.pending.shift();
+      if (frame) channel.send(frame.text);
+    }
   }
 }
 

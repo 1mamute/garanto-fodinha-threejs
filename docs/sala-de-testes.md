@@ -23,7 +23,7 @@ A câmera começa em **primeira pessoa**. Os botões do painel ou **espaço** al
 | --- | --- |
 | Primeira pessoa | A roda aproxima e afasta a visão sem deslocar o personagem, inclusive com o mouse capturado. WASD e joystick continuam funcionando durante o zoom. O limite é compartilhado com o jogo em `FIRST_PERSON_CAMERA.maxZoom`. |
 | Terceira pessoa | Arraste na cena para orbitar o robô controlado; a roda do mouse ajusta a distância. WASD ou joystick continuam movendo o personagem. |
-| Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. A seta do dealer fica oculta, pois o visitante é um observador. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
+| Vista superior | A caminhada fica suspensa. A câmera enquadra as cartas e o kicker de perto, recuando para incluir as pilhas. Arraste com o mouse ou toque para deslocar a visão até a borda da mesa; soltar devolve a câmera suavemente ao centro. A seta do dealer fica oculta, pois o visitante é um observador. Clique numa carta da mesa para inspecioná-la; o painel mostra seu valor e naipe. Zoom e gestos de inspeção seguem os controles do jogo. |
 
 Para examinar o robô imóvel em terceira pessoa, caminhe até perto dele e ajuste o ângulo e a distância. Orbitar parado não desloca o personagem. Essa perspectiva está disponível apenas no laboratório.
 
@@ -32,6 +32,11 @@ O botão **Robô de inspeção: seguir com a cabeça** liga e desliga o acompanh
 Trocar a câmera encerra a inspeção, libera as teclas e zera o joystick, preservando a posição, a orientação e os ajustes de zoom.
 O retorno à primeira pessoa é instantâneo, sem interpolação da posição ou da orientação.
 A vista superior fica abaixo da luminária central, com altura máxima de 4,3 unidades. O campo de visão se amplia quando necessário para enquadrar as cartas, inclusive em telas verticais.
+O controle **Ângulo da vista superior** ajusta a inclinação em tempo real, entre 0° (vertical)
+e 45°, partindo de 15°. O valor é preservado ao alternar as perspectivas e volta ao padrão
+ao recarregar. Para mudar o padrão compartilhado com o jogo, edite `TABLE_CAMERA.angleDegrees`
+em `src/scene/cameraSettings.ts`. `TABLE_CAMERA.returnDurationSeconds` controla a duração
+do retorno ao centro depois de um arrasto (padrão: 1,2 segundo).
 
 ## Movimentação e limites
 
@@ -60,6 +65,7 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/environment.ts` | Renderer, neblina e iluminação compartilhados com a cena principal. |
 | `src/scene/room.ts`, `robot.ts`, `cards.ts` e `hands.ts` | Recursos gráficos compartilhados; altere aqui para atualizar as duas cenas. |
 | `src/scene/cameraRig.ts` | Caminhada compartilhada, órbita e posicionamento das câmeras. |
+| `src/scene/tableCamera.ts`, `cameraSettings.ts` | Enquadramento inclinado da mesa, arrasto limitado à borda, retorno ao centro e configurações de câmera. |
 | `src/scene/dealerIndicator.ts` | Seta compartilhada que indica o dealer na vista superior, ocultada durante a inspeção de cartas. |
 | `src/scene/roomDimensions.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
 | `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
@@ -79,7 +85,7 @@ Use os comandos de [Verificar no README](../README.md#verificar). No laboratóri
 1. Confirme a câmera inicial e a composição congelada.
 2. Confira a caminhada e a captura/liberação do mouse no computador. No celular, use joystick e giro simultaneamente; soltar o joystick deve parar apenas a caminhada.
 3. Alterne para terceira pessoa e confira órbita, zoom, giro suave do corpo e passos em WASD/joystick, incluindo diagonais e marcha à ré. Mude a direção sem mover o mouse e confira que a cabeça preserva o olhar; orbite parado e confira que apenas a cabeça gira. Solte os controles e confira o retorno suave ao repouso, também nos limites da sala.
-4. Na vista superior, confira a suspensão da caminhada e a inspeção por clique, incluindo saída com Esc ou clique fora.
+4. Na vista superior, confira a suspensão da caminhada e a inspeção por clique, incluindo saída com Esc ou clique fora. Arraste na área livre e sobre cartas, nos dois eixos e em diagonal: o ponto observado deve parar na borda circular da mesa e voltar suavemente ao centro ao soltar, sem abrir a inspeção. Arraste de novo durante o retorno e confira a continuidade. Experimente inclinações de 0°, 15°, 30° e 45°, inclusive em tela vertical, mantendo as cartas enquadradas e o zoom funcional.
 5. Troque as câmeras pelos botões e por espaço, conferindo posição preservada, encerramento da inspeção e joystick zerado.
 6. Confira os controles compartilhados no jogo como observador/eliminado e a manipulação de cartas com cursor livre para jogadores sentados.
 7. Ligue o acompanhamento da cabeça do robô de inspeção, caminhe ao redor dele nos dois sentidos e confira o giro de 360° com o corpo imóvel, incluindo a passagem por trás. Alterne as câmeras, confira que o botão continua ligado e desligue para observar o retorno suave da cabeça à posição neutra pelo arco mais curto.

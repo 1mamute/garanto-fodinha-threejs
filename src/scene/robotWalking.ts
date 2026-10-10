@@ -15,6 +15,7 @@ interface WalkingFrame {
   yaw: number;
   pitch: number;
   deltaSeconds: number;
+  squint?: number;
 }
 
 export class RobotWalking {
@@ -35,7 +36,7 @@ export class RobotWalking {
     this.worldLook.setFromEuler(this.lookEuler);
   }
 
-  update({ position, yaw, pitch, deltaSeconds }: WalkingFrame): void {
+  update({ position, yaw, pitch, deltaSeconds, squint = 0 }: WalkingFrame): void {
     if (deltaSeconds <= 0) return;
     const x = position.x - this.previousPosition.x;
     const z = position.z - this.previousPosition.z;
@@ -58,5 +59,6 @@ export class RobotWalking {
     this.lookTarget.setFromEuler(this.lookEuler);
     this.worldLook.slerp(this.lookTarget, smoothing(deltaSeconds, LOOK_RESPONSE));
     this.robot.animateWalking(this.phase, this.amount, this.worldLook);
+    this.robot.animateSquint(squint, smoothing(deltaSeconds, LOOK_RESPONSE));
   }
 }

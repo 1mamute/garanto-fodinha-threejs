@@ -39,6 +39,13 @@ a cabeça voltam suavemente à direção inicial, preservando o zoom. Para mante
 em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
 A duração do retorno é ajustável em `SEATED_CAMERA.returnDurationSeconds` (padrão: 1,2 segundo).
 Na visão da mesa, o zoom permite aproximar e voltar ao enquadramento inicial, sem afastar além dele.
+Arraste com o mouse ou toque para deslocar o ponto observado até a borda circular da mesa.
+Ao soltar, a câmera volta suavemente ao centro, preservando o zoom e a inclinação.
+Em `src/scene/cameraSettings.ts`, `TABLE_CAMERA.angleDegrees` configura a inclinação a partir
+da vertical (padrão: 15°; 0° olha diretamente de cima; limite: 45°), e
+`TABLE_CAMERA.returnDurationSeconds` ajusta o retorno (padrão: 1,2 segundo).
+Na **Sala de testes**, o controle **Ângulo da vista superior** permite experimentar valores
+em tempo real. Para usar um valor no jogo, altere `TABLE_CAMERA.angleDegrees`.
 A seta do dealer aparece apenas para jogadores vivos, em primeira pessoa ou na visão da mesa,
 quando a moeda do dealer está fora da tela. Observadores e eliminados não veem essa seta.
 
@@ -108,7 +115,7 @@ npm test
 
 Em bash: `GARANTO_INTEGRATION_URL=http://localhost:8787 npm test`.
 
-O arquivo `tests/browser.integration.ts` executa clientes reais de WebRTC dentro de um navegador, testando migração e reconexão. Com Vite e o Worker abertos, execute na console do navegador:
+O arquivo `tests/browser.integration.ts` executa três clientes reais de WebRTC dentro de um navegador, testando cabeça, zoom, caminhada, braços, arraste, lançamento e posições das cartas, além de migração e reconexão. Com Vite e o Worker abertos, execute na console do navegador:
 
 ```js
 await import('/tests/browser.integration.ts').then(module => module.run())
@@ -125,8 +132,10 @@ Todo o código é TypeScript estrito.
 - `src/shared/`: tipos do protocolo entre navegador e Worker.
 - `worker/`: Durable Object `Lobby` (salas, admissão com senha, WebSockets com hibernação, eleição de host, credenciais TURN) e limites de uso.
 
-Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular, não usa sombras em tempo real e transmite poses com frequência reduzida. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
+Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular e não usa sombras em tempo real. Cabeça, zoom, posição dos observadores, braços durante o arraste e transformações das cartas são transmitidos a até 20 Hz e interpolados na cena. Observadores e eliminados aparecem como robôs em pé, com passos e olhar independente do corpo; cada participante nasce em um ponto separado ao redor da mesa. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
 
-A física usa JoltPhysics em WebAssembly, servido junto com o jogo, com passos fixos de 60 Hz. Mesa, chão, paredes e cadeiras ocupadas têm colisores fixos; os corpos dos robôs e as cartas seguradas acompanham suas animações. Observadores colidem com a sala e deslizam ao longo dos obstáculos. Cartas jogadas caem com gravidade, atrito e colisão contínua; depois são organizadas nos espaços e pilhas da partida, mantendo a face legível e a espessura das cartas. A simulação visual é local em cada navegador; as regras e os resultados continuam definidos pelo estado validado da partida. No laboratório, uma cadeira vazia pode ser empurrada e o botão **Soltar carta na cadeira** demonstra a queda sobre os móveis e o chão.
+Cada conexão WebRTC tem dois canais: jogadas e estados completos usam entrega confiável e ordenada; movimentos usam um canal sem retransmissão, com sequências para descartar pacotes atrasados. O host autentica o autor das poses, valida seus valores e só aceita arrastes e lançamentos de cartas da mão do jogador. Sob congestionamento, as jogadas ficam na fila e estados completos antigos são substituídos pelo mais recente. Quem reconecta recebe as poses atuais; a troca de host reinicia as sequências e retoma a transmissão da cena.
+
+A física usa JoltPhysics em WebAssembly, servido junto com o jogo, com passos fixos de 60 Hz. Mesa, chão, paredes e cadeiras ocupadas têm colisores fixos; os corpos dos robôs e as cartas seguradas acompanham suas animações. Observadores colidem com a sala e deslizam ao longo dos obstáculos. Cartas jogadas caem com gravidade, atrito e colisão contínua; depois são organizadas nos espaços e pilhas da partida, mantendo a face legível e a espessura das cartas. Na partida online, o host simula a física das cartas a partir do ponto e do impulso de lançamento validados e transmite as transformações aos convidados, que as interpolam sem simular outra queda. As amostras visuais aguardam a versão correspondente das regras. A caminhada tem colisões locais e transmite a posição aceita; as regras e os resultados continuam definidos pelo estado validado da partida. No laboratório, a simulação continua local: uma cadeira vazia pode ser empurrada e o botão **Soltar carta na cadeira** demonstra a queda sobre os móveis e o chão.
 
 É um jogo casual entre amigos: o host valida jogadas, mas as cópias de recuperação contêm todas as mãos. A interface as esconde dos jogadores vivos; inspecionar os dados internos do navegador pode revelá-las. Se todos fecharem suas abas, não há servidor de partidas para continuar o jogo; retomar depende de uma aba que conserve o backup. Navegadores móveis podem suspender o host ao bloquear a tela, por isso mantenha a aba aberta durante a partida.

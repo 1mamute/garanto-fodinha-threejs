@@ -19,16 +19,12 @@ import {
   type GameState,
 } from '../game';
 import { errorMessage } from '../shared/errors';
-import type {
-  IceConfig,
-  PublicRoom,
-  RoomIdentity,
-  RoomSettings,
-  RosterMember,
-  ServerMessage,
-} from '../shared/protocol';
-import { api } from './api';
-import { parseEnvelope, sanitizePose, type Envelope, type PeerMessage, type Pose } from './messages';
+import type { PublicRoom, RoomIdentity, RoomSettings, RosterMember, ServerMessage } from '../shared/protocol';
+import { FALLBACK_ICE, loadIceServers } from './ice';
+import { parseEnvelope, type Envelope, type PeerMessage, type Pose } from './messages';
+import { RealtimeSession } from './realtime';
+import { checkSessionAction } from './sessionRules';
+import { sanitizeRelease, type CardFrame, type CardRelease } from './sceneMessages';
 import { PeerLink, type PeerHandlers } from './peers';
 import { SignalingSocket } from './signaling';
 import { clearBackup, clearSavedSession, loadBackup, saveBackup, saveSession } from './storage';
@@ -40,15 +36,14 @@ const BOT_DELAY_MS = 1_150;
 const PEER_RETRY_INTERVAL_MS = 5_000;
 /** A connection that has not opened its channel by then is restarted. */
 const PEER_CONNECT_TIMEOUT_MS = 12_000;
-const CHAT_COOLDOWN_MS = 700;
-const HOST_ONLY_ACTIONS = new Set<unknown>(['start', 'bots', 'rematch']);
-const FALLBACK_ICE: RTCIceServer[] = [{ urls: 'stun:stun.cloudflare.com:3478' }];
 
 export interface SessionCallbacks {
   onState(state: GameState): void;
   onStatus(status: string): void;
   onError(message: string): void;
   onPose(playerId: string, pose: Pose): void;
+  onCards?(frame: CardFrame): void;
+  onCardRelease?(release: CardRelease): void;
 }
 
 export type RoomInfo = PublicRoom & { settings: RoomSettings };
@@ -77,6 +72,7 @@ export class Session {
   private lastBotMoveAt = 0;
   private lastPeerRetryAt = 0;
   private readonly timer: ReturnType<typeof setInterval>;
+  private readonly realtime: RealtimeSession;
   private readonly peerHandlers: PeerHandlers = {
     onSignal: (peer, data) => {
       this.signaling?.send({ type: 'signal', to: peer.id, epoch: this.epoch, data });
@@ -99,6 +95,20 @@ export class Session {
   };
 
   constructor(private readonly callbacks: SessionCallbacks) {
+    this.realtime = new RealtimeSession({
+      context: () => this,
+      send: (id, message, reliable) => {
+        const peer = this.peers.get(id);
+        if (peer) this.sendTo(peer, message, reliable !== true);
+      },
+      broadcast: (message, exceptId) => {
+        this.broadcast(message, exceptId, true);
+      },
+      onPose: (id, pose) => {
+        this.callbacks.onPose(id, pose);
+      },
+      onCards: frame => this.callbacks.onCards?.(frame),
+    });
     this.timer = setInterval(() => {
       this.update();
     }, UPDATE_INTERVAL_MS);
@@ -131,7 +141,7 @@ export class Session {
     this.playerName = playerName;
     this.state = loadBackup(identity.roomId);
     saveSession(identity, playerName);
-    await this.loadIceServers(identity.token);
+    this.iceServers = await loadIceServers(identity.token, this.callbacks.onError.bind(this.callbacks));
     this.signaling = new SignalingSocket(identity.token, {
       onMessage: message => this.onServerMessage(message),
       onStatus: status => {
@@ -146,15 +156,6 @@ export class Session {
       },
     });
     this.signaling.connect();
-  }
-
-  private async loadIceServers(token: string): Promise<void> {
-    try {
-      const config = await api<IceConfig>('/ice', undefined, token);
-      this.iceServers = config.iceServers;
-    } catch (error) {
-      this.callbacks.onError(errorMessage(error));
-    }
   }
 
   // ── Signaling server ───────────────────────────────────────────────────────
@@ -180,6 +181,7 @@ export class Session {
 
   /** Every connection belongs to one host epoch; a new host means new connections. */
   private startMigration(): void {
+    this.realtime.resetEpoch();
     for (const peer of this.peers.values()) peer.close();
     this.peers.clear();
     this.migratingUntil = Date.now() + MIGRATION_GRACE_MS;
@@ -222,6 +224,7 @@ export class Session {
     if (!this.isMigrating()) {
       this.syncPresence();
       this.sendTo(peer, { type: 'state', state: this.state });
+      this.realtime.replay(peer.id);
     }
   }
 
@@ -236,7 +239,7 @@ export class Session {
   }
 
   private handlePeerMessage(peer: PeerLink, message: Envelope): void {
-    if (message.type === 'pose') this.receivePose(peer, message);
+    if (message.type === 'pose' || message.type === 'cards') this.realtime.receive(peer.id, message);
     else if (message.type === 'ping') this.sendTo(peer, { type: 'pong' });
     else if (this.isHost) this.handleGuestMessage(peer, message);
     else if (peer.id === this.hostId) this.handleHostMessage(peer, message);
@@ -244,14 +247,17 @@ export class Session {
 
   /** Runs on the host, for messages sent by a guest. */
   private handleGuestMessage(peer: PeerLink, message: Envelope): void {
-    if (message.type === 'action') this.hostAction(peer.id, message.action);
+    if (message.type === 'action') this.hostAction(peer.id, message.action, message.release);
     else if (message.type === 'snapshot' && this.isMigrating()) this.adoptSnapshot(message.state);
   }
 
   /** Runs on a guest, for messages sent by the host. */
   private handleHostMessage(peer: PeerLink, message: Envelope): void {
     if (message.type === 'state') this.receiveState(message.state);
-    else if (message.type === 'requestSnapshot') this.sendTo(peer, { type: 'snapshot', state: this.state });
+    else if (message.type === 'cardRelease') {
+      const release = sanitizeRelease(message.release);
+      if (release) this.callbacks.onCardRelease?.(release);
+    } else if (message.type === 'requestSnapshot') this.sendTo(peer, { type: 'snapshot', state: this.state });
     else if (message.type === 'error' && typeof message.message === 'string') {
       this.callbacks.onError(message.message.slice(0, 200));
     }
@@ -274,27 +280,18 @@ export class Session {
     this.stateEpoch = this.epoch;
     this.backup();
     this.callbacks.onState(next);
+    this.realtime.syncState();
   }
 
-  /** Guests send their pose to the host, which forwards it to everybody else. */
-  private receivePose(peer: PeerLink, message: Extract<PeerMessage, { type: 'pose' }>): void {
-    const pose = sanitizePose(message.pose);
-    if (!pose) return;
-    if (this.isHost) {
-      this.callbacks.onPose(peer.id, pose);
-      this.broadcast({ type: 'pose', id: peer.id, pose }, peer.id);
-    } else if (peer.id === this.hostId && typeof message.id === 'string') {
-      this.callbacks.onPose(message.id, pose);
-    }
+  private sendTo(peer: PeerLink, message: PeerMessage, realtime = false): void {
+    const text = JSON.stringify({ ...message, epoch: this.epoch });
+    if (realtime) peer.sendRealtime(text);
+    else peer.send(text, message.type === 'state');
   }
 
-  private sendTo(peer: PeerLink, message: PeerMessage): void {
-    peer.send(JSON.stringify({ ...message, epoch: this.epoch }));
-  }
-
-  private broadcast(message: PeerMessage, exceptId?: string): void {
+  private broadcast(message: PeerMessage, exceptId?: string, realtime = false): void {
     for (const peer of this.peers.values()) {
-      if (peer.id !== exceptId) this.sendTo(peer, message);
+      if (peer.id !== exceptId) this.sendTo(peer, message, realtime);
     }
   }
 
@@ -322,6 +319,7 @@ export class Session {
     this.backup();
     this.broadcast({ type: 'state', state });
     this.callbacks.onState(state);
+    this.realtime.syncState();
     this.reportStatus(state);
   }
 
@@ -344,30 +342,25 @@ export class Session {
     if (this.roomId && this.state) saveBackup(this.roomId, this.state);
   }
 
-  private hostAction(actorId: string, action: unknown): void {
+  private hostAction(actorId: string, action: unknown, rawRelease?: unknown): void {
     if (!this.state) return;
     try {
-      this.checkHostRules(actorId, action);
-      this.commit(applyAction(this.state, actorId, action));
+      checkSessionAction(action, {
+        state: this.state,
+        actorId,
+        hostId: this.hostId,
+        migrating: this.isMigrating(),
+      });
+      const next = applyAction(this.state, actorId, action);
+      const release = this.realtime.releaseFor(actorId, rawRelease);
+      if (release && next.table.some(entry => entry.card.id === release.transform.id)) {
+        this.callbacks.onCardRelease?.(release);
+        this.broadcast({ type: 'cardRelease', release });
+      }
+      this.commit(next);
     } catch (error) {
       this.reportActionError(actorId, errorMessage(error));
     }
-  }
-
-  /** Room-level rules the pure game rules do not know about. */
-  private checkHostRules(actorId: string, action: unknown): void {
-    if (this.isMigrating()) throw new Error('A mesa está sincronizando. Aguarde um instante.');
-    const type = (action as { type?: unknown } | null)?.type;
-    if (HOST_ONLY_ACTIONS.has(type) && actorId !== this.hostId)
-      throw new Error('Somente o host pode fazer isso.');
-    if (type === 'chat' && this.isChatFlood(actorId)) {
-      throw new Error('Espere um instante antes de enviar outra mensagem.');
-    }
-  }
-
-  private isChatFlood(actorId: string): boolean {
-    const last = this.state?.chat.filter(message => message.playerId === actorId).at(-1);
-    return last !== undefined && Date.now() - last.at < CHAT_COOLDOWN_MS;
   }
 
   private reportActionError(actorId: string, message: string): void {
@@ -381,26 +374,24 @@ export class Session {
 
   // ── Public actions ─────────────────────────────────────────────────────────
 
-  action(action: Action): void {
+  action(action: Action, release?: CardRelease): void {
     if (this.closed) return;
     if (this.isHost) {
       if (!this.local && !this.signaling?.isOpen) this.callbacks.onError('Aguarde a reconexão à sala.');
-      else this.hostAction(this.memberId, action);
+      else this.hostAction(this.memberId, action, release);
       return;
     }
     const host = this.hostId === null ? undefined : this.peers.get(this.hostId);
-    if (host?.isOpen) this.sendTo(host, { type: 'action', action });
+    if (host?.isOpen) this.sendTo(host, { type: 'action', action, release });
     else this.callbacks.onError('Aguardando conexão com o host.');
   }
 
   sendPose(pose: Pose): void {
-    if (!this.memberId) return;
-    if (this.isHost) {
-      this.broadcast({ type: 'pose', id: this.memberId, pose });
-      return;
-    }
-    const host = this.hostId === null ? undefined : this.peers.get(this.hostId);
-    if (host) this.sendTo(host, { type: 'pose', pose });
+    this.realtime.sendPose(pose);
+  }
+
+  sendCards(frame: CardFrame): void {
+    this.realtime.sendCards(frame);
   }
 
   // ── Periodic work ──────────────────────────────────────────────────────────
@@ -430,6 +421,7 @@ export class Session {
     this.syncPresence();
     // Sent even when unchanged: the guests must learn the state chosen by the new host.
     if (this.state) this.commit(this.state);
+    for (const id of this.peers.keys()) this.realtime.replay(id);
     this.callbacks.onStatus('Mesa conectada');
   }
 

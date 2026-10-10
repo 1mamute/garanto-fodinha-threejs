@@ -4,10 +4,10 @@
  * First-person walking uses pointer lock on desktop and touch drags on mobile.
  * Seated players: dragging empty space looks around; dragging a card of your hand up plays it,
  * sideways reorders it. Top view: clicking (or hovering/holding for 2 s) a card inspects it,
- * the wheel or a pinch zooms.
+ * the wheel or a pinch zooms, and dragging pans within the table before easing back to centre.
  */
 import type { CameraRig } from './cameraRig';
-import type { Vector3 } from 'three';
+import { Vector2, type Vector3 } from 'three';
 import type { CardMesh } from './cards';
 import { CardDrag } from './cardDrag';
 import { SEATED_CAMERA } from './cameraSettings';
@@ -44,6 +44,7 @@ export interface InputTarget {
 }
 
 interface Drag {
+  mode: InspectionCameraMode;
   pointerId: number;
   startX: number;
   startY: number;
@@ -89,6 +90,9 @@ export class SceneInput {
     canvas.addEventListener('pointercancel', event => {
       this.release(event);
     });
+    canvas.addEventListener('lostpointercapture', event => {
+      this.release(event);
+    });
     canvas.addEventListener('pointerleave', () => {
       this.resetPointerLook();
     });
@@ -111,6 +115,9 @@ export class SceneInput {
       target.rig.joystick.y = 0;
       this.drag = null;
       this.pointers.clear();
+      this.pinchDistance = null;
+      target.rig.tableCamera.release();
+      this.hover = null;
       target.reach(false);
       target.afterDrag();
       this.resetPointerLook();
@@ -149,6 +156,7 @@ export class SceneInput {
   /** Inspects a card after the pointer rested on it, or held it down, long enough. */
   checkLongPress(now: number): void {
     this.mouseLook.sync();
+    if (this.drag && this.drag.mode !== this.target.mode) this.cancelDrag();
     if (this.hover && now - this.hover.since > HOLD_TO_INSPECT_MS) this.target.inspect(this.hover.card);
     const drag = this.drag;
     if (
@@ -165,22 +173,37 @@ export class SceneInput {
     this.hover = null;
   }
 
+  private cancelDrag(): void {
+    this.drag = null;
+    this.pointers.clear();
+    this.pinchDistance = null;
+    this.hover = null;
+    this.target.rig.tableCamera.release();
+    this.target.reach(false);
+    this.target.afterDrag();
+  }
+
   private press(event: PointerEvent): void {
-    if (this.drag?.card && this.drag.pointerId !== event.pointerId) return;
+    if (this.target.mode === 'first' && this.drag?.card && this.drag.pointerId !== event.pointerId) return;
     if (this.mouseLook.press(event)) return;
     const { target } = this;
     target.rig.cancelLookReturn();
+    if (target.mode === 'top') {
+      target.rig.tableCamera.beginDrag();
+      this.hover = null;
+    }
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.canvas.setPointerCapture(event.pointerId);
     const card = target.pick(event.clientX, event.clientY, target.mode === 'first');
     const { clientX, clientY } = event;
     this.drag = {
+      mode: target.mode,
       pointerId: event.pointerId,
       startX: clientX,
       startY: clientY,
       lastX: clientX,
       lastY: clientY,
-      moved: false,
+      moved: this.pointers.size > 1,
       card,
       startedAt: performance.now(),
     };
@@ -196,7 +219,8 @@ export class SceneInput {
     if (this.mouseLook.active) return;
     this.updatePointerLook(event);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (this.pointers.size === 2 && !this.drag?.card) {
+    const canPinch = this.target.mode === 'top' || !this.drag?.card;
+    if (this.pointers.size === 2 && canPinch) {
       this.pinch();
       return;
     }
@@ -207,11 +231,34 @@ export class SceneInput {
       this.updateHover(event);
       return;
     }
+    if (drag.mode !== this.target.mode) {
+      this.cancelDrag();
+      return;
+    }
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > DRAG_THRESHOLD_PX)
       drag.moved = true;
-    if (this.target.mode === 'first' || this.target.mode === 'third') this.dragFirstPerson(drag, event);
+    this.dragCamera(drag, event);
     drag.lastX = event.clientX;
     drag.lastY = event.clientY;
+  }
+
+  private dragCamera(drag: Drag, event: PointerEvent): void {
+    if (this.target.mode === 'top') this.dragTable(drag, event);
+    else if (this.target.mode === 'first' || this.target.mode === 'third') this.dragFirstPerson(drag, event);
+  }
+
+  private dragTable(drag: Drag, event: PointerEvent): void {
+    if (!drag.moved || this.target.inspected) return;
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const point = (x: number, y: number): Vector2 =>
+      new Vector2(((x - rect.left) / rect.width) * 2 - 1, 1 - ((y - rect.top) / rect.height) * 2);
+    this.target.rig.tableCamera.pan(
+      this.target.rig.camera,
+      point(drag.lastX, drag.lastY),
+      point(event.clientX, event.clientY),
+    );
+    this.canvas.style.cursor = 'grabbing';
   }
 
   private dragFirstPerson(drag: Drag, event: PointerEvent): void {
@@ -228,6 +275,8 @@ export class SceneInput {
   private pinch(): void {
     const [first, second] = [...this.pointers.values()];
     if (!first || !second) return;
+    if (this.drag) this.drag.moved = true;
+    this.target.rig.tableCamera.release();
     const distance = Math.hypot(first.x - second.x, first.y - second.y);
     if (this.pinchDistance !== null) this.target.rig.addZoom(-(distance - this.pinchDistance) * PINCH_ZOOM);
     this.pinchDistance = distance;
@@ -247,7 +296,10 @@ export class SceneInput {
     const drag = this.drag;
     if (drag?.pointerId !== event.pointerId) return;
     this.drag = null;
-    if (event.type !== 'pointercancel') this.finishDrag(drag, event);
+    this.hover = null;
+    this.target.rig.tableCamera.release();
+    if (this.target.mode === 'top') this.canvas.style.cursor = 'grab';
+    if (event.type === 'pointerup' && drag.mode === this.target.mode) this.finishDrag(drag, event);
     this.returnSeatedLook(drag);
     this.target.reach(false);
     this.target.afterDrag();

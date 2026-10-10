@@ -11,15 +11,11 @@ import { WALK_OUTER_RADIUS } from './roomDimensions';
 import { FIRST_PERSON_CAMERA, SEATED_CAMERA } from './cameraSettings';
 import { ROBOT_DIMENSIONS } from './robotDimensions';
 import type { InspectionCameraMode } from './types';
+import { DEFAULT_TABLE_ZOOM, TableCamera } from './tableCamera';
 
 export const MIN_PITCH = -1.2;
 export const MAX_PITCH = 1.15;
 const MIN_ZOOM = 3;
-const DEFAULT_ZOOM = 4.8;
-const TABLE_HEIGHT = 1.68;
-/** Stay below the lamp's lower disc at 4.61, including the near clipping plane. */
-const MAX_TABLE_VIEW_HEIGHT = 4.3;
-const CARD_FRAME_MARGIN = 0.12;
 const EYE_HEIGHT = 3.05;
 const DEFAULT_PITCH = -0.436;
 const WALK_SPEED = 2.7;
@@ -55,13 +51,14 @@ export interface FrameContext {
 
 export class CameraRig {
   readonly camera = new THREE.PerspectiveCamera(FIRST_PERSON_CAMERA.fieldOfView, 1, 0.04, 60);
+  readonly tableCamera = new TableCamera();
   firstPersonZoom = 1;
   maxFirstPersonZoom: number = FIRST_PERSON_CAMERA.maxZoom;
   /** Head turn relative to facing the table centre. */
   yaw = 0;
   pitch = DEFAULT_PITCH;
   /** Height of the top view; changed by the wheel and pinch. */
-  zoom = DEFAULT_ZOOM;
+  zoom = DEFAULT_TABLE_ZOOM;
   orbitDistance = 4;
   readonly spectatorPosition = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, 5.5);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
@@ -83,6 +80,7 @@ export class CameraRig {
   resetView(): void {
     this.resetOrientation();
     this.firstPersonZoom = 1;
+    this.tableCamera.reset();
   }
 
   /** Restore the look target; the camera and robot already ease towards it each frame. */
@@ -131,7 +129,7 @@ export class CameraRig {
   }
 
   addZoom(delta: number): void {
-    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, DEFAULT_ZOOM);
+    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, DEFAULT_TABLE_ZOOM);
   }
 
   addOrbitZoom(delta: number): void {
@@ -145,6 +143,7 @@ export class CameraRig {
 
   update(deltaSeconds: number, blend: number, context: FrameContext): void {
     this.animateLookReturn(deltaSeconds, context);
+    this.tableCamera.update(deltaSeconds, context.mode === 'top' && !context.inspected);
     const snapToFirst = context.mode === 'first' && this.previousMode !== 'first';
     this.updateFieldOfView(context, snapToFirst ? 1 : blend);
     this.chooseTargets(deltaSeconds, context);
@@ -170,7 +169,11 @@ export class CameraRig {
     const halfAngle = Math.tan(THREE.MathUtils.degToRad(base / 2)) / magnification;
     const target =
       context.mode === 'top' && !context.inspected
-        ? this.tableView(context.tableBounds).fieldOfView
+        ? this.tableCamera.layout({
+            zoom: this.zoom,
+            aspect: this.camera.aspect,
+            bounds: context.tableBounds,
+          }).fieldOfView
         : THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2;
     this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, target, blend);
     this.camera.updateProjectionMatrix();
@@ -251,30 +254,11 @@ export class CameraRig {
     this.upTarget.set(0, 0, -1);
   }
 
-  /** Straight down on the table, rotated so the player's seat is at the bottom of the screen. */
+  /** Inclined towards the table, with the player's seat at the bottom of the screen. */
   private aimTop(seatAngle: number, bounds: FrameContext['tableBounds']): void {
-    const { height } = this.tableView(bounds);
-    // A tiny z offset keeps the view direction from being exactly vertical.
-    this.positionTarget.set(0, height, 0.001);
-    this.lookTarget.set(0, TABLE_HEIGHT, 0);
+    const { height } = this.tableCamera.layout({ zoom: this.zoom, aspect: this.camera.aspect, bounds });
+    this.tableCamera.aim(this.positionTarget, this.lookTarget, seatAngle, height);
     this.upTarget.set(-Math.sin(seatAngle), 0, -Math.cos(seatAngle));
-  }
-
-  private tableView(bounds: FrameContext['tableBounds']): { height: number; fieldOfView: number } {
-    const halfFov = THREE.MathUtils.degToRad(FIRST_PERSON_CAMERA.fieldOfView / 2);
-    const cardDistance = bounds
-      ? (bounds.radius + CARD_FRAME_MARGIN) / Math.tan(halfFov) + bounds.height - TABLE_HEIGHT
-      : 0;
-    // Fit all cards at the initial view; zooming in may crop that footprint intentionally.
-    const initialDistance = DEFAULT_ZOOM - TABLE_HEIGHT;
-    const zoomRatio = (this.zoom - TABLE_HEIGHT) / initialDistance;
-    const distance = Math.max(initialDistance, cardDistance) * zoomRatio;
-    const requestedDistance = distance / Math.min(1, this.camera.aspect);
-    const height = Math.min(MAX_TABLE_VIEW_HEIGHT, TABLE_HEIGHT + requestedDistance);
-    // Fit the tops of piles too: their distance to the lens shrinks when height is capped below the lamp.
-    const cardHeight = bounds?.height ?? TABLE_HEIGHT;
-    const halfAngle = (Math.tan(halfFov) * requestedDistance) / (height - cardHeight);
-    return { height, fieldOfView: THREE.MathUtils.radToDeg(Math.atan(halfAngle)) * 2 };
   }
 
   private aimFirstPerson(deltaSeconds: number, seatAngle: number, context: FrameContext): void {

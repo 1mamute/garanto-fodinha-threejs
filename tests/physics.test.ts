@@ -8,6 +8,7 @@ import { demoState } from '../src/scene/demo';
 import { PhysicsCards } from '../src/scene/physicsCards';
 import { PhysicsCharacter } from '../src/scene/physicsCharacter';
 import { PhysicsWorld } from '../src/scene/physicsWorld';
+import { playerSpawn } from '../src/scene/playerSpawn';
 import { Robot } from '../src/scene/robot';
 import { ROBOT_DIMENSIONS } from '../src/scene/robotDimensions';
 import { TABLE_TOP } from '../src/scene/room';
@@ -15,6 +16,28 @@ import { ROOM_RADIUS } from '../src/scene/roomDimensions';
 import { TableCards } from '../src/scene/tableCards';
 
 const runtime = await initJolt();
+
+test('observadores nascem separados e conseguem caminhar com outros corpos conectados', () => {
+  const { world, root } = fixture();
+  const start = playerSpawn(2);
+  const walker = new PhysicsCharacter(world, start);
+  try {
+    for (const slot of [0, 1]) {
+      const robot = new Robot('#5599aa', 'standing');
+      robot.group.position.copy(playerSpawn(slot)).setY(0);
+      root.add(robot.group);
+      world.addRobot(robot.group);
+    }
+    const position = start.clone();
+    for (let frame = 0; frame < 30; frame++) {
+      position.copy(walker.move(position, position.clone().add(new THREE.Vector3(0.045, 0, 0)), 1 / 60));
+    }
+    assert.ok(position.distanceTo(start) > 1, 'os corpos remotos não bloqueiam o nascimento');
+  } finally {
+    walker.dispose();
+    world.dispose();
+  }
+});
 
 function fixture(): { world: PhysicsWorld; root: THREE.Group } {
   const world = new PhysicsWorld(runtime);

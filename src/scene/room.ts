@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { floorTexture } from './floorTexture';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
-import { FLOOR_ROTATION, ROOM_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
+import { FLOOR_ROTATION, ROOM_RADIUS, TABLE_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
 
 /** Table surface height; cards lie just above it. */
@@ -54,7 +54,7 @@ function buildFloorAndWalls(world: THREE.Group): void {
 function buildTable(world: THREE.Group): void {
   WOOD.color.set('#694832');
   WOOD.map = wornTexture('wood');
-  mesh(new THREE.CylinderGeometry(2.83, 2.83, 0.2, 64), WOOD, world, [0, 1.5, 0]);
+  mesh(new THREE.CylinderGeometry(TABLE_RADIUS, TABLE_RADIUS, 0.2, 64), WOOD, world, [0, 1.5, 0]);
   mesh(
     new THREE.CylinderGeometry(2.65, 2.65, 0.035, 64),
     material('#315d49', { map: wornTexture('felt') }),

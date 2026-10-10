@@ -90,19 +90,25 @@ function pointer(canvas: TestCanvas, type: string, point: [number, number], time
   canvas.dispatchEvent(event);
 }
 
-function fixture(context: TestContext): {
+function fixture(
+  context: TestContext,
+  mode: 'first' | 'top' = 'first',
+): {
   canvas: TestCanvas;
   rig: CameraRig;
   start: [number, number];
   drops: boolean[];
   velocities: THREE.Vector3[];
+  inspections: CardMesh[];
+  input: SceneInput;
+  target: InputTarget;
 } {
   browserGlobals(context);
   const canvas = new TestCanvas();
   const rig = new CameraRig();
   rig.resize(844 / 390);
   rig.update(0.05, 1, {
-    mode: 'first',
+    mode,
     observer: false,
     seat: new THREE.Vector3(0, 0, 3.35),
     inspected: null,
@@ -112,13 +118,14 @@ function fixture(context: TestContext): {
   const start = screenPoint(rig.camera, card.getWorldPosition(new THREE.Vector3()));
   const drops: boolean[] = [];
   const velocities: THREE.Vector3[] = [];
+  const inspections: CardMesh[] = [];
   const target: InputTarget = {
-    mode: 'first',
+    mode,
     inspected: null,
     rig,
     freeLook: false,
     pick: () => card,
-    inspect: () => undefined,
+    inspect: inspected => inspections.push(inspected),
     clearInspection: () => undefined,
     toggleMode: () => undefined,
     reach: () => undefined,
@@ -128,8 +135,8 @@ function fixture(context: TestContext): {
       velocities.push(velocity?.clone() ?? new THREE.Vector3());
     },
   };
-  new SceneInput(canvas as unknown as HTMLCanvasElement, target);
-  return { canvas, rig, start, drops, velocities };
+  const input = new SceneInput(canvas as unknown as HTMLCanvasElement, target);
+  return { canvas, rig, start, drops, velocities, inspections, input, target };
 }
 
 test('soltar a carta no feltro à frente do jogador registra a jogada mesmo com arrasto curto', context => {
@@ -191,4 +198,121 @@ test('a soltura transmite ao lançamento a velocidade medida nos eventos do pont
   if (!velocity) assert.fail('Impulso ausente');
   assert.ok(velocity.z < -1, 'o gesto fornece impulso para a mesa mesmo sem pointermove na posição final');
   assert.equal(velocity.y, 0, 'a gravidade e o impacto vertical ficam a cargo do lançamento físico');
+});
+
+function updateTop(rig: CameraRig, seconds = 0): void {
+  rig.update(seconds, 1, {
+    mode: 'top',
+    observer: false,
+    seat: new THREE.Vector3(0, 0, 3.35),
+    inspected: null,
+  });
+}
+
+test('arrastar sobre uma carta move a vista superior sem inspecionar ou jogar', context => {
+  const { canvas, rig, start, drops, inspections, input } = fixture(context, 'top');
+  const initial = rig.camera.position.clone();
+  const end: [number, number] = [start[0] + 90, start[1] + 60];
+  pointer(canvas, 'pointermove', start);
+  pointer(canvas, 'pointerdown', start);
+  pointer(canvas, 'pointermove', end);
+  input.checkLongPress(performance.now() + 2500);
+  updateTop(rig);
+  assert.ok(rig.camera.position.distanceTo(initial) > 0.1);
+  pointer(canvas, 'pointerup', end);
+  input.checkLongPress(performance.now() + 3000);
+  assert.deepEqual(inspections, []);
+  assert.deepEqual(drops, []);
+  updateTop(rig, 2);
+  assert.ok(rig.camera.position.distanceTo(initial) < 1e-8);
+});
+
+test('clicar na carta com pequena oscilação mantém a inspeção da vista superior', context => {
+  const { canvas, rig, start, inspections } = fixture(context, 'top');
+  const initial = rig.camera.position.clone();
+  const end: [number, number] = [start[0] + 2, start[1] + 2];
+  pointer(canvas, 'pointerdown', start);
+  pointer(canvas, 'pointermove', end);
+  updateTop(rig);
+  pointer(canvas, 'pointerup', end);
+  assert.equal(inspections.length, 1);
+  assert.ok(rig.camera.position.distanceTo(initial) < 1e-8);
+});
+
+test('cancelamento e perda de captura devolvem a vista superior sem inspecionar', context => {
+  const { canvas, rig, start, inspections } = fixture(context, 'top');
+  const initial = rig.camera.position.clone();
+  const end: [number, number] = [start[0] + 90, start[1]];
+  for (const event of ['pointercancel', 'lostpointercapture']) {
+    pointer(canvas, 'pointerdown', start);
+    pointer(canvas, 'pointermove', end);
+    updateTop(rig);
+    assert.ok(rig.camera.position.distanceTo(initial) > 0.1);
+    pointer(canvas, event, end);
+    updateTop(rig, 2);
+    assert.ok(rig.camera.position.distanceTo(initial) < 1e-8);
+    assert.deepEqual(inspections, []);
+  }
+});
+
+test('perder o foco inicia o retorno e encerra o arrasto da mesa', context => {
+  const { canvas, rig, start, input, inspections } = fixture(context, 'top');
+  const initial = rig.camera.position.clone();
+  pointer(canvas, 'pointerdown', start);
+  pointer(canvas, 'pointermove', [start[0] + 90, start[1]]);
+  updateTop(rig);
+  window.dispatchEvent(new Event('blur'));
+  assert.equal(input.drag, null);
+  updateTop(rig, 2);
+  assert.ok(rig.camera.position.distanceTo(initial) < 1e-8);
+  assert.deepEqual(inspections, []);
+});
+
+test('arrastar na área livre também desloca a câmera e respeita o retorno', context => {
+  const { canvas, rig, start, target } = fixture(context, 'top');
+  context.mock.method(target, 'pick', () => undefined);
+  const initial = rig.camera.position.clone();
+  const end: [number, number] = [start[0], start[1] + 90];
+  pointer(canvas, 'pointerdown', start);
+  pointer(canvas, 'pointermove', end);
+  updateTop(rig);
+  assert.ok(rig.camera.position.distanceTo(initial) > 0.1);
+  pointer(canvas, 'pointerup', end);
+  updateTop(rig, 2);
+  assert.ok(rig.camera.position.distanceTo(initial) < 1e-8);
+});
+
+function touchPointer(
+  canvas: TestCanvas,
+  options: { type: string; pointerId: number; point: [number, number] },
+): void {
+  canvas.dispatchEvent(
+    Object.assign(new Event(options.type), {
+      pointerId: options.pointerId,
+      pointerType: 'touch',
+      button: 0,
+      clientX: options.point[0],
+      clientY: options.point[1],
+    }),
+  );
+}
+
+test('pinça iniciada sobre uma carta altera só o zoom e não abre a inspeção', context => {
+  const { canvas, rig, start, inspections, input } = fixture(context, 'top');
+  const zoom = rig.zoom;
+  touchPointer(canvas, { type: 'pointerdown', pointerId: 1, point: start });
+  touchPointer(canvas, { type: 'pointerdown', pointerId: 2, point: [start[0] + 100, start[1]] });
+  touchPointer(canvas, { type: 'pointermove', pointerId: 2, point: [start[0] + 110, start[1]] });
+  touchPointer(canvas, { type: 'pointermove', pointerId: 2, point: [start[0] + 150, start[1]] });
+  input.checkLongPress(performance.now() + 2500);
+  assert.ok(rig.zoom < zoom);
+  updateTop(rig);
+  const direction = rig.camera.getWorldDirection(new THREE.Vector3());
+  const focus = rig.camera.position
+    .clone()
+    .addScaledVector(direction, (1.68 - rig.camera.position.y) / direction.y);
+  assert.ok(Math.hypot(focus.x, focus.z) < 1e-8, 'o zoom mantém o centro da mesa como alvo');
+  touchPointer(canvas, { type: 'pointerup', pointerId: 2, point: [start[0] + 150, start[1]] });
+  touchPointer(canvas, { type: 'pointerup', pointerId: 1, point: start });
+  assert.deepEqual(inspections, []);
 });

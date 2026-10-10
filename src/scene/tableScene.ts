@@ -4,7 +4,8 @@
  */
 import * as THREE from 'three';
 import { findPlayer, type GameState, type Player } from '../game';
-import { CameraRig, MAX_PITCH, MIN_PITCH } from './cameraRig';
+import { CameraRig } from './cameraRig';
+import type { CardFrame, CardRelease } from '../net/sceneMessages';
 import type { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
@@ -16,6 +17,8 @@ import { PhysicsCards } from './physicsCards';
 import { PhysicsCharacter } from './physicsCharacter';
 import { physicsRuntime } from './physicsRuntime';
 import { PhysicsWorld } from './physicsWorld';
+import { PlayerMotion, isObserver } from './playerMotion';
+import { captureTransform } from './networkTransforms';
 import { nowSeconds, Robot } from './robot';
 import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP, type RoomProps } from './room';
@@ -23,7 +26,7 @@ import { TableCards, type Seat } from './tableCards';
 import type { CameraMode, CardInspection, Pose, SceneCallbacks } from './types';
 
 const SEAT_RADIUS = 3.35;
-const POSE_INTERVAL_S = 0.15;
+const POSE_INTERVAL_S = 1 / 20;
 /** Robots show at most this many cards in their fan. */
 const MAX_FAN_CARDS = 20;
 
@@ -33,10 +36,6 @@ interface SeatProps {
   chair: THREE.Group;
   label: THREE.Sprite;
   caption: string;
-}
-
-function isObserver(player: Player | undefined): boolean {
-  return !player?.seated || player.eliminated || player.spectator;
 }
 
 export class TableScene implements InputTarget {
@@ -56,13 +55,11 @@ export class TableScene implements InputTarget {
   private readonly dealerIndicator = new DealerIndicator();
   private readonly firstPerson: FirstPersonHands;
   private readonly input: SceneInput;
-  private readonly poses = new Map<string, Pose>();
+  private readonly motion = new PlayerMotion(this.world, this.physics);
   private readonly raycaster = new THREE.Raycaster();
   private readonly timer = new THREE.Timer();
   private state: GameState | null = null;
   private myId: string | null = null;
-  /** State received while a hand card was being dragged; applied on release. */
-  private pending: { state: GameState; myId: string | null } | null = null;
   private lastPoseAt = 0;
   private readonly budget = new RenderBudget(isMobileRenderer());
 
@@ -106,18 +103,18 @@ export class TableScene implements InputTarget {
   }
 
   setState(state: GameState, myId: string | null): void {
-    if (this.input.draggedHandCard) {
-      this.pending = { state, myId };
-      return;
-    }
     const previous = this.state;
     this.state = state;
     this.myId = myId;
+    const spawn = this.motion.sync(state, myId);
+    if (spawn) this.rig.spectatorPosition.copy(spawn);
+    this.tableCards.setAuthority(this.callbacks.isAuthority());
     const observer = isObserver(findPlayer(state, myId));
     this.syncSeats(state, previous, observer);
     this.syncMarkers(state);
     this.tableCards.sync(state, this.seatPositions());
-    this.firstPerson.show(findPlayer(state, myId)?.hand ?? []);
+    // Only the local fan waits for release; remote moves and host physics must keep advancing.
+    if (!this.input.draggedHandCard) this.firstPerson.show(findPlayer(state, myId)?.hand ?? []);
     if (this.inspected && !this.inspected.parent) this.clearInspection();
   }
 
@@ -144,12 +141,15 @@ export class TableScene implements InputTarget {
   }
 
   receivePose(playerId: string, pose: Pose): void {
-    const yaw = THREE.MathUtils.clamp(pose.yaw, -Math.PI * 8, Math.PI * 8);
-    this.poses.set(playerId, {
-      ...pose,
-      yaw,
-      pitch: THREE.MathUtils.clamp(pose.pitch, MIN_PITCH, MAX_PITCH),
-    });
+    this.motion.receive(playerId, pose);
+  }
+
+  receiveCards(frame: CardFrame): void {
+    if (frame.version === this.state?.version) this.tableCards.receiveFrame(frame);
+  }
+
+  receiveCardRelease(release: CardRelease): void {
+    this.tableCards.receiveRelease(release);
   }
 
   // ── InputTarget ────────────────────────────────────────────────────────────
@@ -186,7 +186,11 @@ export class TableScene implements InputTarget {
   ): void {
     if (tablePoint) {
       this.tableCards.releaseFromHand(card, tablePoint, velocity);
-      this.callbacks.onPlay(card.card.id);
+      this.callbacks.onPlay(card.card.id, {
+        transform: captureTransform(card, card.card.id),
+        landing: tablePoint.toArray(),
+        velocity: velocity?.toArray() ?? [0, 0, 0],
+      });
       return;
     }
     const lastSlot = this.firstPerson.cards.children.length - 1;
@@ -194,10 +198,8 @@ export class TableScene implements InputTarget {
   }
 
   afterDrag(): void {
-    const next = this.pending ?? (this.state ? { state: this.state, myId: this.myId } : null);
-    this.pending = null;
     // Re-applying the state also snaps a dropped card back into its slot.
-    if (next) this.setState(next.state, next.myId);
+    if (this.state) this.setState(this.state, this.myId);
   }
 
   // ── State mirroring ────────────────────────────────────────────────────────
@@ -325,11 +327,19 @@ export class TableScene implements InputTarget {
     this.firstPerson.visible = embodied;
     this.input.checkLongPress(performance.now());
     this.animateRobots(nowSeconds(), blend, embodied);
+    this.motion.animateWalkers({
+      myId: this.myId,
+      position: this.rig.spectatorPosition,
+      pose: this.walkingPose(),
+      firstPerson: this.mode === 'first',
+      deltaSeconds,
+      blend,
+    });
+    this.tableCards.setAuthority(this.callbacks.isAuthority());
     this.tableCards.animate(deltaSeconds, blend, this.inspected);
     const dragged = this.input.draggedHandCard;
     animateFan(this.firstPerson.cards, blend, dragged);
     this.firstPerson.followCard(dragged);
-    for (const { robot } of this.seats.values()) animateFan(robot.hand, blend, null);
     this.sendPose(time, observer);
     this.render();
   }
@@ -339,8 +349,9 @@ export class TableScene implements InputTarget {
       const mine = playerId === this.myId;
       robot.setFirstPerson(mine && embodied);
       label.visible = !(mine && embodied);
-      const pose = mine ? this.input.pose : this.poses.get(playerId);
+      const pose = mine ? this.localPose() : this.motion.poseFor(playerId);
       robot.animate(time, pose, blend);
+      this.motion.animateHand(robot, pose, blend);
     }
   }
 
@@ -356,13 +367,33 @@ export class TableScene implements InputTarget {
     });
   }
 
-  /** Shares where you look (and walk, as a spectator) a few times per second. */
+  private localPose(): Pose {
+    const card = this.input.draggedHandCard;
+    return {
+      ...this.input.pose,
+      reaching: Boolean(card),
+      heldCard: card ? captureTransform(card, card.card.id) : null,
+    };
+  }
+
+  private walkingPose(): Pose {
+    const pose = this.localPose();
+    const seat = this.myId ? this.seats.get(this.myId)?.robot.group : undefined;
+    // Observer camera aim includes the old seat angle after elimination.
+    if (seat) pose.yaw += Math.atan2(seat.position.x, seat.position.z);
+    return pose;
+  }
+
+  /** Shares motion and the host's actual card physics at 20 Hz. */
   private sendPose(time: number, observer: boolean): void {
     if (this.mode === 'landing' || time - this.lastPoseAt <= POSE_INTERVAL_S) return;
     this.lastPoseAt = time;
-    const pose = this.input.pose;
+    const pose = observer ? this.walkingPose() : this.localPose();
     if (observer) pose.position = this.rig.spectatorPosition.toArray();
     this.callbacks.onPose(pose);
+    if (this.state && this.callbacks.isAuthority()) {
+      this.callbacks.onCards({ version: this.state.version, cards: this.tableCards.snapshot() });
+    }
   }
 
   private render(): void {

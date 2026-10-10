@@ -116,15 +116,24 @@ export class Robot {
     this.body.scale.x = 1 + Math.sin(time * 2 + group.position.x) * 0.003;
     // Swing the right arm for ~1 s after playing a card.
     const swing = Math.sin(Math.max(0, 1 - (time - this.playedAt) / 1.1) * Math.PI);
-    this.rightArm.rotation.x = -swing * 0.8;
-    this.rightArm.rotation.z = -swing * 0.25;
+    const reach = pose?.reaching ? 1 : 0;
+    this.rightArm.rotation.x = THREE.MathUtils.lerp(
+      this.rightArm.rotation.x,
+      -swing * 0.8 - reach * 0.9,
+      blend,
+    );
+    this.rightArm.rotation.z = THREE.MathUtils.lerp(
+      this.rightArm.rotation.z,
+      -swing * 0.25 - reach * 0.15,
+      blend,
+    );
     // Keep the pelvis on the cushion and the feet on the floor throughout idle/play.
     group.position.y = 0;
     this.animateSquint(pose?.squint ?? 0, blend);
     this.animateDeath(time);
   }
 
-  private animateSquint(amount: number, blend: number): void {
+  animateSquint(amount: number, blend: number): void {
     const squint = this.diedAt === null ? THREE.MathUtils.clamp(amount, 0, 1) : 0;
     for (const eye of this.eyes) {
       eye.scale.y = THREE.MathUtils.lerp(eye.scale.y, 1 - squint * 0.72, blend);

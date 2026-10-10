@@ -1,5 +1,6 @@
 import type { Card, TableEntry } from '../game';
 import type { Pose } from '../net/messages';
+import type { CardFrame, CardRelease } from '../net/sceneMessages';
 
 export type { Pose };
 
@@ -22,8 +23,10 @@ export interface CardInspection {
 
 export interface SceneCallbacks {
   onInspect(inspection: CardInspection | null): void;
-  onPlay(cardId: string): void;
+  onPlay(cardId: string, release?: CardRelease): void;
   onPose(pose: Pose): void;
   onMode(mode: CameraMode): void;
   onReorder(cardId: string, index: number): void;
+  isAuthority(): boolean;
+  onCards(frame: CardFrame): void;
 }

@@ -5,6 +5,7 @@
 import { findPlayer, type Action, type GameState, type VoteChoice } from '../game';
 import { api } from '../net/api';
 import { Session } from '../net/session';
+import type { CardRelease } from '../net/sceneMessages';
 import { loadSavedSession } from '../net/storage';
 import { TableScene } from '../scene/tableScene';
 import type { CameraMode, CardInspection } from '../scene/types';
@@ -59,21 +60,15 @@ export class App {
       savedSession: loadSavedSession(),
     };
     this.scene = new TableScene(canvas, {
-      onInspect: inspection => {
-        this.setInspection(inspection);
-      },
-      onPlay: cardId => {
-        this.playCard(cardId);
-      },
+      onInspect: this.setInspection.bind(this),
+      onPlay: this.playCard.bind(this),
       onPose: pose => {
         this.ui.session?.sendPose(pose);
       },
-      onMode: mode => {
-        this.setCameraMode(mode);
-      },
-      onReorder: (cardId, index) => {
-        this.reorder(cardId, index);
-      },
+      onMode: this.setCameraMode.bind(this),
+      onReorder: this.reorder.bind(this),
+      isAuthority: () => this.ui.session?.isHost ?? true,
+      onCards: frame => this.ui.session?.sendCards(frame),
     });
     this.handDrag = new HandDrag(root, {
       canDrag: () => this.ui.cameraMode === 'first',
@@ -146,6 +141,12 @@ export class App {
       onPose: (playerId, pose) => {
         this.scene.receivePose(playerId, pose);
       },
+      onCards: frame => {
+        this.scene.receiveCards(frame);
+      },
+      onCardRelease: release => {
+        this.scene.receiveCardRelease(release);
+      },
     });
     this.ui.session = session;
     return session;
@@ -174,12 +175,12 @@ export class App {
     if (this.ui.soundEnabled) playSound(kind);
   }
 
-  private playCard(cardId: string): void {
+  private playCard(cardId: string, release?: CardRelease): void {
     if (this.ui.cameraMode !== 'first') {
       toast('Volte à primeira pessoa para jogar.');
       return;
     }
-    this.act({ type: 'play', cardId });
+    this.ui.session?.action({ type: 'play', cardId }, release);
     this.ui.selectedCardId = null;
   }
 

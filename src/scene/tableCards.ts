@@ -7,6 +7,8 @@
  */
 import * as THREE from 'three';
 import type { Card, GameState, TableEntry } from '../game';
+import type { CardFrame, CardRelease, CardTransform } from '../net/sceneMessages';
+import { captureTransform, followTransform, transformMatrix } from './networkTransforms';
 import { CardMesh } from './cards';
 import { CARD_SIZE } from './cardGeometry';
 import { CardThrow } from './cardThrow';
@@ -102,11 +104,38 @@ export class TableCards {
   private released: ReleasedCard | null = null;
   private readonly throws = new Map<string, CardThrow>();
   private readonly restingOrientation = new THREE.Quaternion();
+  private authority = true;
+  private readonly remote = new Map<string, CardTransform>();
+  private readonly releases = new Map<string, CardRelease>();
 
   constructor(
     private readonly world: THREE.Group,
     private readonly physics?: PhysicsCards,
   ) {}
+
+  setAuthority(authority: boolean): void {
+    if (this.authority === authority) return;
+    this.authority = authority;
+    this.remote.clear();
+    for (const card of this.pickable) this.physics?.settle(card);
+  }
+
+  receiveRelease(release: CardRelease): void {
+    this.releases.set(release.transform.id, release);
+  }
+
+  snapshot(): CardTransform[] {
+    return this.pickable.map(card => captureTransform(card, card.card.id));
+  }
+
+  receiveFrame(frame: CardFrame): void {
+    if (this.authority) return;
+    this.remote.clear();
+    for (const card of this.pickable) {
+      const transform = frame.cards.find(sample => sample.id === card.card.id);
+      if (transform) this.remote.set(transform.id, transform);
+    }
+  }
 
   releaseFromHand(card: CardMesh, landing: THREE.Vector3, velocity?: THREE.Vector3): void {
     card.updateWorldMatrix(true, false);
@@ -167,14 +196,16 @@ export class TableCards {
 
   private spawn(placement: Placement, seats: ReadonlyMap<string, Seat>): CardMesh {
     const released = this.released?.card.card.id === placement.entry.card.id ? this.released : null;
+    const networkRelease = this.releases.get(placement.entry.card.id);
     const held = released?.card.parent ? released.card : null;
     const card = held ?? new CardMesh(placement.entry.card);
     card.layers.set(0);
     const seat = placement.onTable ? seats.get(placement.entry.playerId) : undefined;
-    if (released) {
+    const transform = this.releaseTransform(released, networkRelease);
+    if (transform) {
       // Preserve the release transform even if an asynchronous state update removed the hand mesh.
       this.world.updateWorldMatrix(true, false);
-      const local = this.world.matrixWorld.clone().invert().multiply(released.transform);
+      const local = this.world.matrixWorld.clone().invert().multiply(transform);
       local.decompose(card.position, card.quaternion, card.scale);
     } else if (seat) {
       // Other players place the card face up without an artificial spin.
@@ -187,13 +218,33 @@ export class TableCards {
     this.world.add(card);
     card.target.copy(placement.position);
     card.targetRotation = placement.rotation;
-    this.startMotion(card, placement, released);
+    const motion = networkRelease
+      ? {
+          landing: new THREE.Vector3().fromArray(networkRelease.landing),
+          velocity: new THREE.Vector3().fromArray(networkRelease.velocity),
+        }
+      : released;
+    this.startMotion(card, placement, motion);
+    this.releases.delete(placement.entry.card.id);
     this.meshes.set(placement.entry.card.id, card);
     return card;
   }
 
-  private startMotion(card: CardMesh, placement: Placement, released: ReleasedCard | null): void {
-    const landing = placement.onTable ? (released?.landing ?? placement.position) : undefined;
+  private releaseTransform(
+    released: ReleasedCard | null,
+    network: CardRelease | undefined,
+  ): THREE.Matrix4 | null {
+    if (released) return released.transform;
+    return network ? transformMatrix(network.transform) : null;
+  }
+
+  private startMotion(
+    card: CardMesh,
+    placement: Placement,
+    released: Pick<ReleasedCard, 'landing' | 'velocity'> | null,
+  ): void {
+    const landing =
+      placement.onTable && this.authority ? (released?.landing ?? placement.position) : undefined;
     if (this.physics) this.physics.add(card, landing, released?.velocity);
     else if (landing) this.throws.set(card.card.id, new CardThrow(card, landing));
   }
@@ -218,17 +269,12 @@ export class TableCards {
   animate(deltaSeconds: number, blend: number, inspected: THREE.Object3D | null): void {
     const slide = 1 - Math.exp(-deltaSeconds * 5);
     for (const card of this.pickable) {
+      if (this.followRemote(card, deltaSeconds)) continue;
       if (this.physics) {
         this.physics.animate(card, deltaSeconds, inspected);
         continue;
       }
-      const throwing = this.throws.get(card.card.id);
-      if (throwing) {
-        if (throwing.animate(card, deltaSeconds, card.target, card.targetRotation)) {
-          this.throws.delete(card.card.id);
-        }
-        continue;
-      }
+      if (this.animateThrow(card, deltaSeconds)) continue;
       card.position.lerp(card.target, slide);
       const rotation = card === inspected ? 0 : card.targetRotation;
       // Euler angles can differ by a full turn after slerp; keep the same rotation representation.
@@ -237,5 +283,20 @@ export class TableCards {
       card.scale.lerp(FULL_SIZE, blend);
     }
     this.updateFraming();
+  }
+
+  private followRemote(card: CardMesh, deltaSeconds: number): boolean {
+    const remote = this.remote.get(card.card.id);
+    if (this.authority || !remote) return false;
+    followTransform(card, remote, 1 - Math.exp(-deltaSeconds * 25));
+    return true;
+  }
+
+  private animateThrow(card: CardMesh, deltaSeconds: number): boolean {
+    const throwing = this.throws.get(card.card.id);
+    if (!throwing) return false;
+    if (throwing.animate(card, deltaSeconds, card.target, card.targetRotation))
+      this.throws.delete(card.card.id);
+    return true;
   }
 }

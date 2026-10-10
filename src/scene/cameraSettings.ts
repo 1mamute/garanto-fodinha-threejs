@@ -10,3 +10,10 @@ export const SEATED_CAMERA = {
   returnOnLookRelease: true,
   returnDurationSeconds: 1.2,
 };
+
+/** Inclination from vertical: 0 looks straight down; positive angles face the table from the seat. */
+export const TABLE_CAMERA = {
+  angleDegrees: 15,
+  maxAngleDegrees: 45,
+  returnDurationSeconds: 1.2,
+};
