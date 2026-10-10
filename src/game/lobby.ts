@@ -4,34 +4,24 @@ import { prepareRound } from './round';
 import { RuleError, createPlayer, firstFreeColor } from './state';
 import type { Action, GameState, Player, RandomSource } from './types';
 
-export type LobbyAction = Extract<
-  Action,
-  { type: 'color' | 'seat' | 'ready' | 'bots' | 'start' | 'rematch' }
->;
+export type LobbyAction = Extract<Action, { type: 'color' | 'ready' | 'bots' | 'start' | 'rematch' }>;
 
-const LOBBY_ACTION_TYPES = new Set<Action['type']>(['color', 'seat', 'ready', 'bots', 'start', 'rematch']);
+const LOBBY_ACTION_TYPES = new Set<Action['type']>(['color', 'ready', 'bots', 'start', 'rematch']);
 
 export function isLobbyAction(action: Action): action is LobbyAction {
   return LOBBY_ACTION_TYPES.has(action.type);
 }
 
 function chooseColor(state: GameState, player: Player, color: string): void {
-  if (player.seated) throw new RuleError('A cor fica fixa depois de sentar.');
+  if (player.ready) throw new RuleError('A cor fica fixa enquanto você estiver pronto.');
   const isKnownColor = (COLORS as readonly string[]).includes(color);
   const takenByOther = state.players.some(other => other.id !== player.id && other.color === color);
   if (!isKnownColor || takenByOther) throw new RuleError('Esta cor já está ocupada.');
   player.color = color;
 }
 
-function takeSeat(state: GameState, player: Player): void {
-  const seatedCount = state.players.filter(other => other.seated).length;
-  if (seatedCount >= state.settings.capacity) throw new RuleError('Mesa cheia.');
-  player.seated = true;
-  player.spectator = false;
-}
-
 function toggleReady(player: Player): void {
-  if (!player.seated) throw new RuleError('Sente antes de marcar pronto.');
+  if (player.spectator) throw new RuleError('Aguarde uma vaga para jogar.');
   player.ready = !player.ready;
 }
 
@@ -41,6 +31,9 @@ function setBotCount(state: GameState, requested: number): void {
     throw new RuleError('Quantidade de bots inválida.');
   }
   state.players = state.players.filter(player => !player.bot);
+  state.players.forEach((player, index) => {
+    player.spectator = index >= state.settings.capacity;
+  });
   const freeSeats = Math.min(state.settings.capacity, MAX_PLAYERS) - state.players.length;
   const count = Math.max(0, Math.min(requested, freeSeats));
   for (let i = 0; i < count; i++) {
@@ -50,15 +43,14 @@ function setBotCount(state: GameState, requested: number): void {
 }
 
 function startMatch(state: GameState, now: number, random: RandomSource): void {
-  const seated = state.players.filter(player => player.seated);
+  const seated = state.players.filter(player => player.seated && !player.spectator);
   const everyoneReady = seated.every(player => player.ready && player.disconnectedAt === null);
   if (seated.length < MIN_PLAYERS || !everyoneReady) {
     throw new RuleError('Precisamos de pelo menos dois jogadores sentados, conectados e prontos.');
   }
-  // Random seating order; whoever did not sit watches this match.
-  state.players = [...shuffle(seated, random), ...state.players.filter(player => !player.seated)];
+  // Spectators keep their chairs without joining the deal or exceeding the match capacity.
+  state.players = [...shuffle(seated, random), ...state.players.filter(player => player.spectator)];
   for (const player of state.players) {
-    player.spectator = !player.seated;
     player.lives = state.settings.lives;
     player.eliminated = false;
   }
@@ -70,7 +62,7 @@ function startMatch(state: GameState, now: number, random: RandomSource): void {
 function resetPlayerForLobby(player: Player, lives: number): void {
   Object.assign(player, {
     eliminated: false,
-    spectator: false,
+    seated: true,
     hand: [],
     tricks: [],
     bid: null,
@@ -83,7 +75,10 @@ function resetPlayerForLobby(player: Player, lives: number): void {
 /** Back to the lobby with the same table. Players who timed out are gone and must rejoin. */
 function openRematch(state: GameState): void {
   state.players = state.players.filter(player => !player.expired);
-  for (const player of state.players) resetPlayerForLobby(player, state.settings.lives);
+  state.players.forEach((player, index) => {
+    resetPlayerForLobby(player, state.settings.lives);
+    player.spectator = index >= state.settings.capacity;
+  });
   Object.assign(state, {
     phase: 'lobby',
     round: 0,
@@ -100,7 +95,7 @@ function openRematch(state: GameState): void {
     paused: false,
     pausedAt: null,
     dueAt: null,
-    lastEvent: 'Nova partida! Sentem-se e marquem pronto.',
+    lastEvent: 'Nova partida! Marquem pronto para começar.',
   } satisfies Partial<GameState>);
 }
 
@@ -113,9 +108,6 @@ export function applyLobbyAction(
   switch (action.type) {
     case 'color':
       chooseColor(state, player, action.color);
-      return;
-    case 'seat':
-      takeSeat(state, player);
       return;
     case 'ready':
       toggleReady(player);

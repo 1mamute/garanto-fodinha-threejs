@@ -16,8 +16,8 @@ export function createPlayer(id: string, name: string, color: string = COLORS[0]
     name: cleanName(name) || 'Robô',
     color,
     bot,
-    // Bots are always seated and ready; humans opt in from the lobby.
-    seated: bot,
+    // Everyone joins at a chair; humans still confirm readiness in the lobby.
+    seated: true,
     ready: bot,
     lives: DEFAULT_LIVES,
     hand: [],
@@ -62,6 +62,11 @@ export const cloneState = (state: GameState): GameState => structuredClone(state
 /** Seated, still has lives and is not just watching. */
 export function isInPlay(player: Player): boolean {
   return player.seated && !player.eliminated && !player.spectator;
+}
+
+/** Watching alone never grants movement: only elimination releases the player from their chair. */
+export function canWalk(player: Player | undefined): boolean {
+  return player?.eliminated === true;
 }
 
 export function livingPlayers(state: GameState): Player[] {

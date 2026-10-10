@@ -16,7 +16,6 @@ const always = (): boolean => true;
 const ACTION_SHAPES: Record<ActionType, (raw: RawRecord) => boolean> = {
   chat: raw => typeof raw.text === 'string',
   color: raw => typeof raw.color === 'string',
-  seat: always,
   ready: always,
   start: always,
   rematch: always,

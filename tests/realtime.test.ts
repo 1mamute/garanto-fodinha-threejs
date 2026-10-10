@@ -65,19 +65,22 @@ test('host autentica quem move a cabeça, anda e arrasta sem aceitar identidade 
   guest.hand = [{ id: 'A♣', rank: 'A', suit: '♣' }];
   const pose: Pose = { yaw: 0.4, pitch: -0.3, position: [2, 3.16, 6], reaching: true, heldCard: transform };
   realtime.receive('guest', { type: 'pose', epoch: 1, sequence: 2, id: 'host', pose });
-  assert.deepEqual(poses, [{ id: 'guest', pose }]);
+  const seatedPose: Pose = { yaw: pose.yaw, pitch: pose.pitch, reaching: true, heldCard: transform };
+  assert.deepEqual(poses, [{ id: 'guest', pose: seatedPose }]);
   assert.equal(broadcasts[0]?.exceptId, 'guest');
   realtime.receive('guest', { type: 'pose', epoch: 1, sequence: 1, pose: { yaw: -1, pitch: 0 } });
   assert.equal(poses.length, 1, 'pacote atrasado não desfaz o movimento');
   realtime.receive('intruder', { type: 'pose', epoch: 1, sequence: 3, pose });
   assert.equal(poses.length, 1, 'remetente desconhecido é ignorado');
-  guest.seated = true;
-  guest.spectator = false;
+  guest.spectator = true;
   realtime.receive('guest', { type: 'pose', epoch: 1, sequence: 3, pose });
-  assert.equal(poses.at(-1)?.pose.position, undefined, 'jogador sentado não teletransporta a cadeira');
+  assert.equal(poses.at(-1)?.pose.position, undefined, 'espectador sentado não teletransporta a cadeira');
   guest.hand = [];
   realtime.receive('guest', { type: 'pose', epoch: 1, sequence: 4, pose });
   assert.equal(poses.at(-1)?.pose.heldCard, null, 'carta fora da mão não pode ser arrastada');
+  guest.eliminated = true;
+  realtime.receive('guest', { type: 'pose', epoch: 1, sequence: 5, pose });
+  assert.deepEqual(poses.at(-1)?.pose.position, pose.position, 'eliminado pode caminhar');
 });
 
 test('cartas do host aguardam a versão das regras e rejeitam visitantes e pacotes antigos', () => {

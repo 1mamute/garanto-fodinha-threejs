@@ -43,7 +43,7 @@ export interface Player {
   name: string;
   color: string;
   bot: boolean;
-  /** Took a chair in the lobby. Only seated players are dealt in. */
+  /** Automatically assigned a chair on entry, including spectators waiting for a match. */
   seated: boolean;
   ready: boolean;
   lives: number;
@@ -54,7 +54,7 @@ export interface Player {
   won: number;
   tricks: CollectedTrick[];
   eliminated: boolean;
-  /** Joined while a match was running; watches until the next match. */
+  /** Watches until a playing seat is available in the lobby. */
   spectator: boolean;
   /** When the connection dropped, or `null` while connected. */
   disconnectedAt: number | null;
@@ -116,7 +116,6 @@ export interface GameState {
 export type Action =
   | { type: 'chat'; text: string }
   | { type: 'color'; color: string }
-  | { type: 'seat' }
   | { type: 'ready' }
   | { type: 'bots'; count: number }
   | { type: 'start' }

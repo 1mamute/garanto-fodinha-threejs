@@ -23,7 +23,6 @@ export function seededRandom(seed = 42): RandomSource {
 /** A started match with one human ("human") and bots in every other seat. */
 export function startedMatch(playerCount = 4, lives = 5): GameState {
   let state = createState(createPlayer('human', 'Humano'), { capacity: playerCount, lives });
-  state = applyAction(state, 'human', { type: 'seat' });
   state = applyAction(state, 'human', { type: 'ready' });
   state = applyAction(state, 'human', { type: 'bots', count: playerCount - 1 });
   return applyAction(state, 'human', { type: 'start' }, { now: 100, random: seededRandom() });

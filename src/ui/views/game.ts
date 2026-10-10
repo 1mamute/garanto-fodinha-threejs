@@ -1,4 +1,12 @@
-import { findPlayer, livingPlayers, manilhaRank, type GameState, type Phase, type Player } from '../../game';
+import {
+  canWalk,
+  findPlayer,
+  livingPlayers,
+  manilhaRank,
+  type GameState,
+  type Phase,
+  type Player,
+} from '../../game';
 import type { Session } from '../../net/session';
 import { html, type SafeHtml } from '../html';
 import { icon } from '../icons';
@@ -45,12 +53,12 @@ const PHASE_LABELS: Record<Phase, string> = {
 };
 
 export function gameScreen(view: GameView): SafeHtml {
-  const { ui, game, observer } = view;
+  const { ui, game, me } = view;
   return html`${gameHeader(view)}${playersPanel(view)}
     <div class="event-banner" role="status">${game.lastEvent}</div>
     ${kickerInfo(game)}${centerCard(view)}${bidPanel(view)}${handPanel(view)}${viewControls(view)}
     ${ui.chatOpen && chatPanel(view)}${inspectionPanel(ui)}${watchedHand(view)}
-    ${observer && ui.cameraMode === 'first' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}
+    ${canWalk(me) && ui.cameraMode === 'first' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}
     ${pauseOverlay(view)}${gameModal(ui)}`;
 }
 
@@ -112,7 +120,7 @@ function playerStatus(game: GameState, player: Player): SafeHtml | string {
   if (game.phase !== 'lobby') return lives(player.lives);
   if (player.disconnectedAt !== null) return 'Reconectando…';
   if (player.ready) return 'Pronto ✓';
-  return player.seated ? 'Sentado' : 'Escolhendo cor';
+  return 'Sentado';
 }
 
 /** Up to ten hearts, then a counter, so huge life totals do not overflow the panel. */
@@ -141,11 +149,11 @@ function kickerInfo(game: GameState): SafeHtml | null {
   </div>`;
 }
 
-function viewControls({ ui, observer }: GameView): SafeHtml {
+function viewControls({ ui, observer, me }: GameView): SafeHtml {
   const label = ui.cameraMode === 'top' ? 'Primeira pessoa' : 'Ver de cima';
   return html`<div class="view-controls">
     <button class="button camera-button" data-action="camera">${icon('eye')} ${label} <kbd>espaço</kbd></button>
-    ${observer && html`<span class="observer-label">ESPECTADOR · WASD para passear</span>`}
+    ${observer && html`<span class="observer-label">${canWalk(me) ? 'ELIMINADO · WASD para passear' : 'ESPECTADOR · Aguardando a próxima partida'}</span>`}
   </div>`;
 }
 

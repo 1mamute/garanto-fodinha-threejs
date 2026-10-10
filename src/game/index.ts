@@ -9,6 +9,7 @@ export {
   createState,
   findPlayer,
   isInPlay,
+  canWalk,
   livingPlayers,
   nextLivingPlayerId,
 } from './state';

@@ -23,17 +23,16 @@ export function centerCard(view: GameView): SafeHtml | null {
 
 function lobbyCard(view: GameView): SafeHtml {
   const { me, session } = view;
-  const seated = me?.seated === true;
   const readyLabel = me?.ready ? 'Pronto! Voltar a esperar' : 'Estou pronto';
   return html`<section class="lobby-card">
     <span class="eyebrow">ANTES DA PRIMEIRA CARTA</span>
-    <h2>${seated ? 'Seu lugar está reservado.' : 'Escolha seu lugar.'}</h2>
+    <h2>Você já está sentado à mesa.</h2>
     <p>
-      ${seated ? 'Marque pronto para começar.' : 'Escolha a cor do seu robô e sente à mesa.'}
+      ${me?.spectator ? 'Aguarde uma vaga para entrar na próxima partida.' : 'Escolha a cor do seu robô e marque pronto para começar.'}
     </p>
-    ${!seated && colorPicker(view)}
-    <button class="button primary full" data-action="${seated ? 'ready' : 'seat'}">
-      ${seated ? readyLabel : 'Sentar à mesa'} ${icon('check')}
+    ${!me?.spectator && colorPicker(view)}
+    <button class="button primary full" data-action="ready" ${(!me || me.spectator) && 'disabled'}>
+      ${readyLabel} ${icon('check')}
     </button>
     ${
       session.isHost
@@ -56,7 +55,7 @@ function colorPicker({ game, me }: GameView): SafeHtml {
       data-action="color"
       data-color="${color}"
       aria-label="${label}"
-      ${(taken || me?.seated === true) && 'disabled'}
+      ${(taken || me?.ready === true) && 'disabled'}
     >
       ${mark}
     </button>`;

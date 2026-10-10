@@ -1,4 +1,4 @@
-import type { GameState } from '../game';
+import { canWalk, type GameState } from '../game';
 import { sanitizePose, type Envelope, type PeerMessage, type Pose } from './messages';
 import { sanitizeCardFrame, sanitizeRelease, type CardFrame, type CardRelease } from './sceneMessages';
 
@@ -114,7 +114,7 @@ export class RealtimeSession {
     const player = this.options.context().state?.players.find(member => member.id === id);
     const pose = sanitizePose(raw);
     if (!player || player.bot || player.disconnectedAt !== null || !pose) return null;
-    if (player.seated && !player.eliminated && !player.spectator) delete pose.position;
+    if (!canWalk(player)) delete pose.position;
     if (pose.heldCard && !player.hand.some(card => card.id === pose.heldCard?.id)) {
       pose.heldCard = null;
       pose.reaching = false;

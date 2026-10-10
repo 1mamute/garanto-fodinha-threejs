@@ -41,7 +41,7 @@ export interface FrameContext {
   mode: InspectionCameraMode;
   /** Card being inspected from above, if any. */
   inspected: THREE.Object3D | null;
-  /** Watching instead of playing: walks freely and has no robot. */
+  /** Released from the chair after elimination, or walking in the inspection scene. */
   observer: boolean;
   /** Seat position of the player's robot, if seated. */
   seat: THREE.Vector3 | null;

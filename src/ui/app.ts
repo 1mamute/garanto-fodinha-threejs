@@ -316,9 +316,6 @@ export class App {
     color: button => {
       this.act({ type: 'color', color: button.dataset.color ?? '' });
     },
-    seat: () => {
-      this.act({ type: 'seat' });
-    },
     ready: () => {
       this.act({ type: 'ready' });
     },

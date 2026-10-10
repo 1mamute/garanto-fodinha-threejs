@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameState, Player } from '../game';
+import { canWalk, type GameState, type Player } from '../game';
 import type { Pose } from '../net/messages';
 import { CardMesh } from './cards';
 import { animateFan } from './hands';
@@ -64,7 +64,7 @@ export class PlayerMotion {
       for (const id of this.walkers.keys()) this.remove(id);
       this.roomKey = key;
     }
-    const observers = state.players.filter(player => !player.bot && isObserver(player));
+    const observers = state.players.filter(player => !player.bot && canWalk(player));
     const existed = this.walkers.has(myId ?? '');
     for (const id of this.walkers.keys()) {
       if (!observers.some(player => player.id === id)) this.remove(id);

@@ -68,12 +68,13 @@ async function verifyMotion(harness: Harness): Promise<void> {
   await until(() => [...host.peers.values()].every(peer => peer.isRealtimeOpen), 'canal de movimento aberto');
   guest.sendPose({ yaw: 0.7, pitch: -0.2, squint: 0.8, position: [2, 3.16, 5] });
   host.sendPose({ yaw: -0.4, pitch: 0.1, position: [-2, 3.16, 6] });
-  await until(
-    () => harness.poses.get(other)?.get(guest.memberId)?.yaw === 0.7,
-    'cabeça e caminhada de convidado',
+  await until(() => harness.poses.get(other)?.get(guest.memberId)?.yaw === 0.7, 'olhar do convidado sentado');
+  await until(() => harness.poses.get(guest)?.get(host.memberId)?.yaw === -0.4, 'olhar do host sentado');
+  check(
+    harness.poses.get(other)?.get(guest.memberId)?.position === undefined,
+    'convidado não anda na espera',
   );
-  await until(() => harness.poses.get(guest)?.get(host.memberId)?.yaw === -0.4, 'cabeça e caminhada do host');
-  check(harness.poses.get(other)?.get(guest.memberId)?.position?.[0] === 2, 'posição transmitida');
+  check(harness.poses.get(guest)?.get(host.memberId)?.position === undefined, 'host não anda na espera');
   check(harness.poses.get(other)?.get(guest.memberId)?.squint === 0.8, 'zoom transmitido');
 }
 
@@ -123,10 +124,9 @@ async function playNetworkCard(harness: Harness): Promise<void> {
   );
 }
 
-async function seatEveryone(host: Session, players: Session[]): Promise<void> {
+async function readyEveryone(host: Session, players: Session[]): Promise<void> {
   for (const player of players) {
-    player.action({ type: 'seat' });
-    await until(() => findPlayer(stateOf(host), player.memberId)?.seated, 'confirmar assento');
+    await until(() => findPlayer(stateOf(host), player.memberId)?.seated, 'confirmar assento automático');
     player.action({ type: 'ready' });
     await until(() => findPlayer(stateOf(host), player.memberId)?.ready, 'confirmar pronto');
   }
@@ -159,9 +159,9 @@ export async function run(): Promise<{ passed: string[]; phase: string; version:
     check(first.peers.get(secondIdentity.memberId)?.isOpen, 'A/B deve usar canal P2P');
     checks.push('3 navegadores lógicos conectados por WebRTC');
     await verifyMotion(harness);
-    checks.push('cabeça, zoom e caminhada em tempo real nos três clientes');
+    checks.push('cabeça e zoom em tempo real, caminhada bloqueada na espera');
 
-    await seatEveryone(first, [first, second, third]);
+    await readyEveryone(first, [first, second, third]);
     first.action({ type: 'start' });
     await until(() => second.state?.phase === 'bet' && third.state?.phase === 'bet', 'início da partida');
     checks.push('assentos, pronto e partida sincronizados');

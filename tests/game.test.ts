@@ -6,6 +6,7 @@ import {
   applyAction,
   botAction,
   cardStrength,
+  canWalk,
   createDeck,
   createPlayer,
   createState,
@@ -119,12 +120,52 @@ test('última aposta não pode fechar soma e ações inválidas não alteram est
   assert.throws(() => applyAction(state, state.dealer, { type: 'hack' }), /desconhecida/);
 });
 
-test('cor ocupada é rejeitada e cor sentada fica bloqueada', () => {
+test('entrada na sala senta automaticamente e aguarda confirmação de pronto', () => {
+  const original = createState(createPlayer('host', 'Host'));
+  const state = reconcilePresence(
+    original,
+    [
+      { id: 'host', name: 'Host', connected: true },
+      { id: 'guest', name: 'Convidado', connected: true },
+    ],
+    100,
+  );
+  assert.equal(original.players.length, 1, 'a entrada não altera o estado anterior');
+  assert.equal(state.version, original.version + 1);
+  assert.ok(state.players.every(player => player.seated && !player.ready && !canWalk(player)));
+  assert.equal(livingPlayers(state).length, 2);
+  assert.throws(() => applyAction(state, 'host', { type: 'start' }), /prontos/);
+  const readyHost = applyAction(state, 'host', { type: 'ready' });
+  const readyEveryone = applyAction(readyHost, 'guest', { type: 'ready' });
+  assert.equal(
+    applyAction(readyEveryone, 'host', { type: 'start' }, { now: 100, random: seededRandom() }).phase,
+    'bet',
+  );
+  assert.equal(
+    reconcilePresence(
+      state,
+      [
+        { id: 'host', name: 'Host', connected: true },
+        { id: 'guest', name: 'Convidado', connected: true },
+      ],
+      100,
+    ),
+    state,
+    'presença inalterada preserva o objeto',
+  );
+});
+
+test('cor ocupada é rejeitada e cor fica bloqueada enquanto o jogador está pronto', () => {
   let state = createState(createPlayer('a', 'A'));
   state.players.push(createPlayer('b', 'B', COLORS[1]));
   assert.throws(() => applyAction(state, 'a', { type: 'color', color: COLORS[1] }), /ocupada/);
-  state = applyAction(state, 'a', { type: 'seat' });
+  state = applyAction(state, 'a', { type: 'color', color: COLORS[2] });
+  assert.equal(playerById(state, 'a').color, COLORS[2]);
+  state = applyAction(state, 'a', { type: 'ready' });
   assert.throws(() => applyAction(state, 'a', { type: 'color', color: COLORS[2] }), /fixa/);
+  state = applyAction(state, 'a', { type: 'ready' });
+  state = applyAction(state, 'a', { type: 'color', color: COLORS[0] });
+  assert.equal(playerById(state, 'a').color, COLORS[0]);
 });
 
 test('kicker fica fora da mão quando sobram cartas, e entra no baralho ao distribuir 40', () => {
@@ -233,14 +274,60 @@ test('prazo expirado na tela de placar avança para a próxima rodada em vez de 
   assert.equal(state.phase, 'bet');
 });
 
-test('novo participante durante partida é espectador e não pode apostar', () => {
+test('novo participante durante partida fica sentado como espectador sem andar nem apostar', () => {
   let state = startedMatch(2);
   state = reconcilePresence(state, [
     { id: 'human', name: 'Humano', connected: true },
     { id: 'late', name: 'Chegou depois', connected: true },
   ]);
   assert.equal(playerById(state, 'late').spectator, true);
+  assert.equal(playerById(state, 'late').seated, true);
+  assert.equal(canWalk(playerById(state, 'late')), false);
   assert.throws(() => applyAction(state, 'late', { type: 'bid', value: 0 }), /Espectadores/);
+});
+
+test('caminhada só é liberada após eliminação e volta a ser bloqueada na revanche', () => {
+  let state = startedMatch(2, 1);
+  assert.equal(canWalk(undefined), false);
+  assert.equal(canWalk(playerById(state, 'human')), false);
+  let now = 100;
+  const random = seededRandom(3);
+  while (state.phase !== 'finished') [state, now] = advanceWithBots(state, now, random);
+  for (const player of state.players) assert.equal(canWalk(player), player.eliminated);
+  assert.ok(state.players.some(canWalk), 'a partida elimina pelo menos um jogador');
+  state = applyAction(state, 'human', { type: 'rematch' });
+  assert.ok(state.players.every(player => player.seated && !canWalk(player)));
+});
+
+test('revanche mantém espectadores sentados e respeita a capacidade da partida', () => {
+  let state = startedMatch(2, 1);
+  state = reconcilePresence(
+    state,
+    [
+      { id: 'human', name: 'Humano', connected: true },
+      { id: 'late', name: 'Chegou depois', connected: true },
+    ],
+    100,
+  );
+  let now = 100;
+  const random = seededRandom(3);
+  while (state.phase !== 'finished') [state, now] = advanceWithBots(state, now, random);
+  state = applyAction(state, 'human', { type: 'rematch' });
+  assert.equal(playerById(state, 'late').spectator, true);
+  assert.equal(playerById(state, 'late').seated, true);
+  assert.throws(() => applyAction(state, 'late', { type: 'ready' }), /vaga/);
+  state = applyAction(state, 'human', { type: 'ready' });
+  state = applyAction(state, 'human', { type: 'start' }, { now, random });
+  assert.equal(livingPlayers(state).length, state.settings.capacity);
+  assert.equal(playerById(state, 'late').hand.length, 0);
+  state.phase = 'finished';
+  state = applyAction(state, 'human', { type: 'rematch' });
+  state = applyAction(state, 'human', { type: 'bots', count: 0 });
+  assert.equal(playerById(state, 'late').spectator, false, 'remover bots libera vaga para o espectador');
+  state = applyAction(state, 'human', { type: 'ready' });
+  state = applyAction(state, 'late', { type: 'ready' });
+  state = applyAction(state, 'human', { type: 'start' }, { now, random });
+  assert.equal(livingPlayers(state).length, 2);
 });
 
 test('empate ocorre quando todos perdem a última vida', () => {

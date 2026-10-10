@@ -3,7 +3,7 @@
  * cards and camera. The UI talks to it through `setState`, `setMode` and the `SceneCallbacks`.
  */
 import * as THREE from 'three';
-import { findPlayer, type GameState, type Player } from '../game';
+import { canWalk, findPlayer, type GameState, type Player } from '../game';
 import { CameraRig } from './cameraRig';
 import type { CardFrame, CardRelease } from '../net/sceneMessages';
 import type { CardMesh } from './cards';
@@ -110,13 +110,14 @@ export class TableScene implements InputTarget {
   }
 
   get freeLook(): boolean {
-    return this.mode === 'first' && isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
+    return this.mode === 'first' && canWalk(this.state ? findPlayer(this.state, this.myId) : undefined);
   }
 
   setState(state: GameState, myId: string | null): void {
     const previous = this.state;
     this.state = state;
     this.myId = myId;
+    if (!canWalk(findPlayer(state, myId))) this.setJoystick(0, 0);
     const spawn = this.motion.sync(state, myId);
     if (spawn) this.rig.spectatorPosition.copy(spawn);
     this.tableCards.setAuthority(this.callbacks.isAuthority());
@@ -322,19 +323,19 @@ export class TableScene implements InputTarget {
     if (!deltaSeconds) return;
     this.physics.step(deltaSeconds);
     const blend = smoothing(deltaSeconds, 7);
-    const observer = isObserver(this.state ? findPlayer(this.state, this.myId) : undefined);
+    const walking = canWalk(this.state ? findPlayer(this.state, this.myId) : undefined);
     const mySeat = this.myId ? this.seats.get(this.myId) : undefined;
     this.rig.update(deltaSeconds, blend, {
       mode: this.mode,
       inspected: this.inspected,
-      observer,
+      observer: walking,
       seat: mySeat?.robot.group.position.clone().setY(0) ?? null,
       tableBounds: this.tableCards.framingBounds,
     });
     this.updateDealerIndicator();
     this.firstPerson.fitTo(this.rig.camera.aspect, this.rig.camera.fov);
     // Keep the seated body visible; camera-mounted hands replace its arms and card fan.
-    const embodied = this.mode === 'first' && !observer;
+    const embodied = this.mode === 'first' && !walking;
     this.firstPerson.visible = embodied;
     this.input.checkLongPress(performance.now());
     this.animateRobots(nowSeconds(), blend, embodied);
@@ -351,7 +352,7 @@ export class TableScene implements InputTarget {
     const dragged = this.input.draggedHandCard;
     animateFan(this.firstPerson.cards, blend, dragged);
     this.firstPerson.followCard(dragged);
-    this.sendPose(time, observer);
+    this.sendPose(time, walking);
     this.render();
   }
 
@@ -396,11 +397,11 @@ export class TableScene implements InputTarget {
   }
 
   /** Shares motion and the host's actual card physics at 20 Hz. */
-  private sendPose(time: number, observer: boolean): void {
+  private sendPose(time: number, walking: boolean): void {
     if (this.mode === 'landing' || time - this.lastPoseAt <= POSE_INTERVAL_S) return;
     this.lastPoseAt = time;
-    const pose = observer ? this.walkingPose() : this.localPose();
-    if (observer) pose.position = this.rig.spectatorPosition.toArray();
+    const pose = walking ? this.walkingPose() : this.localPose();
+    if (walking) pose.position = this.rig.spectatorPosition.toArray();
     this.callbacks.onPose(pose);
     if (this.state && this.callbacks.isAuthority()) {
       this.callbacks.onCards({ version: this.state.version, cards: this.tableCards.snapshot() });

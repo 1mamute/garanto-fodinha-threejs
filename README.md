@@ -18,12 +18,12 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 ## Jogar
 
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
-- Escolha uma cor disponível, sente e marque pronto. A cor fica bloqueada ao sentar. O host pode adicionar bots e inicia quando todos os jogadores sentados estiverem prontos.
+- Ao entrar, você senta automaticamente à mesa e permanece na cadeira até ser eliminado. Escolha uma cor disponível e marque pronto; a cor fica bloqueada enquanto você estiver pronto. O host pode adicionar bots e inicia quando todos os jogadores da partida estiverem prontos.
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.
 - Na primeira pessoa, arraste cartas para ordenar; arraste para cima para jogar. Arraste a área livre para olhar. A roda do mouse aproxima e afasta a visão da mesa, enquanto o robô espreme os olhos. As cartas da mão mantêm seu tamanho na tela.
 - **Espaço** alterna entre primeira pessoa e visão de cima. Nesta última, a mão fica bloqueada. Use a roda do mouse ou pinça para zoom; passe o mouse por dois segundos ou toque prolongadamente para inspecionar cartas e vazas coletadas. **ESC** ou clique fora encerra a inspeção.
 - Eliminados podem ver todas as mãos e passear em primeira pessoa: no computador, use **WASD** e clique na cena para capturar o mouse e olhar como em um FPS (**Esc** libera o cursor); no celular, use o joystick para andar e arraste na cena para olhar. Toque no nome de um jogador para consultar sua mão como espectador.
-- Participantes que chegam durante uma partida entram como espectadores. Use o chat para conversar.
+- Participantes que chegam durante uma partida ficam sentados como espectadores, sem andar, até haver vaga na próxima partida. Use o chat para conversar.
 - Desconexão pausa a mesa por três minutos. Expirado o prazo, o jogador é eliminado, a rodada atual é cancelada e redistribuída, sem penalidade de vidas aos demais. A quantidade de cartas e o modo são mantidos; kicker e mãos são sorteados novamente.
 - O host é transferido automaticamente para um participante conectado. O antigo host pode voltar como jogador. Recarregue a página e use **Retomar minha sala** na mesma aba; a sessão e o último estado recebido são guardados no armazenamento da aba.
 
@@ -140,7 +140,7 @@ Todo o código é TypeScript estrito.
 - `src/shared/`: tipos do protocolo entre navegador e Worker.
 - `worker/`: Durable Object `Lobby` (salas, admissão com senha, WebSockets com hibernação, eleição de host, credenciais TURN) e limites de uso.
 
-Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular e não usa sombras em tempo real. Cabeça, zoom, posição dos observadores, braços durante o arraste e transformações das cartas são transmitidos a até 20 Hz e interpolados na cena. Observadores e eliminados aparecem como robôs em pé, com passos e olhar independente do corpo; cada participante nasce em um ponto separado ao redor da mesa. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
+Cartas, personagens e animações são gerados no código, sem downloads de modelos. A renderização limita a resolução no celular e não usa sombras em tempo real. Cabeça, zoom, posição dos eliminados, braços durante o arraste e transformações das cartas são transmitidos a até 20 Hz e interpolados na cena. Todos entram sentados, inclusive espectadores que chegam durante a partida. Apenas eliminados aparecem também como robôs em pé, com passos e olhar independente do corpo; cada um recebe um ponto separado ao redor da mesa ao começar a caminhar. A interface funciona em orientação retrato e paisagem; desempenho em aparelhos físicos ainda deve ser medido.
 
 Cada conexão WebRTC tem dois canais: jogadas e estados completos usam entrega confiável e ordenada; movimentos usam um canal sem retransmissão, com sequências para descartar pacotes atrasados. O host autentica o autor das poses, valida seus valores e só aceita arrastes e lançamentos de cartas da mão do jogador. Sob congestionamento, as jogadas ficam na fila e estados completos antigos são substituídos pelo mais recente. Quem reconecta recebe as poses atuais; a troca de host reinicia as sequências e retoma a transmissão da cena.
 
