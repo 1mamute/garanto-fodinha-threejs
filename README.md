@@ -30,7 +30,7 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 As regras completas estão em [garanto_regras.md](garanto_regras.md); decisões adicionais, em [docs/decisoes-do-jogo.md](docs/decisoes-do-jogo.md).
 
 O menu **Gráficos**, na tela inicial e durante a partida, permite escolher a suavização de
-bordas sem recarregar: desligada (padrão), MSAA (até 4×), FXAA, SMAA, SSAA (4×) ou TAA.
+bordas sem recarregar: desligada, MSAA (padrão, até 4×), FXAA, SMAA, SSAA (4×) ou TAA.
 A escolha fica salva neste navegador. Experimente MSAA para manter as cartas nítidas ou
 FXAA para um filtro leve; SSAA pode reduzir bastante a fluidez. TAA é experimental:
 acumula qualidade somente quando câmera e objetos ficam parados e reinicia com movimento.

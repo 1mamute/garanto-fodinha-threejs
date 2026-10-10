@@ -3,6 +3,7 @@ export const ANTIALIASING_MODES = ['off', 'msaa', 'fxaa', 'smaa', 'ssaa', 'taa']
 export type AntialiasingMode = (typeof ANTIALIASING_MODES)[number];
 
 const STORAGE_KEY = 'garanto-antialiasing';
+const DEFAULT_MODE: AntialiasingMode = 'msaa';
 const listeners = new Set<(mode: AntialiasingMode) => void>();
 let selectedMode: AntialiasingMode | undefined;
 
@@ -14,9 +15,9 @@ export function antialiasingMode(): AntialiasingMode {
   if (selectedMode) return selectedMode;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    selectedMode = isAntialiasingMode(saved) ? saved : 'off';
+    selectedMode = isAntialiasingMode(saved) ? saved : DEFAULT_MODE;
   } catch {
-    selectedMode = 'off';
+    selectedMode = DEFAULT_MODE;
   }
   return selectedMode;
 }
