@@ -19,6 +19,10 @@ configurações do jogo. O alvo é fixado por `LAB_TURN_PREVIEW.playerId` em
 `src/scene/turnIndicatorSettings.ts`, sem depender da fase ou da vez da composição congelada.
 Edite os parâmetros compartilhados nesse arquivo com Vite aberto para atualizar a prévia.
 Intensidade zero em `lightIntensity` desliga a luz, permitindo testar esse valor neutro.
+O cone cartunesco de holofote é compartilhado com o jogo em `turnSpotlight.ts`. Ajuste
+`TURN_INDICATOR.beam` para mudar cor, opacidade, largura, altura da base e brilho da fonte.
+`beam.enabled: false` remove o cone e sua mancha no chão; a iluminação real continua
+controlada por `lightIntensity`. O cone permanece visível com o pós-processamento desligado.
 Caminhe e alterne as câmeras para conferir a seta junto ao robô e sua direção quando ele
 sai do enquadramento, inclusive em retrato. **Shift + V** continua ocultando toda a interface.
 

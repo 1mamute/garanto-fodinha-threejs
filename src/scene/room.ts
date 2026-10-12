@@ -5,7 +5,7 @@ import { POST_PROCESSING } from './postProcessingSettings';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
 import { FLOOR_ROTATION, ROOM_RADIUS, TABLE_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
-import { TURN_INDICATOR } from './turnIndicatorSettings';
+import { buildTurnSpotlight } from './turnSpotlight';
 
 /** Table surface height; cards lie just above it. */
 export const TABLE_TOP = 1.6465;
@@ -27,7 +27,7 @@ export function buildRoom(world: THREE.Group): RoomProps {
   buildLamp(solids);
   buildWallLamps(solids);
   buildUtilities(solids);
-  return { solids, spotlight: buildSpotlight(world), dealerChip: buildDealerChip(world) };
+  return { solids, spotlight: buildTurnSpotlight(world), dealerChip: buildDealerChip(world) };
 }
 
 function buildFloorAndWalls(world: THREE.Group): void {
@@ -144,33 +144,6 @@ function shadowTexture(): THREE.CanvasTexture {
     context.fillStyle = gradient;
     context.fillRect(0, 0, 64, 64);
   });
-}
-
-function buildSpotlight(world: THREE.Group): THREE.Group {
-  const spotlight = new THREE.Group();
-  const settings = TURN_INDICATOR;
-  world.add(spotlight);
-  const halo = material(settings.color, {
-    emissive: settings.color,
-    emissiveIntensity: settings.haloEmissiveIntensity,
-  });
-  mesh(new THREE.TorusGeometry(settings.haloRadius, settings.haloThickness, 8, 32), halo, spotlight, [
-    0,
-    settings.haloHeight,
-    0,
-  ]).rotation.x = Math.PI / 2;
-  const light = new THREE.SpotLight(
-    settings.color,
-    settings.lightIntensity,
-    settings.lightDistance,
-    settings.lightAngle,
-    settings.lightPenumbra,
-  );
-  light.position.y = settings.lightHeight;
-  light.target.position.y = settings.lightTargetHeight;
-  spotlight.add(light, light.target);
-  spotlight.visible = false;
-  return spotlight;
 }
 
 function buildDealerChip(world: THREE.Group): THREE.Mesh {
