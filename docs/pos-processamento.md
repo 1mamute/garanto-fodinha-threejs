@@ -6,9 +6,12 @@ e recarregue a página para reconstruir os passes e os materiais com seus ajuste
 Os padrões são discretos: sombras levemente frias, luzes quentes, brilho restrito
 a fontes luminosas e escurecimento suave nas bordas.
 
-`enabled: false` no objeto principal desliga os quatro efeitos. Cada efeito também
-tem seu próprio `enabled`. A suavização de bordas continua independente, pelo menu
-**Gráficos**; selecionar **Desligado** nesse menu desliga apenas a suavização.
+No menu **Gráficos**, a opção **Pós-processamento** liga ou desliga os quatro efeitos
+imediatamente, no jogo e na sala de testes. A escolha fica salva neste navegador.
+O `enabled` do objeto principal define o padrão quando não há preferência salva.
+Cada efeito também tem seu próprio `enabled`, preservado ao alternar a opção do menu.
+A suavização de bordas continua independente; selecionar **Desligado** na lista
+de suavização desliga apenas a suavização.
 Esses parâmetros são locais à renderização e não fazem parte do estado multiplayer.
 
 | Efeito | Parâmetro | Como ajustar |

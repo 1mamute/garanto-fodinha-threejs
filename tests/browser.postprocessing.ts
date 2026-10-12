@@ -4,6 +4,7 @@ import { createRenderer } from '../src/scene/environment';
 import { GraphicsRenderer } from '../src/scene/graphicsRenderer';
 import { antialiasingMode, setAntialiasingMode } from '../src/scene/graphicsSettings';
 import { POST_PROCESSING } from '../src/scene/postProcessingSettings';
+import { postProcessingEnabled, setPostProcessingEnabled } from '../src/scene/postProcessingPreference';
 
 const SIZE = 128;
 const TOLERANCE = 3;
@@ -19,7 +20,7 @@ function check(condition: unknown, message: string): asserts condition {
 }
 
 function neutralEffects(): void {
-  POST_PROCESSING.enabled = true;
+  setPostProcessingEnabled(true);
   for (const effect of [
     POST_PROCESSING.colorGrading,
     POST_PROCESSING.ambientOcclusion,
@@ -192,9 +193,9 @@ function neutralScenario(fixture: Fixture): string {
     new THREE.Color().setRGB(0.45, 0.2, 0.08),
   );
   marker.position.z = -3;
-  POST_PROCESSING.enabled = false;
+  setPostProcessingEnabled(false);
   const direct = render(fixture);
-  POST_PROCESSING.enabled = true;
+  setPostProcessingEnabled(true);
   const neutral = render(fixture);
   check(maxDifference(direct, neutral) <= TOLERANCE, 'Os efeitos neutros repetiram a conversão de cor');
   return 'Efeitos neutros preservam a imagem direta e a conversão de cor';
@@ -277,6 +278,7 @@ function occlusionScenario(fixture: Fixture): string {
 export function run(): string[] {
   const snapshot = structuredClone(POST_PROCESSING);
   const previousMode = antialiasingMode();
+  const previousEnabled = postProcessingEnabled();
   try {
     setAntialiasingMode('off');
     return [neutralScenario, vignetteScenario, bloomScenario, occlusionScenario].map(withFixture);
@@ -287,5 +289,6 @@ export function run(): string[] {
     Object.assign(POST_PROCESSING.bloom, snapshot.bloom);
     Object.assign(POST_PROCESSING.vignette, snapshot.vignette);
     setAntialiasingMode(previousMode);
+    setPostProcessingEnabled(previousEnabled);
   }
 }

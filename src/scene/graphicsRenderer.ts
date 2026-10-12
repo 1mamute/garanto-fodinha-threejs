@@ -2,9 +2,12 @@ import type { PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import { GraphicsPipeline } from './graphicsPipeline';
 import { antialiasingMode, onAntialiasingChange, type AntialiasingMode } from './graphicsSettings';
 import { POST_PROCESSING } from './postProcessingSettings';
+import { FpsMeter } from '../ui/fpsMeter';
+import { onPostProcessingChange, postProcessingEnabled } from './postProcessingPreference';
 
 /** Owns graphics resources and includes the first-person overlay in every scene sample. */
 export class GraphicsRenderer {
+  private readonly fpsMeter = new FpsMeter();
   private pipeline: GraphicsPipeline | null = null;
   private mode = antialiasingMode();
   private width = 1;
@@ -12,6 +15,7 @@ export class GraphicsRenderer {
   private pixelRatio = 1;
   private drawingOverlay = false;
   private readonly unsubscribe: () => void;
+  private readonly unsubscribePostProcessing: () => void;
   private readonly previousAfterRender: Scene['onAfterRender'];
 
   constructor(
@@ -27,6 +31,9 @@ export class GraphicsRenderer {
     if (options.overlay) options.scene.onAfterRender = this.drawOverlay.bind(this);
     this.unsubscribe = onAntialiasingChange(mode => {
       this.mode = mode;
+      this.rebuild();
+    });
+    this.unsubscribePostProcessing = onPostProcessingChange(() => {
       this.rebuild();
     });
   }
@@ -50,10 +57,13 @@ export class GraphicsRenderer {
     }
     if (this.pipeline) this.pipeline.render(scene, camera);
     else renderer.render(scene, camera);
+    this.fpsMeter.frame();
   }
 
   dispose(): void {
+    this.fpsMeter.dispose();
     this.unsubscribe();
+    this.unsubscribePostProcessing();
     this.pipeline?.dispose();
     this.options.scene.onAfterRender = this.previousAfterRender;
   }
@@ -66,14 +76,16 @@ export class GraphicsRenderer {
 
   private createPipeline(mode: AntialiasingMode): GraphicsPipeline | null {
     const effects =
-      POST_PROCESSING.enabled &&
+      postProcessingEnabled() &&
       [
         POST_PROCESSING.colorGrading,
         POST_PROCESSING.ambientOcclusion,
         POST_PROCESSING.bloom,
         POST_PROCESSING.vignette,
       ].some(effect => effect.enabled);
-    return mode === 'off' && !effects ? null : new GraphicsPipeline({ ...this.options, mode });
+    return mode === 'off' && !effects
+      ? null
+      : new GraphicsPipeline({ ...this.options, mode, postProcessing: postProcessingEnabled() });
   }
 
   private drawOverlay(): void {

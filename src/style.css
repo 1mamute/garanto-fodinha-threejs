@@ -1,6 +1,7 @@
 body.ui-hidden #app,
 body.ui-hidden #toast,
 body.ui-hidden .mouse-look-prompt,
+body.ui-hidden .fps-meter,
 body.ui-hidden .dealer-indicator {
   display: none;
 }
@@ -70,6 +71,33 @@ body.ui-hidden .dealer-indicator {
 .graphics-options small {
   color: #bbb09b;
   line-height: 1.5;
+}
+.graphics-options .graphics-toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+.graphics-toggle-option input {
+  width: auto;
+  margin: 0;
+}
+.fps-meter {
+  /* Pixel offsets and type size; set offsets to 0 for a flush corner. */
+  --fps-meter-inset: 12px;
+  --fps-meter-font-size: 12px;
+  position: fixed;
+  bottom: var(--fps-meter-inset);
+  left: var(--fps-meter-inset);
+  z-index: 40;
+  pointer-events: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #17211be6;
+  color: #ead4aa;
+  font: var(--fps-meter-font-size) / 1.4 monospace;
+  font-variant-numeric: tabular-nums;
 }
 .lab-panel .graphics-options {
   position: static;

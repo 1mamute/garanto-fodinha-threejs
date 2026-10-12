@@ -7,6 +7,8 @@ import {
 } from '../scene/graphicsSettings';
 import { morph } from './dom';
 import { html, type SafeHtml } from './html';
+import { fpsMeterEnabled, setFpsMeterEnabled } from './fpsMeterSettings';
+import { postProcessingEnabled, setPostProcessingEnabled } from '../scene/postProcessingPreference';
 
 const LABELS: Record<AntialiasingMode, string> = {
   off: 'Desligado · maior desempenho',
@@ -40,21 +42,39 @@ function graphicsOptions(): SafeHtml {
       ${ANTIALIASING_MODES.map(mode => html`<option value="${mode}" ${selected === mode && 'selected'}>${LABELS[mode]}</option>`)}
     </select>
     <p id="antialiasing-description" role="status">${DESCRIPTIONS[selected]}</p>
+    <label class="graphics-toggle-option">
+      <input id="post-processing-enabled" type="checkbox" ${postProcessingEnabled() && 'checked'} />
+      Pós-processamento
+    </label>
+    <label class="graphics-toggle-option">
+      <input id="fps-meter-enabled" type="checkbox" ${fpsMeterEnabled() && 'checked'} />
+      Mostrar FPS
+    </label>
     <small>A mudança é imediata e sua escolha fica salva neste navegador.</small>`;
 }
 
 export function bindGraphicsMenu(root: HTMLElement): void {
-  root.addEventListener('change', event => {
-    const select = event.target;
-    if (!(select instanceof HTMLSelectElement) || select.id !== 'antialiasing-mode') return;
-    if (!isAntialiasingMode(select.value)) return;
-    setAntialiasingMode(select.value);
-    const options = select.closest('.graphics-options');
-    if (options) morph(options, graphicsOptions());
-  });
+  root.addEventListener('change', handleGraphicsChange);
   root.addEventListener('keydown', event => {
     if (event.code !== 'Escape') return;
     const menu = root.querySelector<HTMLDetailsElement>('.graphics-menu[open]');
     if (menu) menu.open = false;
   });
+}
+
+function handleGraphicsChange(event: Event): void {
+  const control = event.target;
+  if (control instanceof HTMLInputElement) {
+    const toggles: Record<string, (enabled: boolean) => void> = {
+      'fps-meter-enabled': setFpsMeterEnabled,
+      'post-processing-enabled': setPostProcessingEnabled,
+    };
+    toggles[control.id]?.(control.checked);
+    return;
+  }
+  if (!(control instanceof HTMLSelectElement) || control.id !== 'antialiasing-mode') return;
+  if (!isAntialiasingMode(control.value)) return;
+  setAntialiasingMode(control.value);
+  const options = control.closest('.graphics-options');
+  if (options) morph(options, graphicsOptions());
 }

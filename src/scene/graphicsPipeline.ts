@@ -45,6 +45,7 @@ export class GraphicsPipeline {
     scene: Scene;
     camera: PerspectiveCamera;
     mode: AntialiasingMode;
+    postProcessing?: boolean;
   }) {
     const { renderer, scene, camera, mode } = options;
     const size = renderer.getSize(new Vector2());
@@ -53,16 +54,16 @@ export class GraphicsPipeline {
     this.composer = new EffectComposer(renderer, target);
     this.temporal = mode === 'taa' ? new RestartableTAAPass(scene, camera) : null;
     this.addScenePass(options);
-    this.addHdrEffects(scene, camera);
+    const effectsEnabled = options.postProcessing ?? POST_PROCESSING.enabled;
+    if (effectsEnabled) this.addHdrEffects(scene, camera);
     if (mode === 'smaa') this.composer.addPass(new SMAAPass());
     this.composer.addPass(new OutputPass());
-    this.addDisplayEffects();
+    if (effectsEnabled) this.addDisplayEffects();
     // FXAA detects contrast in display space; SMAA expects linear input before OutputPass.
     if (mode === 'fxaa') this.composer.addPass(new FXAAPass());
   }
 
   private addHdrEffects(scene: Scene, camera: PerspectiveCamera): void {
-    if (!POST_PROCESSING.enabled) return;
     if (POST_PROCESSING.ambientOcclusion.enabled) {
       this.composer.addPass(new AmbientOcclusionPass({ scene, camera }));
     }
@@ -70,7 +71,6 @@ export class GraphicsPipeline {
   }
 
   private addDisplayEffects(): void {
-    if (!POST_PROCESSING.enabled) return;
     if (POST_PROCESSING.colorGrading.enabled) this.composer.addPass(createColorGradingPass());
     if (POST_PROCESSING.vignette.enabled) this.composer.addPass(createVignettePass());
   }

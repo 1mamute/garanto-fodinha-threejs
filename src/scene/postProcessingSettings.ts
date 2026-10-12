@@ -46,7 +46,7 @@ export const POST_PROCESSING = {
     resolutionScale: 0.5,
     /** Linear radiance of lamp surfaces and robot-eye emission. */
     lampRadiance: 2.2,
-    eyeEmission: 1.4,
+    eyeEmission: 1,
   },
   vignette: {
     enabled: true,
