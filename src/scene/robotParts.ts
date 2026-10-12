@@ -1,6 +1,7 @@
 /** Shared, inexpensive geometry for the seated utility robots and first-person grippers. */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { POST_PROCESSING } from './postProcessingSettings';
 import { material, mesh } from './primitives';
 import { ROBOT_DIMENSIONS } from './robotDimensions';
 
@@ -27,7 +28,10 @@ export const TRIM = material('#878777', {
   emissiveIntensity: 0.3,
 });
 export const VISOR = material('#101a1c', { roughness: 0.32, metalness: 0.2 });
-export const EYE = material('#fff9e9', { emissive: '#fff9e9', emissiveIntensity: 0.25 });
+export const EYE = material('#fff9e9', {
+  emissive: '#fff9e9',
+  emissiveIntensity: POST_PROCESSING.bloom.eyeEmission,
+});
 
 function paintWear(): THREE.DataTexture {
   const size = 64;

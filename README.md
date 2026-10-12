@@ -37,6 +37,11 @@ acumula qualidade somente quando câmera e objetos ficam parados e reinicia com 
 As animações dos robôs podem impedir essa acumulação. Os limites de resolução e a redução
 automática em aparelhos lentos continuam ativos em todos os modos.
 
+A cena também usa ajuste de cor, oclusão ambiente, bloom e vinheta com intensidades
+discretas. Os parâmetros compartilhados pelo jogo e laboratório ficam em
+`src/scene/postProcessingSettings.ts`; consulte [Pós-processamento](docs/pos-processamento.md)
+para ajustar cada efeito no código. A opção de suavização desligada mantém esses efeitos.
+
 O zoom máximo em primeira pessoa é configurado em `src/scene/cameraSettings.ts`,
 na propriedade `FIRST_PERSON_CAMERA.maxZoom` (padrão: `2.5`, ou 2,5×; `1` desativa
 o zoom). Cada `CameraRig` também permite ajustar `maxFirstPersonZoom`.

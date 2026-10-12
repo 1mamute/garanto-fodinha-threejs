@@ -18,6 +18,9 @@ preferência salva no navegador. Alterne os modos para comparar cartas, robôs e
 sem reiniciar a cena. Para observar TAA acumulando uma imagem parada, desligue a demonstração
 de zoom e o acompanhamento da cabeça e aguarde a câmera e os objetos se estabilizarem.
 
+A sala também usa os quatro efeitos de pós-processamento do jogo. Os parâmetros
+editáveis, sua ordem e a validação estão em [Pós-processamento](pos-processamento.md).
+
 ## Particularidades dos controles
 
 **Shift + V** oculta ou restaura toda a interface, incluindo o painel, o joystick e o

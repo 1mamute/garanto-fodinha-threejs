@@ -14,8 +14,13 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { SSAARenderPass } from 'three/addons/postprocessing/SSAARenderPass.js';
 import { TAARenderPass } from 'three/addons/postprocessing/TAARenderPass.js';
+import { AmbientOcclusionPass } from './ambientOcclusionPass';
+import { BloomPass } from './bloomPass';
+import { createColorGradingPass } from './colorGradingPass';
 import type { AntialiasingMode } from './graphicsSettings';
+import { POST_PROCESSING } from './postProcessingSettings';
 import { TemporalHistory } from './temporalHistory';
+import { createVignettePass } from './vignettePass';
 
 const MSAA_SAMPLES = 4;
 const SSAA_SAMPLE_LEVEL = 2;
@@ -29,7 +34,8 @@ class RestartableTAAPass extends TAARenderPass {
   }
 }
 
-export class AntialiasingPipeline {
+/** Keeps HDR effects before output conversion and display effects after it. */
+export class GraphicsPipeline {
   private readonly composer: EffectComposer;
   private readonly temporal: RestartableTAAPass | null;
   private readonly history = new TemporalHistory();
@@ -38,7 +44,7 @@ export class AntialiasingPipeline {
     renderer: WebGLRenderer;
     scene: Scene;
     camera: PerspectiveCamera;
-    mode: Exclude<AntialiasingMode, 'off'>;
+    mode: AntialiasingMode;
   }) {
     const { renderer, scene, camera, mode } = options;
     const size = renderer.getSize(new Vector2());
@@ -47,10 +53,26 @@ export class AntialiasingPipeline {
     this.composer = new EffectComposer(renderer, target);
     this.temporal = mode === 'taa' ? new RestartableTAAPass(scene, camera) : null;
     this.addScenePass(options);
+    this.addHdrEffects(scene, camera);
     if (mode === 'smaa') this.composer.addPass(new SMAAPass());
     this.composer.addPass(new OutputPass());
+    this.addDisplayEffects();
     // FXAA detects contrast in display space; SMAA expects linear input before OutputPass.
     if (mode === 'fxaa') this.composer.addPass(new FXAAPass());
+  }
+
+  private addHdrEffects(scene: Scene, camera: PerspectiveCamera): void {
+    if (!POST_PROCESSING.enabled) return;
+    if (POST_PROCESSING.ambientOcclusion.enabled) {
+      this.composer.addPass(new AmbientOcclusionPass({ scene, camera }));
+    }
+    if (POST_PROCESSING.bloom.enabled) this.composer.addPass(new BloomPass());
+  }
+
+  private addDisplayEffects(): void {
+    if (!POST_PROCESSING.enabled) return;
+    if (POST_PROCESSING.colorGrading.enabled) this.composer.addPass(createColorGradingPass());
+    if (POST_PROCESSING.vignette.enabled) this.composer.addPass(createVignettePass());
   }
 
   private addScenePass(options: {

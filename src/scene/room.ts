@@ -1,6 +1,7 @@
 /** Static decor: floor, walls, table, plant, the turn spotlight, the dealer chip and chairs. */
 import * as THREE from 'three';
 import { floorTexture } from './floorTexture';
+import { POST_PROCESSING } from './postProcessingSettings';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
 import { FLOOR_ROTATION, ROOM_RADIUS, TABLE_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
@@ -74,7 +75,10 @@ function buildLamp(world: THREE.Group): void {
   const brass = material('#67533a', { metalness: 0.5, map: wornTexture('metal') });
   mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.3, 6), brass, world, [0, 5.55, 0]);
   mesh(new THREE.CylinderGeometry(0.28, 1.05, 0.48, 24, 1, true), brass, world, [0, 4.85, 0]);
-  const glow = new THREE.MeshBasicMaterial({ color: '#ffdb9c', side: THREE.DoubleSide });
+  const glow = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#ffdb9c').multiplyScalar(POST_PROCESSING.bloom.lampRadiance),
+    side: THREE.DoubleSide,
+  });
   mesh(new THREE.CircleGeometry(0.98, 24), glow, world, [0, 4.61, 0]).rotation.x = Math.PI / 2;
 }
 
@@ -89,7 +93,10 @@ function buildWallLamps(world: THREE.Group): void {
     context.fillRect(0, 0, 128, 128);
   });
   const halo = new THREE.MeshBasicMaterial({ map: glowTexture, transparent: true, depthWrite: false });
-  const bulb = new THREE.MeshBasicMaterial({ color: '#ffd59a', toneMapped: false });
+  const bulb = new THREE.MeshBasicMaterial({
+    // Keep lamp radiance linear; OutputPass applies the same exposure as the room.
+    color: new THREE.Color('#ffd59a').multiplyScalar(POST_PROCESSING.bloom.lampRadiance),
+  });
   const casing = material('#3e3024', { roughness: 0.9 });
   for (const angle of WALL_LAMP_ANGLES) {
     const fixture = new THREE.Group();

@@ -48,6 +48,7 @@ The browser tab, running servers, and refreshed `PATH` are session-local; repeat
 - Readability limits: cognitive complexity ≤ 10, cyclomatic ≤ 12, ≤ 70 lines per function, ≤ 400 lines per file, ≤ 4 parameters (use an options object), max nesting 3. When over a limit, extract a well-named helper instead of compressing code.
 - Descriptive names (min 2 chars; `x`, `y`, `z`, `i`, `j`, `_` allowed). Name constants instead of magic numbers when the meaning is not obvious.
 - Comment the *why* in non-obvious places (protocol edge cases, animation math); don't narrate obvious code.
+- **Tunable parameters:** the user wants to adjust every practical visual, animation, camera, physics and interaction parameter in code. Keep these knobs in clearly named, discoverable settings objects/modules with documented units, useful ranges and neutral/disabled values where applicable. Reuse shared settings in the game and lab so a change has one source of truth; start with subtle visual defaults. Post-processing knobs live in `src/scene/postProcessingSettings.ts`.
 - Prettier formats everything, including `src/style.css`.
 
 ## Invariants — keep these when changing code
@@ -62,6 +63,7 @@ The browser tab, running servers, and refreshed `PATH` are session-local; repeat
 ## Workflow tips
 
 - When changing the development inspection scene or its controls, read `docs/sala-de-testes.md` for access, shared modules, movement limits and validation steps.
+- When changing post-processing, read `docs/pos-processamento.md` for knob units, pass order, first-person exclusions and browser validation.
 - Add or update a unit test in `tests/game.test.ts` for any rule change; use the `startedMatch` / `completeRound` / `seededRandom` helpers from `tests/helpers.ts`.
 - Run `npm run check` after edits; run the integration tests when touching `src/net/` or `worker/`.
 - Do not commit, deploy (`npm run deploy`) or touch Cloudflare secrets unless explicitly asked.

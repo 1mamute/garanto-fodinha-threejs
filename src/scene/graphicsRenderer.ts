@@ -1,10 +1,11 @@
 import type { PerspectiveCamera, Scene, WebGLRenderer } from 'three';
-import { AntialiasingPipeline } from './antialiasingPipeline';
+import { GraphicsPipeline } from './graphicsPipeline';
 import { antialiasingMode, onAntialiasingChange, type AntialiasingMode } from './graphicsSettings';
+import { POST_PROCESSING } from './postProcessingSettings';
 
-/** Owns AA resources and includes the first-person overlay in every scene sample. */
+/** Owns graphics resources and includes the first-person overlay in every scene sample. */
 export class GraphicsRenderer {
-  private pipeline: AntialiasingPipeline | null = null;
+  private pipeline: GraphicsPipeline | null = null;
   private mode = antialiasingMode();
   private width = 1;
   private height = 1;
@@ -63,8 +64,16 @@ export class GraphicsRenderer {
     this.pipeline?.resize(this.width, this.height, this.pixelRatio);
   }
 
-  private createPipeline(mode: AntialiasingMode): AntialiasingPipeline | null {
-    return mode === 'off' ? null : new AntialiasingPipeline({ ...this.options, mode });
+  private createPipeline(mode: AntialiasingMode): GraphicsPipeline | null {
+    const effects =
+      POST_PROCESSING.enabled &&
+      [
+        POST_PROCESSING.colorGrading,
+        POST_PROCESSING.ambientOcclusion,
+        POST_PROCESSING.bloom,
+        POST_PROCESSING.vignette,
+      ].some(effect => effect.enabled);
+    return mode === 'off' && !effects ? null : new GraphicsPipeline({ ...this.options, mode });
   }
 
   private drawOverlay(): void {
