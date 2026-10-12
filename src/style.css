@@ -2,7 +2,8 @@ body.ui-hidden #app,
 body.ui-hidden #toast,
 body.ui-hidden .mouse-look-prompt,
 body.ui-hidden .fps-meter,
-body.ui-hidden .dealer-indicator {
+body.ui-hidden .dealer-indicator,
+body.ui-hidden .turn-indicator {
   display: none;
 }
 
@@ -1872,6 +1873,42 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.turn-indicator {
+  position: fixed;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+.turn-indicator[hidden] {
+  display: none;
+}
+.turn-indicator.offscreen {
+  transform: translate(-50%, -50%);
+}
+.turn-indicator-arrow {
+  color: var(--turn-color, #e9b767);
+  font-size: 30px;
+  line-height: 1;
+  text-shadow: 0 2px 5px #000;
+}
+.turn-indicator-caption {
+  max-width: min(200px, 42vw);
+  padding: 5px 9px;
+  border: 1px solid var(--turn-color, #e9b767);
+  border-radius: 5px;
+  background: #17211bf0;
+  color: #fff2d6;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 @media (pointer: fine) {
   .joystick {
     display: none;
@@ -2154,6 +2191,10 @@ input::placeholder {
 .player-row.current {
   background: #68553070;
   border-left: 2px solid #e9b767;
+}
+.player-meta > .turn-badge {
+  color: #ffe3a7;
+  font-weight: 700;
 }
 .player-meta strong {
   font-size: 12px;

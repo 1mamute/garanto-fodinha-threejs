@@ -21,6 +21,14 @@ Quando chega sua vez de dar o palpite ou jogar, o aviso acima da mesa ganha dest
 um som curto, respeitando a opção de som. Se a aba estiver em segundo plano, seu título
 também mostra **Sua vez**. O aviso desaparece durante pausas e ao terminar seu turno.
 
+Para acompanhar a vez dos demais, o aviso informa quem deve dar o palpite ou jogar,
+e a lista destaca esse jogador com **Apostando** ou **Jogando**. Um holofote suave e um
+anel dourado marcam sua cadeira. A seta com nome acompanha o robô e aponta sua direção
+quando ele fica fora do enquadramento. A troca para outro jogador toca um som mais baixo,
+também controlado pela opção de som. Os indicadores ficam ocultos durante pausas.
+Os ajustes visuais ficam em `src/scene/turnIndicatorSettings.ts`, compartilhados com o
+laboratório; os sons ficam em `src/ui/soundSettings.ts`.
+
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
 - Ao entrar, você senta automaticamente à mesa e permanece na cadeira até ser eliminado. Escolha uma cor disponível e marque pronto; a cor fica bloqueada enquanto você estiver pronto. O host pode adicionar bots e inicia quando todos os jogadores da partida estiverem prontos.
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.

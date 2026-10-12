@@ -24,6 +24,8 @@ import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { RobotWalking } from './robotWalking';
 import { buildChair, buildRoom, TABLE_TOP } from './room';
 import { TableCards, type Seat } from './tableCards';
+import { TurnIndicator } from './turnIndicator';
+import { LAB_TURN_PREVIEW } from './turnIndicatorSettings';
 import type { InspectionCameraMode } from './types';
 
 const SEAT_RADIUS = 3.35;
@@ -48,6 +50,8 @@ export class LabScene implements InputTarget {
   private readonly graphics: GraphicsRenderer;
   private readonly tableCards = new TableCards(this.world, this.cardPhysics);
   private readonly dealerIndicator = new DealerIndicator();
+  private readonly turnIndicator = new TurnIndicator();
+  private turnCaption = '';
   private dealerSeat: THREE.Vector3 | null = null;
   private dealerName = '';
   private readonly controlled = new Robot('#648bc1', 'standing');
@@ -130,7 +134,10 @@ export class LabScene implements InputTarget {
       player.hand = deck.slice(index * 2, index * 2 + 2);
       const angle = (index * TAU) / state.players.length;
       const robot = new Robot(player.color);
-      if (player.id === state.turn) this.zoomRobot = robot;
+      if (player.id === LAB_TURN_PREVIEW.playerId) {
+        this.zoomRobot = robot;
+        this.turnCaption = `${player.name} · Jogando`;
+      }
       robot.group.position.set(Math.sin(angle) * SEAT_RADIUS, 0, Math.cos(angle) * SEAT_RADIUS);
       robot.group.rotation.y = angle + Math.PI;
       const chair = buildChair();
@@ -156,7 +163,8 @@ export class LabScene implements InputTarget {
     this.dealerSeat = dealer?.position.clone() ?? null;
     this.dealerName = state.players.find(player => player.id === state.dealer)?.name ?? '';
     if (dealer) room.dealerChip.position.copy(dealer.position).multiplyScalar(0.7).setY(TABLE_TOP);
-    const active = state.turn ? seats.get(state.turn) : undefined;
+    const active = seats.get(LAB_TURN_PREVIEW.playerId);
+    room.spotlight.visible = Boolean(active);
     if (active) room.spotlight.position.copy(active.position);
     const { stationary } = this;
     this.controlled.group.rotation.y = Math.PI;
@@ -251,6 +259,13 @@ export class LabScene implements InputTarget {
       seat: this.dealerSeat,
       name: this.dealerName,
       visible: false,
+    });
+    this.turnIndicator.update({
+      camera: this.rig.camera,
+      seat: this.zoomRobot?.group.position ?? null,
+      text: this.turnCaption,
+      visible: true,
+      enabled: true,
     });
     this.walking.update({
       position: this.rig.spectatorPosition,

@@ -12,7 +12,8 @@ import { html, type SafeHtml } from '../html';
 import { icon } from '../icons';
 import { graphicsMenu } from '../graphicsMenu';
 import type { UiState } from '../state';
-import { turnPrompt } from '../turnNotice';
+import { tableTurnPrompt, turnPrompt } from '../turnNotice';
+import { activeTurn } from '../../shared/activeTurn';
 import { dialog, helpDialog, logo, suitClass } from './common';
 import { centerCard } from './center';
 import { bidPanel, handPanel } from './hand';
@@ -57,7 +58,7 @@ export function gameScreen(view: GameView): SafeHtml {
   const { ui, game, me } = view;
   const prompt = turnPrompt(game, view.session.memberId);
   return html`${gameHeader(view)}${playersPanel(view)}
-    <div class="event-banner ${prompt ? 'turn-notice' : ''}" role="status">${prompt ?? game.lastEvent}</div>
+    <div class="event-banner ${prompt ? 'turn-notice' : ''}" role="status">${tableTurnPrompt(game, view.session.memberId) ?? game.lastEvent}</div>
     ${kickerInfo(game)}${centerCard(view)}${bidPanel(view)}${handPanel(view)}${viewControls(view)}
     ${ui.chatOpen && chatPanel(view)}${inspectionPanel(ui)}${watchedHand(view)}
     ${canWalk(me) && ui.cameraMode === 'first' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}
@@ -99,9 +100,8 @@ function playersPanel(view: GameView): SafeHtml {
 }
 
 function playerRow({ game, me }: GameView, player: Player): SafeHtml {
-  const classes = [player.id === game.turn && 'current', player.eliminated && 'eliminated']
-    .filter(Boolean)
-    .join(' ');
+  const current = activeTurn(game)?.id === player.id;
+  const classes = [current && 'current', player.eliminated && 'eliminated'].filter(Boolean).join(' ');
   return html`<button
     class="player-row ${classes}"
     data-action="watch"
@@ -111,6 +111,7 @@ function playerRow({ game, me }: GameView, player: Player): SafeHtml {
     <span class="avatar" style="--robot-color:${player.color}"><span>● ●</span></span>
     <span class="player-meta">
       <strong>${player.name} ${player.id === me?.id && html`<small>você</small>`}</strong>
+      ${current && html`<span class="turn-badge">➜ ${game.phase === 'bet' ? 'Apostando' : 'Jogando'}</span>`}
       <span>${playerStatus(game, player)}</span>
     </span>
     ${playerRecord(game, player)}

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { TurnNotice, turnPrompt } from '../src/ui/turnNotice';
+import { TurnNotice, tableTurnPrompt, turnPrompt } from '../src/ui/turnNotice';
+import type { SoundKind } from '../src/ui/feedback';
 import { startedMatch } from './helpers';
 
 test('avisa uma vez por turno e distingue palpite de jogada', () => {
@@ -16,6 +17,27 @@ test('avisa uma vez por turno e distingue palpite de jogada', () => {
   notice.update({ ...game, turn: 'outro' }, 'human', true);
   notice.update(game, 'human', true);
   assert.equal(sounds, 3);
+});
+
+test('identifica a vez dos outros e usa um som discreto sem repetir em atualizações', () => {
+  const sounds: SoundKind[] = [];
+  const notice = new TurnNotice({ title: 'Garanto', hidden: false }, kind => {
+    sounds.push(kind);
+  });
+  const game = { ...startedMatch(), turn: 'human' };
+  const other = game.players.find(player => player.id !== 'human');
+  assert.ok(other);
+  const otherTurn = { ...game, turn: other.id };
+  notice.update(game, 'human', true);
+  notice.update(otherTurn, 'human', true);
+  notice.update({ ...otherTurn, version: otherTurn.version + 1 }, 'human', true);
+  assert.deepEqual(sounds, ['turn', 'turnOther']);
+  assert.equal(tableTurnPrompt(otherTurn, 'human'), `Vez de ${other.name} · dar o palpite`);
+  assert.equal(
+    tableTurnPrompt({ ...otherTurn, phase: 'play' }, 'human'),
+    `Vez de ${other.name} · jogar uma carta`,
+  );
+  assert.equal(tableTurnPrompt({ ...otherTurn, paused: true }, 'human'), null);
 });
 
 test('mostra o aviso na aba oculta e restaura o título ao voltar, pausar ou sair', () => {

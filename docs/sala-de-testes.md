@@ -13,6 +13,15 @@ Para iniciar o servidor e abrir o laboratório, consulte [Laboratório de cena n
 
 A rodada permanece congelada, sem avanço de turnos ou animações de partida. `LabScene.populate()` parte de `demoState()` e preenche as mãos com cartas que não estejam na mesa ou no kicker. A postura em pé usa o modelo `Robot` com ajustes nos braços e pernas.
 
+O robô sentado **Paçoca** mantém holofote, anel no chão e seta com nome e ação sempre
+ativados para prévia, inclusive durante a inspeção de cartas e com `enabled: false` nas
+configurações do jogo. O alvo é fixado por `LAB_TURN_PREVIEW.playerId` em
+`src/scene/turnIndicatorSettings.ts`, sem depender da fase ou da vez da composição congelada.
+Edite os parâmetros compartilhados nesse arquivo com Vite aberto para atualizar a prévia.
+Intensidade zero em `lightIntensity` desliga a luz, permitindo testar esse valor neutro.
+Caminhe e alterne as câmeras para conferir a seta junto ao robô e sua direção quando ele
+sai do enquadramento, inclusive em retrato. **Shift + V** continua ocultando toda a interface.
+
 O menu **Gráficos** usa os mesmos modos de suavização de bordas do jogo e a mesma
 preferência salva no navegador. Alterne os modos para comparar cartas, robôs e bordas da mesa
 sem reiniciar a cena. Para observar TAA acumulando uma imagem parada, desligue a demonstração

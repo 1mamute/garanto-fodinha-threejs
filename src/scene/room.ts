@@ -5,6 +5,7 @@ import { POST_PROCESSING } from './postProcessingSettings';
 import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
 import { FLOOR_ROTATION, ROOM_RADIUS, TABLE_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
 import { wornTexture } from './surfaceTextures';
+import { TURN_INDICATOR } from './turnIndicatorSettings';
 
 /** Table surface height; cards lie just above it. */
 export const TABLE_TOP = 1.6465;
@@ -147,9 +148,28 @@ function shadowTexture(): THREE.CanvasTexture {
 
 function buildSpotlight(world: THREE.Group): THREE.Group {
   const spotlight = new THREE.Group();
+  const settings = TURN_INDICATOR;
   world.add(spotlight);
-  const halo = material('#d2aa65', { emissive: '#b58842', emissiveIntensity: 0.35 });
-  mesh(new THREE.TorusGeometry(0.62, 0.045, 8, 32), halo, spotlight, [0, 0.04, 0]).rotation.x = Math.PI / 2;
+  const halo = material(settings.color, {
+    emissive: settings.color,
+    emissiveIntensity: settings.haloEmissiveIntensity,
+  });
+  mesh(new THREE.TorusGeometry(settings.haloRadius, settings.haloThickness, 8, 32), halo, spotlight, [
+    0,
+    settings.haloHeight,
+    0,
+  ]).rotation.x = Math.PI / 2;
+  const light = new THREE.SpotLight(
+    settings.color,
+    settings.lightIntensity,
+    settings.lightDistance,
+    settings.lightAngle,
+    settings.lightPenumbra,
+  );
+  light.position.y = settings.lightHeight;
+  light.target.position.y = settings.lightTargetHeight;
+  spotlight.add(light, light.target);
+  spotlight.visible = false;
   return spotlight;
 }
 

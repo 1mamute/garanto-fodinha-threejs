@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { isUiHidden } from '../ui/visibility';
+import { activeTurn } from '../shared/activeTurn';
 import { canWalk, findPlayer, type GameState, type Player } from '../game';
 import { CameraRig } from './cameraRig';
 import type { CardFrame, CardRelease } from '../net/sceneMessages';
@@ -25,6 +26,8 @@ import { nowSeconds, Robot } from './robot';
 import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP, type RoomProps } from './room';
 import { TableCards, type Seat } from './tableCards';
+import { TurnIndicator } from './turnIndicator';
+import { TURN_INDICATOR } from './turnIndicatorSettings';
 import type { CameraMode, CardInspection, Pose, SceneCallbacks } from './types';
 
 const SEAT_RADIUS = 3.35;
@@ -56,6 +59,7 @@ export class TableScene implements InputTarget {
   private readonly seats = new Map<string, SeatProps>();
   private readonly tableCards: TableCards;
   private readonly dealerIndicator = new DealerIndicator();
+  private readonly turnIndicator = new TurnIndicator();
   private readonly firstPerson: FirstPersonHands;
   private readonly input: SceneInput;
   private readonly motion = new PlayerMotion(this.world, this.physics);
@@ -292,8 +296,9 @@ export class TableScene implements InputTarget {
     const dealer = this.seats.get(state.dealer)?.robot.group;
     dealerChip.visible = Boolean(dealer);
     if (dealer) dealerChip.position.copy(dealer.position).multiplyScalar(0.7).setY(TABLE_TOP);
-    const active = state.turn ? this.seats.get(state.turn)?.robot.group : undefined;
-    spotlight.visible = Boolean(active);
+    const player = activeTurn(state);
+    const active = player ? this.seats.get(player.id)?.robot.group : undefined;
+    spotlight.visible = TURN_INDICATOR.enabled && Boolean(active);
     if (active) spotlight.position.copy(active.position);
   }
 
@@ -334,6 +339,7 @@ export class TableScene implements InputTarget {
       tableBounds: this.tableCards.framingBounds,
     });
     this.updateDealerIndicator();
+    this.updateTurnIndicator();
     this.firstPerson.fitTo(this.rig.camera.aspect, this.rig.camera.fov);
     // Keep the seated body visible; camera-mounted hands replace its arms and card fan.
     const embodied = this.mode === 'first' && !walking;
@@ -377,6 +383,21 @@ export class TableScene implements InputTarget {
       name: dealer?.name ?? '',
       chip: this.room.dealerChip,
       visible: !isObserver(player) && (this.mode === 'first' || this.mode === 'top'),
+    });
+  }
+
+  private updateTurnIndicator(): void {
+    const player = activeTurn(this.state);
+    if (!player) {
+      this.turnIndicator.hide();
+      return;
+    }
+    const myFirstPerson = player.id === this.myId && this.mode === 'first';
+    this.turnIndicator.update({
+      camera: this.rig.camera,
+      seat: this.seats.get(player.id)?.robot.group.position ?? null,
+      text: `${player.name} · ${this.state?.phase === 'bet' ? 'Apostando' : 'Jogando'}`,
+      visible: !isUiHidden() && this.mode !== 'landing' && !myFirstPerson && !this.inspected,
     });
   }
 

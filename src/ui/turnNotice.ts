@@ -1,13 +1,20 @@
-import { findPlayer, type GameState } from '../game';
-import { playSound } from './feedback';
+import type { GameState } from '../game';
+import { activeTurn } from '../shared/activeTurn';
+import { playSound, type SoundKind } from './feedback';
 
 export function turnPrompt(game: GameState | null, playerId: string): string | null {
-  if (!game || game.paused || game.turn !== playerId) return null;
-  const player = findPlayer(game, playerId);
-  if (!player?.seated || player.eliminated || player.spectator) return null;
-  if (game.phase === 'bet') return 'Sua vez · faça seu palpite';
-  if (game.phase === 'play') return 'Sua vez · jogue uma carta';
-  return null;
+  const player = activeTurn(game);
+  if (!game || player?.id !== playerId) return null;
+  return game.phase === 'bet' ? 'Sua vez · faça seu palpite' : 'Sua vez · jogue uma carta';
+}
+
+export function tableTurnPrompt(game: GameState, playerId: string): string | null {
+  const player = activeTurn(game);
+  if (!player) return null;
+  return (
+    turnPrompt(game, playerId) ??
+    `Vez de ${player.name} · ${game.phase === 'bet' ? 'dar o palpite' : 'jogar uma carta'}`
+  );
 }
 
 interface PageTitle {
@@ -18,23 +25,25 @@ interface PageTitle {
 /** State updates such as chat and reordering must not repeat the turn sound. */
 export class TurnNotice {
   private prompt: string | null = null;
+  private turnKey: string | null = null;
   private readonly originalTitle: string;
 
   constructor(
     private readonly page: PageTitle = document,
-    private readonly notify: () => void = () => {
-      playSound('turn');
-    },
+    private readonly notify: (kind: SoundKind) => void = playSound,
   ) {
     this.originalTitle = page.title;
   }
 
   update(game: GameState | null, playerId: string, soundEnabled: boolean): void {
-    const prompt = turnPrompt(game, playerId);
-    const changed = prompt !== this.prompt;
-    this.prompt = prompt;
+    const player = activeTurn(game);
+    // Round and hand size distinguish consecutive turns won by the same player.
+    const key = player && game ? `${game.round}:${game.phase}:${player.id}:${player.hand.length}` : null;
+    const changed = key !== this.turnKey;
+    this.turnKey = key;
+    this.prompt = turnPrompt(game, playerId);
     this.refreshTitle();
-    if (prompt && changed && soundEnabled) this.notify();
+    if (key && changed && soundEnabled) this.notify(player?.id === playerId ? 'turn' : 'turnOther');
   }
 
   refreshTitle(): void {
