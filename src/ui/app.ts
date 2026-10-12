@@ -18,6 +18,7 @@ import { HandDrag } from './handDrag';
 import { copyInvite, inviteModal, roomRequest } from './invite';
 import { bindJoystick } from './joystick';
 import type { Modal, UiState } from './state';
+import { TurnNotice } from './turnNotice';
 import { createGameView, gameScreen } from './views/game';
 import { homeView } from './views/home';
 
@@ -33,6 +34,7 @@ export class App {
   readonly scene: TableScene;
   private readonly handDrag: HandDrag;
   private renderedChatCount = -1;
+  private readonly turnNotice = new TurnNotice();
 
   constructor(
     private readonly root: HTMLElement,
@@ -95,6 +97,7 @@ export class App {
   }
 
   private renderHome(): void {
+    this.turnNotice.update(null, '', false);
     document.body.classList.remove('playing');
     this.renderedChatCount = -1;
     morph(this.root, homeView(this.ui));
@@ -157,6 +160,7 @@ export class App {
     if (previous && next.table.length > previous.table.length) this.sound('play');
     if (previous && next.phase === 'trick' && previous.phase !== 'trick') this.sound('win');
     this.ui.game = next;
+    this.turnNotice.update(next, session.memberId, this.ui.soundEnabled);
     this.scene.setState(next, session.memberId);
     if (this.scene.mode === 'landing') this.scene.setMode('first');
     this.render();
@@ -246,6 +250,9 @@ export class App {
   // ── DOM events ─────────────────────────────────────────────────────────────
 
   private bindEvents(): void {
+    document.addEventListener('visibilitychange', () => {
+      this.turnNotice.refreshTitle();
+    });
     this.root.addEventListener('click', event => void this.onClick(event));
     this.root.addEventListener('submit', event => void this.onSubmit(event));
     this.root.addEventListener('input', event => {

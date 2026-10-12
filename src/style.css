@@ -811,6 +811,12 @@ select {
   border: 1px solid #645744;
   text-align: center;
 }
+.event-banner.turn-notice {
+  background: #263d2f;
+  color: #fff2d6;
+  border-color: #e9b767;
+  font-weight: 700;
+}
 .kicker-info {
   position: absolute;
   display: flex;

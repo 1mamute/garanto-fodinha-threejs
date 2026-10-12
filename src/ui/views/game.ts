@@ -12,6 +12,7 @@ import { html, type SafeHtml } from '../html';
 import { icon } from '../icons';
 import { graphicsMenu } from '../graphicsMenu';
 import type { UiState } from '../state';
+import { turnPrompt } from '../turnNotice';
 import { dialog, helpDialog, logo, suitClass } from './common';
 import { centerCard } from './center';
 import { bidPanel, handPanel } from './hand';
@@ -54,8 +55,9 @@ const PHASE_LABELS: Record<Phase, string> = {
 
 export function gameScreen(view: GameView): SafeHtml {
   const { ui, game, me } = view;
+  const prompt = turnPrompt(game, view.session.memberId);
   return html`${gameHeader(view)}${playersPanel(view)}
-    <div class="event-banner" role="status">${game.lastEvent}</div>
+    <div class="event-banner ${prompt ? 'turn-notice' : ''}" role="status">${prompt ?? game.lastEvent}</div>
     ${kickerInfo(game)}${centerCard(view)}${bidPanel(view)}${handPanel(view)}${viewControls(view)}
     ${ui.chatOpen && chatPanel(view)}${inspectionPanel(ui)}${watchedHand(view)}
     ${canWalk(me) && ui.cameraMode === 'first' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}

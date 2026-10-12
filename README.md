@@ -17,6 +17,10 @@ Para editar com atualização automática, deixe `npm run dev:cloudflare` aberto
 
 ## Jogar
 
+Quando chega sua vez de dar o palpite ou jogar, o aviso acima da mesa ganha destaque e toca
+um som curto, respeitando a opção de som. Se a aba estiver em segundo plano, seu título
+também mostra **Sua vez**. O aviso desaparece durante pausas e ao terminar seu turno.
+
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
 - Ao entrar, você senta automaticamente à mesa e permanece na cadeira até ser eliminado. Escolha uma cor disponível e marque pronto; a cor fica bloqueada enquanto você estiver pronto. O host pode adicionar bots e inicia quando todos os jogadores da partida estiverem prontos.
 - Aposte quantas vazas vai ganhar. O jogador seguinte ao dealer, no sentido anti-horário, começa as apostas e a primeira vaza. O dealer é o último em ambas.

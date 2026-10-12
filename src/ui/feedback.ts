@@ -1,3 +1,5 @@
+import { SOUND_SETTINGS } from './soundSettings';
+
 const TOAST_MS = 4_500;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -13,12 +15,14 @@ export function toast(message: string): void {
   }, TOAST_MS);
 }
 
-export type SoundKind = 'play' | 'win';
+export type SoundKind = keyof typeof SOUND_SETTINGS;
 
 let audio: AudioContext | null = null;
 
-/** A tiny synthesized blip: falling pitch for a played card, rising for a won trick. */
+/** Short synthesized cues with independent, tunable profiles. */
 export function playSound(kind: SoundKind): void {
+  const settings = SOUND_SETTINGS[kind];
+  if (settings.gain === 0) return;
   try {
     audio ??= new AudioContext();
     if (audio.state === 'suspended') void audio.resume();
@@ -28,12 +32,12 @@ export function playSound(kind: SoundKind): void {
     gain.connect(audio.destination);
     const start = audio.currentTime;
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(kind === 'play' ? 460 : 660, start);
-    oscillator.frequency.exponentialRampToValueAtTime(kind === 'play' ? 180 : 880, start + 0.13);
-    gain.gain.setValueAtTime(0.035, start);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+    oscillator.frequency.setValueAtTime(settings.startHz, start);
+    oscillator.frequency.exponentialRampToValueAtTime(settings.endHz, start + settings.durationSeconds * 0.7);
+    gain.gain.setValueAtTime(settings.gain, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + settings.durationSeconds * 0.95);
     oscillator.start();
-    oscillator.stop(start + 0.19);
+    oscillator.stop(start + settings.durationSeconds);
   } catch {
     // Audio is optional (blocked autoplay, missing API).
   }
