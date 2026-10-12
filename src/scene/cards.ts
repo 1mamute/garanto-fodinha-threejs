@@ -1,7 +1,9 @@
+import { CARD_ARTWORK } from '../config/cardAppearanceSettings';
+import { onSettingsChange, watchSettings } from '../config/hotSettings';
 /** Playing card meshes and their canvas-drawn faces. */
 import * as THREE from 'three';
 import type { Card } from '../game';
-import { CARD_HEIGHT, CARD_WIDTH, drawCardArtwork } from './cardArtwork';
+import { drawCardArtwork } from './cardArtwork';
 import { createCardGeometry } from './cardGeometry';
 import { canvasTexture, disposeMaterials, material } from './primitives';
 import type { CardInspection } from './types';
@@ -13,7 +15,7 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
   const key = card?.id ?? 'back';
   const cached = faceTextures.get(key);
   if (cached) return cached;
-  const texture = canvasTexture(CARD_WIDTH, CARD_HEIGHT, context => {
+  const texture = canvasTexture(CARD_ARTWORK.CARD_WIDTH, CARD_ARTWORK.CARD_HEIGHT, context => {
     drawCardArtwork(context, card);
   });
   texture.anisotropy = 4;
@@ -22,8 +24,16 @@ function cardTexture(card: Card | null): THREE.CanvasTexture {
   return texture;
 }
 
-const CARD_GEOMETRY = createCardGeometry();
+let CARD_GEOMETRY = createCardGeometry();
 const EDGE = material('#e5d8be');
+
+onSettingsChange(category => {
+  if (category !== 'cardAppearanceSettings') return;
+  CARD_GEOMETRY.dispose();
+  CARD_GEOMETRY = createCardGeometry();
+  for (const texture of faceTextures.values()) texture.dispose();
+  faceTextures.clear();
+});
 
 /** A card in the world. It eases towards `target`/`targetRotation` every frame. */
 export class CardMesh extends THREE.Mesh<THREE.BufferGeometry, THREE.Material[]> {
@@ -49,6 +59,20 @@ export class CardMesh extends THREE.Mesh<THREE.BufferGeometry, THREE.Material[]>
     });
     super(CARD_GEOMETRY, [EDGE, top, bottom]);
     this.details = { card, playerName: '' };
+    watchSettings(this, (mesh, category) => {
+      if (category !== 'cardAppearanceSettings') return;
+      mesh.geometry = CARD_GEOMETRY;
+      const top = mesh.material[1];
+      const bottom = mesh.material[2];
+      if (top instanceof THREE.MeshBasicMaterial) {
+        top.map = cardTexture(mesh.faceDown ? null : mesh.card);
+        top.needsUpdate = true;
+      }
+      if (bottom instanceof THREE.MeshBasicMaterial) {
+        bottom.map = cardTexture(null);
+        bottom.needsUpdate = true;
+      }
+    });
   }
 
   destroy(): void {

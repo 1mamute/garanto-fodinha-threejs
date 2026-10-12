@@ -1,7 +1,6 @@
+import { SCENE_INPUT } from '../config/interactionSettings';
 /** Pointer lock for walking in first person; seated players keep their card cursor. */
 import type { CameraRig } from './cameraRig';
-
-const LOOK_SPEED = 0.004;
 
 interface MouseLookOptions {
   canvas: HTMLCanvasElement;
@@ -25,8 +24,8 @@ export class MouseLook {
     document.body.append(this.prompt);
     document.addEventListener('mousemove', event => {
       if (!this.active || !this.enabled) return;
-      options.rig.yaw -= event.movementX * LOOK_SPEED;
-      options.rig.addPitch(-event.movementY * LOOK_SPEED);
+      options.rig.yaw -= event.movementX * SCENE_INPUT.LOOK_SPEED;
+      options.rig.addPitch(-event.movementY * SCENE_INPUT.LOOK_SPEED);
     });
     document.addEventListener('pointerlockchange', () => {
       this.pending = false;

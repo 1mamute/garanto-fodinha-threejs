@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CARD_MOTION } from './cardMotionSettings';
+import { CARD_MOTION } from '../config/cardMotionSettings';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -13,7 +13,7 @@ export class CardReturn {
 
   constructor(
     card: THREE.Object3D,
-    private readonly durationSeconds = CARD_MOTION.returnSeconds,
+    private readonly durationSeconds: number | (() => number) = () => CARD_MOTION.returnSeconds,
   ) {
     this.start = card.position.clone();
     this.orientation = card.quaternion.clone();
@@ -27,7 +27,9 @@ export class CardReturn {
     }
     this.target = target.clone();
     this.elapsed += deltaSeconds;
-    const progress = this.durationSeconds <= 0 ? 1 : Math.min(1, this.elapsed / this.durationSeconds);
+    const duration =
+      typeof this.durationSeconds === 'function' ? this.durationSeconds() : this.durationSeconds;
+    const progress = duration <= 0 ? 1 : Math.min(1, this.elapsed / duration);
     const blend = progress * progress * (3 - 2 * progress);
     card.position.lerpVectors(this.start, target, blend);
     this.destination.setFromAxisAngle(UP, rotation);

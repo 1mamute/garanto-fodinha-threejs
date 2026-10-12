@@ -4,7 +4,7 @@ import { createDeck } from '../src/game';
 import { createRenderer, createScene } from '../src/scene/environment';
 import { GraphicsRenderer } from '../src/scene/graphicsRenderer';
 import { FirstPersonHands } from '../src/scene/hands';
-import { ANTIALIASING_MODES, antialiasingMode, setAntialiasingMode } from '../src/scene/graphicsSettings';
+import { ANTIALIASING_MODES, antialiasingMode, setAntialiasingMode } from '../src/scene/graphicsPreference';
 
 const SIZE = 128;
 

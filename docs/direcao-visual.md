@@ -15,7 +15,7 @@ A entrada ocupa pouco espaço; o lobby acontece com a sala visível. Durante a p
 
 ## Movimento das cartas
 
-Os ajustes ficam em `src/scene/cardMotionSettings.ts`, no objeto `CARD_MOTION`: `slideSeconds` mantém a carta livre na física por 3 segundos após o pouso; `returnSeconds` define um retorno de 2,4 segundos, com início e fim suaves. `dragVelocityGain`, `maxDragSpeed`, `maxLaunchSpeed`, `dropSpeed` e `impactSpeedGain` ajustam a força; `friction` e `linearDamping` controlam a desaceleração.
+Os ajustes ficam em `src/config/cardMotionSettings.ts`, no objeto `CARD_MOTION`: `slideSeconds` mantém a carta livre na física por 3 segundos após o pouso; `returnSeconds` define um retorno de 2,4 segundos, com início e fim suaves. `dragVelocityGain`, `maxDragSpeed`, `maxLaunchSpeed`, `dropSpeed` e `impactSpeedGain` ajustam a força; `friction` e `linearDamping` controlam a desaceleração.
 
 O impulso considera os últimos 120 ms do arraste sobre o feltro, em coordenadas da mesa, para funcionar em retrato e paisagem. Parar antes de soltar elimina o impulso antigo. A trajetória é visual e local; regras e relógios da partida não mudam. Se a vaza for coletada antes do fim da espera, a carta segue suavemente para a pilha do vencedor, preservando seu objeto e corpo físico.
 

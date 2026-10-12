@@ -1,12 +1,36 @@
 import * as THREE from 'three';
-import { canvasTexture, material, mesh } from './primitives';
-import { TURN_INDICATOR } from './turnIndicatorSettings';
+import { canvasTexture, disposeMaterials, material, mesh } from './primitives';
+import { TURN_INDICATOR } from '../config/turnIndicatorSettings';
+
+const appliedSettings = new WeakMap<THREE.Group, string>();
 
 /** A visible beam makes the turn readable without relying on bloom or extra shadow passes. */
 export function buildTurnSpotlight(world: THREE.Group): THREE.Group {
   const spotlight = new THREE.Group();
   spotlight.name = 'turn-spotlight';
   world.add(spotlight);
+  updateTurnSpotlight(spotlight);
+  spotlight.visible = false;
+  return spotlight;
+}
+
+/** Replace only the cue's resources, preserving its seat, visibility and the running scene. */
+export function updateTurnSpotlight(spotlight: THREE.Group): void {
+  const signature = JSON.stringify(TURN_INDICATOR);
+  if (appliedSettings.get(spotlight) === signature) return;
+  spotlight.traverse(object => {
+    if (object instanceof THREE.Mesh) {
+      const geometry = object.geometry as THREE.BufferGeometry;
+      geometry.dispose();
+      disposeMaterials(object);
+    } else if (object instanceof THREE.SpotLight) object.dispose();
+  });
+  spotlight.clear();
+  populateSpotlight(spotlight);
+  appliedSettings.set(spotlight, signature);
+}
+
+function populateSpotlight(spotlight: THREE.Group): void {
   const settings = TURN_INDICATOR;
   const halo = material(settings.color, {
     emissive: settings.color,
@@ -28,8 +52,6 @@ export function buildTurnSpotlight(world: THREE.Group): THREE.Group {
   light.target.position.y = settings.lightTargetHeight;
   spotlight.add(light, light.target);
   if (settings.beam.enabled) buildBeam(spotlight);
-  spotlight.visible = false;
-  return spotlight;
 }
 
 function buildBeam(spotlight: THREE.Group): void {

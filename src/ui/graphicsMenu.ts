@@ -4,10 +4,10 @@ import {
   isAntialiasingMode,
   setAntialiasingMode,
   type AntialiasingMode,
-} from '../scene/graphicsSettings';
+} from '../scene/graphicsPreference';
 import { morph } from './dom';
 import { html, type SafeHtml } from './html';
-import { fpsMeterEnabled, setFpsMeterEnabled } from './fpsMeterSettings';
+import { fpsMeterEnabled, setFpsMeterEnabled } from './fpsMeterPreference';
 import { postProcessingEnabled, setPostProcessingEnabled } from '../scene/postProcessingPreference';
 
 const LABELS: Record<AntialiasingMode, string> = {

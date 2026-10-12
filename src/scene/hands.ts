@@ -1,8 +1,10 @@
+import { POST_PROCESSING } from '../config/postProcessingSettings';
+import { watchSettings } from '../config/hotSettings';
 /** Fans of cards held by the robots, and the player's own first-person hands. */
 import * as THREE from 'three';
 import type { Card } from '../game';
 import { CardMesh } from './cards';
-import { FIRST_PERSON_CAMERA } from './cameraSettings';
+import { FIRST_PERSON_CAMERA } from '../config/cameraSettings';
 import { tube } from './primitives';
 import { buildGripper, JOINT, TRIM } from './robotParts';
 
@@ -18,7 +20,7 @@ export interface FanLayout {
 }
 
 /** Fan held by a robot across the table. */
-export const ROBOT_FAN: FanLayout = { scale: 0.6, spread: 0.065, y: 0, z: 0, tilt: -0.08 };
+export { ROBOT_FAN } from '../config/handSettings';
 
 /** Updates the cards in `group` to show `cards`, reusing meshes that are still there. */
 export function syncFan(
@@ -47,6 +49,8 @@ export function syncFan(
     mesh.index = index;
     mesh.target.copy(target);
     mesh.targetRotation = (index - centre) * layout.tilt;
+    mesh.userData.fanLayout = layout;
+    watchFan(mesh);
   });
 }
 
@@ -71,6 +75,13 @@ export class FirstPersonHands {
 
   constructor(private readonly camera: THREE.Camera) {
     camera.add(this.leftHand, this.rightGlove);
+    watchSettings(this, (hands, category) => {
+      if (category !== 'postProcessingSettings') return;
+      for (const group of [hands.leftHand, hands.rightGlove])
+        group.traverse(object => {
+          object.layers.set(POST_PROCESSING.ambientOcclusion.excludedLayer);
+        });
+    });
     this.leftHand.position.set(-0.12, -0.4, -0.95);
     this.leftHand.rotation.x = 1.25;
     const clamp = new THREE.Group();
@@ -102,10 +113,10 @@ export class FirstPersonHands {
       0.045,
     );
     this.leftHand.traverse(object => {
-      object.layers.set(1);
+      object.layers.set(POST_PROCESSING.ambientOcclusion.excludedLayer);
     });
     this.rightGlove.traverse(object => {
-      object.layers.set(1);
+      object.layers.set(POST_PROCESSING.ambientOcclusion.excludedLayer);
     });
   }
 
@@ -118,7 +129,7 @@ export class FirstPersonHands {
     const spread = Math.min(0.085, 0.85 / Math.max(1, cards.length));
     syncFan(this.cards, cards, false, { scale: 0.65, spread, y: 0.03, z: -0.06, tilt: -0.055 });
     this.cards.traverse(object => {
-      object.layers.set(1);
+      object.layers.set(POST_PROCESSING.ambientOcclusion.excludedLayer);
     });
   }
 
@@ -135,7 +146,7 @@ export class FirstPersonHands {
     // Three clears a color background even with autoClear disabled; preserve the room pass.
     scene.background = null;
     renderer.clearDepth();
-    this.camera.layers.set(1);
+    this.camera.layers.set(POST_PROCESSING.ambientOcclusion.excludedLayer);
     try {
       renderer.render(scene, this.camera);
     } finally {
@@ -184,4 +195,19 @@ export class FirstPersonHands {
     this.rightGlove.position.x = 0.42 * scale;
     if (!this.gripping) this.rightGlove.position.y = -0.3 * perspective;
   }
+}
+
+const watchedFans = new WeakSet<CardMesh>();
+function watchFan(card: CardMesh): void {
+  if (watchedFans.has(card)) return;
+  watchedFans.add(card);
+  watchSettings(card, (current, category) => {
+    if (category !== 'handSettings' || !current.parent) return;
+    const layout = current.userData.fanLayout as FanLayout;
+    const cards = current.parent.children.filter(child => child instanceof CardMesh);
+    const centre = (cards.length - 1) / 2;
+    current.scale.setScalar(layout.scale);
+    current.target.set((current.index - centre) * layout.spread, current.index * 0.002 + layout.y, layout.z);
+    current.targetRotation = (current.index - centre) * layout.tilt;
+  });
 }

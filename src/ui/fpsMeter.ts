@@ -1,4 +1,5 @@
-import { FPS_METER, fpsMeterEnabled, onFpsMeterChange } from './fpsMeterSettings';
+import { FPS_METER } from '../config/fpsMeterSettings';
+import { fpsMeterEnabled, onFpsMeterChange } from './fpsMeterPreference';
 
 /** Counts completed scene frames, including frame pacing, rather than animation callbacks. */
 export class FpsMeter {

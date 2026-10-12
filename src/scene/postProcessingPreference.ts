@@ -1,4 +1,5 @@
-import { POST_PROCESSING } from './postProcessingSettings';
+import { onSettingsChange } from '../config/hotSettings';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 
 const STORAGE_KEY = 'garanto-post-processing';
 const listeners = new Set<(enabled: boolean) => void>();
@@ -9,11 +10,11 @@ export function postProcessingEnabled(): boolean {
   if (selected !== undefined) return selected;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    selected = saved === null ? POST_PROCESSING.enabled : saved === 'true';
+    if (saved !== null) selected = saved === 'true';
   } catch {
-    selected = POST_PROCESSING.enabled;
+    return POST_PROCESSING.enabled;
   }
-  return selected;
+  return selected ?? POST_PROCESSING.enabled;
 }
 
 export function setPostProcessingEnabled(enabled: boolean): void {
@@ -32,3 +33,8 @@ export function onPostProcessingChange(listener: (enabled: boolean) => void): ()
     listeners.delete(listener);
   };
 }
+
+onSettingsChange(category => {
+  if (category !== 'postProcessingSettings') return;
+  for (const listener of listeners) listener(postProcessingEnabled());
+});

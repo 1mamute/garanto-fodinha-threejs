@@ -1,3 +1,7 @@
+import { watchSettings } from '../config/hotSettings';
+import { RENDER_BUDGET } from '../config/graphicsSettings';
+import { PLAYER_MOVEMENT, PLAYER_SPAWN } from '../config/playerSettings';
+import { CAMERA_RIG } from '../config/cameraSettings';
 /**
  * Camera placement for every mode, plus spectator walking.
  *
@@ -7,22 +11,14 @@
  * to pass through zero when switching between opposite up vectors, which flipped the view.)
  */
 import * as THREE from 'three';
-import { WALK_OUTER_RADIUS } from './roomDimensions';
-import { FIRST_PERSON_CAMERA, SEATED_CAMERA } from './cameraSettings';
-import { ROBOT_DIMENSIONS } from './robotDimensions';
+import { ROOM_DIMENSIONS } from '../config/roomSettings';
+import { FIRST_PERSON_CAMERA, SEATED_CAMERA } from '../config/cameraSettings';
+import { ROBOT_DIMENSIONS } from '../config/robotSettings';
 import type { InspectionCameraMode } from './types';
-import { DEFAULT_TABLE_ZOOM, TableCamera } from './tableCamera';
+import { TableCamera } from './tableCamera';
+import { TABLE_VIEW } from '../config/cameraSettings';
 
-export const MIN_PITCH = -1.2;
-export const MAX_PITCH = 1.15;
-const MIN_ZOOM = 3;
-const EYE_HEIGHT = 3.05;
-const DEFAULT_PITCH = -0.436;
-const WALK_SPEED = 2.7;
 /** Spectators walk in the ring between the table and the walls. */
-const WALK_INNER_RADIUS = 3;
-const NARROW_SCREEN_PX = 700;
-const VIEW_TRANSITION_SECONDS = 1.2;
 
 interface ViewTransition {
   position: THREE.Vector3;
@@ -56,11 +52,11 @@ export class CameraRig {
   maxFirstPersonZoom: number = FIRST_PERSON_CAMERA.maxZoom;
   /** Head turn relative to facing the table centre. */
   yaw = 0;
-  pitch = DEFAULT_PITCH;
+  pitch = CAMERA_RIG.DEFAULT_PITCH;
   /** Height of the top view; changed by the wheel and pinch. */
-  zoom = DEFAULT_TABLE_ZOOM;
+  zoom = TABLE_VIEW.DEFAULT_TABLE_ZOOM;
   orbitDistance = 4;
-  readonly spectatorPosition = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, 5.5);
+  readonly spectatorPosition = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, PLAYER_SPAWN.SPAWN_RADIUS);
   /** Walking direction from the on-screen joystick, each axis in [-1, 1]. */
   readonly joystick = { x: 0, y: 0 };
   /** Keyboard codes currently pressed. */
@@ -77,6 +73,19 @@ export class CameraRig {
   private transition: ViewTransition | null = null;
   private lookReturn: LookReturn | null = null;
 
+  constructor() {
+    watchSettings(this, (rig, category) => {
+      if (category !== 'cameraSettings') return;
+      rig.maxFirstPersonZoom = FIRST_PERSON_CAMERA.maxZoom;
+      rig.firstPersonZoom = THREE.MathUtils.clamp(
+        rig.firstPersonZoom,
+        1,
+        Math.max(1, rig.maxFirstPersonZoom),
+      );
+      rig.zoom = THREE.MathUtils.clamp(rig.zoom, CAMERA_RIG.MIN_ZOOM, TABLE_VIEW.DEFAULT_TABLE_ZOOM);
+    });
+  }
+
   resetView(): void {
     this.resetOrientation();
     this.firstPersonZoom = 1;
@@ -87,7 +96,7 @@ export class CameraRig {
   resetOrientation(): void {
     this.cancelLookReturn();
     this.yaw = 0;
-    this.pitch = DEFAULT_PITCH;
+    this.pitch = CAMERA_RIG.DEFAULT_PITCH;
   }
 
   returnOrientation(): void {
@@ -108,7 +117,7 @@ export class CameraRig {
     // Ease the look target itself so camera placement and the shared head pose return together.
     const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
     this.yaw = THREE.MathUtils.lerp(returning.yaw, 0, eased);
-    this.pitch = THREE.MathUtils.lerp(returning.pitch, DEFAULT_PITCH, eased);
+    this.pitch = THREE.MathUtils.lerp(returning.pitch, CAMERA_RIG.DEFAULT_PITCH, eased);
     if (progress === 1) this.cancelLookReturn();
   }
 
@@ -125,11 +134,11 @@ export class CameraRig {
   }
 
   addPitch(delta: number): void {
-    this.pitch = THREE.MathUtils.clamp(this.pitch + delta, MIN_PITCH, MAX_PITCH);
+    this.pitch = THREE.MathUtils.clamp(this.pitch + delta, CAMERA_RIG.MIN_PITCH, CAMERA_RIG.MAX_PITCH);
   }
 
   addZoom(delta: number): void {
-    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, MIN_ZOOM, DEFAULT_TABLE_ZOOM);
+    this.zoom = THREE.MathUtils.clamp(this.zoom + delta, CAMERA_RIG.MIN_ZOOM, TABLE_VIEW.DEFAULT_TABLE_ZOOM);
   }
 
   addOrbitZoom(delta: number): void {
@@ -203,7 +212,7 @@ export class CameraRig {
     const transition = this.transition;
     if (!transition) return;
     transition.elapsed += deltaSeconds;
-    const progress = Math.min(1, transition.elapsed / VIEW_TRANSITION_SECONDS);
+    const progress = Math.min(1, transition.elapsed / CAMERA_RIG.VIEW_TRANSITION_SECONDS);
     // One easing curve keeps translation and rotation continuous, with gentle starts and stops.
     const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
     this.camera.position.lerpVectors(transition.position, this.positionTarget, eased);
@@ -241,7 +250,7 @@ export class CameraRig {
 
   /** Home screen: the table seen from a corner, shifted so the menu does not cover it. */
   private aimLanding(): void {
-    const narrow = innerWidth < NARROW_SCREEN_PX;
+    const narrow = innerWidth < RENDER_BUDGET.narrowScreenPx;
     this.positionTarget.set(narrow ? 5.4 : 6.4, 3.6, narrow ? 8 : 7.8);
     this.lookTarget.set(narrow ? 0 : -1.5, 1.65, 0);
   }
@@ -266,7 +275,7 @@ export class CameraRig {
       this.walk(deltaSeconds, seatAngle);
       this.positionTarget.copy(this.spectatorPosition);
     } else {
-      this.positionTarget.copy(context.seat ?? new THREE.Vector3(0, 0, 3.35)).setY(EYE_HEIGHT);
+      this.positionTarget.copy(context.seat ?? new THREE.Vector3(0, 0, 3.35)).setY(CAMERA_RIG.EYE_HEIGHT);
     }
     // Facing the table centre is the seat angle turned half a circle.
     const heading = seatAngle + this.yaw + Math.PI;
@@ -288,7 +297,7 @@ export class CameraRig {
     const forward = pressed('KeyW') - pressed('KeyS') - this.joystick.y;
     const sideways = pressed('KeyD') - pressed('KeyA') + this.joystick.x;
     // Diagonals are not faster than straight lines.
-    const step = (WALK_SPEED * deltaSeconds) / Math.max(1, Math.hypot(forward, sideways));
+    const step = (PLAYER_MOVEMENT.walkSpeed * deltaSeconds) / Math.max(1, Math.hypot(forward, sideways));
     const heading = seatAngle + this.yaw + Math.PI;
     const next = this.spectatorPosition.clone();
     next.x += (Math.sin(heading) * forward - Math.cos(heading) * sideways) * step;
@@ -296,6 +305,10 @@ export class CameraRig {
     const distance = Math.hypot(next.x, next.z);
     if (this.resolveWalk)
       this.spectatorPosition.copy(this.resolveWalk(this.spectatorPosition, next, deltaSeconds));
-    else if (distance > WALK_INNER_RADIUS && distance < WALK_OUTER_RADIUS) this.spectatorPosition.copy(next);
+    else if (
+      distance > CAMERA_RIG.WALK_INNER_RADIUS &&
+      distance < ROOM_DIMENSIONS.ROOM_RADIUS - ROOM_DIMENSIONS.WALL_WALK_CLEARANCE
+    )
+      this.spectatorPosition.copy(next);
   }
 }

@@ -26,8 +26,8 @@ e a lista destaca esse jogador com **Apostando** ou **Jogando**. Um holofote sua
 anel dourado marcam sua cadeira. A seta com nome acompanha o robô e aponta sua direção
 quando ele fica fora do enquadramento. A troca para outro jogador toca um som mais baixo,
 também controlado pela opção de som. Os indicadores ficam ocultos durante pausas.
-Os ajustes visuais ficam em `src/scene/turnIndicatorSettings.ts`, compartilhados com o
-laboratório; os sons ficam em `src/ui/soundSettings.ts`.
+Os ajustes visuais ficam em `src/config/turnIndicatorSettings.ts`, compartilhados com o
+laboratório; os sons ficam em `src/config/soundSettings.ts`.
 
 - Crie uma sala, opcionalmente com senha, ou entre na lista/código/link de convite. Convites não incluem a senha.
 - Ao entrar, você senta automaticamente à mesa e permanece na cadeira até ser eliminado. Escolha uma cor disponível e marque pronto; a cor fica bloqueada enquanto você estiver pronto. O host pode adicionar bots e inicia quando todos os jogadores da partida estiverem prontos.
@@ -51,22 +51,22 @@ automática em aparelhos lentos continuam ativos em todos os modos.
 
 A cena também usa ajuste de cor, oclusão ambiente, bloom e vinheta com intensidades
 discretas. Os parâmetros compartilhados pelo jogo e laboratório ficam em
-`src/scene/postProcessingSettings.ts`; consulte [Pós-processamento](docs/pos-processamento.md)
+`src/config/postProcessingSettings.ts`; consulte [Pós-processamento](docs/pos-processamento.md)
 para ajustar cada efeito no código. A opção de suavização desligada mantém esses efeitos.
 
-O zoom máximo em primeira pessoa é configurado em `src/scene/cameraSettings.ts`,
+O zoom máximo em primeira pessoa é configurado em `src/config/cameraSettings.ts`,
 na propriedade `FIRST_PERSON_CAMERA.maxZoom` (padrão: `2.5`, ou 2,5×; `1` desativa
 o zoom). Cada `CameraRig` também permite ajustar `maxFirstPersonZoom`.
 
 Ao soltar o mouse ou toque depois de olhar ao redor enquanto sentado, a câmera e
 a cabeça voltam suavemente à direção inicial, preservando o zoom. Para manter o
 último olhar como antes, defina `SEATED_CAMERA.returnOnLookRelease` como `false`
-em `src/scene/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
+em `src/config/cameraSettings.ts`. Esse retorno não afeta a caminhada de observadores.
 A duração do retorno é ajustável em `SEATED_CAMERA.returnDurationSeconds` (padrão: 1,2 segundo).
 Na visão da mesa, o zoom permite aproximar e voltar ao enquadramento inicial, sem afastar além dele.
 Arraste com o mouse ou toque para deslocar o ponto observado até a borda circular da mesa.
 Ao soltar, a câmera volta suavemente ao centro, preservando o zoom e a inclinação.
-Em `src/scene/cameraSettings.ts`, `TABLE_CAMERA.angleDegrees` configura a inclinação a partir
+Em `src/config/cameraSettings.ts`, `TABLE_CAMERA.angleDegrees` configura a inclinação a partir
 da vertical (padrão: 15°; 0° olha diretamente de cima; limite: 45°), e
 `TABLE_CAMERA.returnDurationSeconds` ajusta o retorno (padrão: 1,2 segundo).
 Na **Sala de testes**, o controle **Ângulo da vista superior** permite experimentar valores
@@ -169,3 +169,5 @@ Cada conexão WebRTC tem dois canais: jogadas e estados completos usam entrega c
 A física usa JoltPhysics em WebAssembly, servido junto com o jogo, com passos fixos de 60 Hz. Mesa, chão, paredes e cadeiras ocupadas têm colisores fixos; os corpos dos robôs e as cartas seguradas acompanham suas animações. Observadores colidem com a sala e deslizam ao longo dos obstáculos. Cartas jogadas caem com gravidade, atrito e colisão contínua; depois são organizadas nos espaços e pilhas da partida, mantendo a face legível e a espessura das cartas. Na partida online, o host simula a física das cartas a partir do ponto e do impulso de lançamento validados e transmite as transformações aos convidados, que as interpolam sem simular outra queda. As amostras visuais aguardam a versão correspondente das regras. A caminhada tem colisões locais e transmite a posição aceita; as regras e os resultados continuam definidos pelo estado validado da partida. No laboratório, a simulação continua local: uma cadeira vazia pode ser empurrada e o botão **Soltar carta na cadeira** demonstra a queda sobre os móveis e o chão.
 
 É um jogo casual entre amigos: o host valida jogadas, mas as cópias de recuperação contêm todas as mãos. A interface as esconde dos jogadores vivos; inspecionar os dados internos do navegador pode revelá-las. Se todos fecharem suas abas, não há servidor de partidas para continuar o jogo; retomar depende de uma aba que conserve o backup. Navegadores móveis podem suspender o host ao bloquear a tela, por isso mantenha a aba aberta durante a partida.
+
+Os parâmetros ajustáveis estão organizados em [`src/config`](src/config/README.md), com comentários em português. Salvar configurações com Vite aberto atualiza o jogo e o laboratório por hot reload, preservando a partida e a posição do personagem.

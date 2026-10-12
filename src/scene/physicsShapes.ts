@@ -1,8 +1,6 @@
+import { PHYSICS_SHAPES } from '../config/physicsSettings';
 import type Jolt from 'jolt-physics';
 import * as THREE from 'three';
-
-const CONVEX_RADIUS = 0.002;
-const RING_SEGMENTS = 64;
 
 /** Colliders reuse mesh dimensions; flat artwork and contact shadows have no solid volume. */
 export function meshShape(runtime: typeof Jolt, geometry: THREE.BufferGeometry): Jolt.Shape | null {
@@ -14,7 +12,11 @@ export function meshShape(runtime: typeof Jolt, geometry: THREE.BufferGeometry):
     const { radiusTop, radiusBottom, height, openEnded } = geometry.parameters;
     const radius = Math.max(radiusTop, radiusBottom);
     if (openEnded) return ringShape(runtime, { radius, height, thickness: 0.15 });
-    const shape = new runtime.CylinderShape(height / 2, radius, Math.min(CONVEX_RADIUS, height / 4));
+    const shape = new runtime.CylinderShape(
+      height / 2,
+      radius,
+      Math.min(PHYSICS_SHAPES.CONVEX_RADIUS, height / 4),
+    );
     shape.AddRef();
     return shape;
   }
@@ -29,7 +31,7 @@ export function boxShape(runtime: typeof Jolt, halfExtent: THREE.Vector3): Jolt.
   const extent = new runtime.Vec3(halfExtent.x, halfExtent.y, halfExtent.z);
   const shape = new runtime.BoxShape(
     extent,
-    Math.min(CONVEX_RADIUS, halfExtent.x / 2, halfExtent.y / 2, halfExtent.z / 2),
+    Math.min(PHYSICS_SHAPES.CONVEX_RADIUS, halfExtent.x / 2, halfExtent.y / 2, halfExtent.z / 2),
   );
   shape.AddRef();
   runtime.destroy(extent);
@@ -58,12 +60,12 @@ function ringShape(
   const compound = new runtime.StaticCompoundShapeSettings();
   const segment = boxShape(
     runtime,
-    new THREE.Vector3((Math.PI * radius) / RING_SEGMENTS, height / 2, thickness / 2),
+    new THREE.Vector3((Math.PI * radius) / PHYSICS_SHAPES.RING_SEGMENTS, height / 2, thickness / 2),
   );
   const position = new runtime.Vec3();
   const rotation = new runtime.Quat();
-  for (let index = 0; index < RING_SEGMENTS; index++) {
-    const angle = (index * Math.PI * 2) / RING_SEGMENTS;
+  for (let index = 0; index < PHYSICS_SHAPES.RING_SEGMENTS; index++) {
+    const angle = (index * Math.PI * 2) / PHYSICS_SHAPES.RING_SEGMENTS;
     if (dimensions.vertical) {
       position.Set(Math.sin(angle) * radius, Math.cos(angle) * radius, 0);
       rotation.Set(0, 0, -Math.sin(angle / 2), Math.cos(angle / 2));
@@ -97,7 +99,7 @@ export function robotMeshShape(runtime: typeof Jolt, mesh: THREE.Mesh): Jolt.Sha
   return takeShape(runtime, compound);
 }
 
-export function furnitureShape(runtime: typeof Jolt, root: THREE.Group): Jolt.Shape {
+export function furnitureShape(runtime: typeof Jolt, root: THREE.Object3D): Jolt.Shape {
   const compound = new runtime.StaticCompoundShapeSettings();
   const position = new runtime.Vec3();
   const rotation = new runtime.Quat();

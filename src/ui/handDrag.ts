@@ -1,10 +1,8 @@
+import { HAND_DRAG } from '../config/interactionSettings';
 /**
  * Dragging cards in the on-screen hand: drag up to play a card, sideways onto another card to
  * reorder. A click right after a drag is ignored so it does not also select the card.
  */
-const DRAG_THRESHOLD_PX = 8;
-const PLAY_DISTANCE_PX = 90;
-const CLICK_SUPPRESS_MS = 400;
 
 interface ActiveDrag {
   pointerId: number;
@@ -74,7 +72,7 @@ export class HandDrag {
     if (drag?.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) drag.moved = true;
+    if (Math.hypot(dx, dy) > HAND_DRAG.DRAG_THRESHOLD_PX) drag.moved = true;
     if (!drag.moved) return;
     drag.element.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.03}deg)`;
     drag.element.style.zIndex = '100';
@@ -87,8 +85,8 @@ export class HandDrag {
     drag.element.style.transform = '';
     drag.element.style.zIndex = '';
     if (!drag.moved || event.type === 'pointercancel') return;
-    this.suppressClickUntil = performance.now() + CLICK_SUPPRESS_MS;
-    if (drag.startY - event.clientY > PLAY_DISTANCE_PX) this.handlers.onPlay(drag.cardId);
+    this.suppressClickUntil = performance.now() + HAND_DRAG.CLICK_SUPPRESS_MS;
+    if (drag.startY - event.clientY > HAND_DRAG.PLAY_DISTANCE_PX) this.handlers.onPlay(drag.cardId);
     else this.dropOnCard(drag, event);
     this.handlers.onDragEnd();
   }

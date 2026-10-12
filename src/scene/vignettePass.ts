@@ -1,5 +1,5 @@
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { POST_PROCESSING } from './postProcessingSettings';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 
 const MIN_SOFTNESS = 0.0001;
 

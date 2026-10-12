@@ -1,6 +1,6 @@
 import { Vector2 } from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { POST_PROCESSING } from './postProcessingSettings';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 
 /** Gentle bloom of HDR light sources; place before OutputPass while input is linear. */
 export class BloomPass extends UnrealBloomPass {

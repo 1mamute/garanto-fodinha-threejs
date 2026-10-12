@@ -1,8 +1,8 @@
 # Pós-processamento
 
 Os quatro efeitos são compartilhados pelo jogo e pela sala de testes. Edite
-`POST_PROCESSING` em [`src/scene/postProcessingSettings.ts`](../src/scene/postProcessingSettings.ts)
-e recarregue a página para reconstruir os passes e os materiais com seus ajustes.
+`POST_PROCESSING` em [`src/config/postProcessingSettings.ts`](../src/config/postProcessingSettings.ts)
+e salve o arquivo com Vite aberto para atualizar os passes e os materiais sem recarregar a página.
 Os padrões são discretos: sombras levemente frias, luzes quentes, brilho restrito
 a fontes luminosas e escurecimento suave nas bordas.
 
@@ -17,7 +17,7 @@ Esses parâmetros são locais à renderização e não fazem parte do estado mul
 | Efeito | Parâmetro | Como ajustar |
 | --- | --- | --- |
 | Cor | `strength` | Mistura de 0 a 1. Zero preserva a imagem original. |
-| Cor | `exposure` | Compensação em stops após o tone mapping. Zero é neutro; +1 dobra os valores da imagem antes do limite de brilho. Para exposição da iluminação HDR, use `renderer.toneMappingExposure` em `environment.ts`. |
+| Cor | `exposure` | Compensação em stops após o tone mapping. Zero é neutro; +1 dobra os valores da imagem antes do limite de brilho. Para exposição da iluminação HDR, use `ENVIRONMENT.exposure` em `src/config/environmentSettings.ts`. |
 | Cor | `contrast`, `saturation` | 1 é neutro. Comece entre 0,9 e 1,1; saturação zero deixa a imagem em tons de cinza. |
 | Cor | `contrastPivot` | Brilho de referência do contraste, entre 0 e 1. |
 | Cor | `shadows`, `highlights` | Multiplicadores `red`, `green`, `blue`. Todos em 1 são neutros. |

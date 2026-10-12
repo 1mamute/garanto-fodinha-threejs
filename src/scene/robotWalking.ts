@@ -1,14 +1,9 @@
+import { PLAYER_MOVEMENT } from '../config/playerSettings';
+import { ROBOT_WALKING } from '../config/robotAnimationSettings';
 /** Smooth standing locomotion driven by accepted movement, independently of camera aim. */
 import * as THREE from 'three';
 import { smoothing } from './primitives';
 import type { Robot } from './robot';
-
-const TURN_RESPONSE = 9;
-const LOOK_RESPONSE = 16;
-const STRIDE_RESPONSE = 10;
-const WALK_SPEED = 2.7;
-const STRIDE_LENGTH = 1.7;
-const MOVEMENT_EPSILON = 0.00001;
 
 interface WalkingFrame {
   position: THREE.Vector3;
@@ -42,23 +37,24 @@ export class RobotWalking {
     const z = position.z - this.previousPosition.z;
     const distance = Math.hypot(x, z);
     this.previousPosition.copy(position);
-    if (distance > MOVEMENT_EPSILON) this.heading = Math.atan2(x, z);
+    if (distance > ROBOT_WALKING.MOVEMENT_EPSILON) this.heading = Math.atan2(x, z);
     const { group } = this.robot;
     const angle = this.heading - group.rotation.y;
     // Take the short arc across +/- PI, with a frame-rate-independent response.
-    group.rotation.y += Math.atan2(Math.sin(angle), Math.cos(angle)) * smoothing(deltaSeconds, TURN_RESPONSE);
+    group.rotation.y +=
+      Math.atan2(Math.sin(angle), Math.cos(angle)) * smoothing(deltaSeconds, ROBOT_WALKING.TURN_RESPONSE);
     group.position.copy(position).setY(0);
     const speed = distance / deltaSeconds;
     this.amount = THREE.MathUtils.lerp(
       this.amount,
-      Math.min(speed / WALK_SPEED, 1),
-      smoothing(deltaSeconds, STRIDE_RESPONSE),
+      PLAYER_MOVEMENT.walkSpeed > 0 ? Math.min(speed / PLAYER_MOVEMENT.walkSpeed, 1) : 0,
+      smoothing(deltaSeconds, ROBOT_WALKING.STRIDE_RESPONSE),
     );
-    this.phase += (distance / STRIDE_LENGTH) * Math.PI * 2;
+    this.phase += (distance / ROBOT_WALKING.STRIDE_LENGTH) * Math.PI * 2;
     this.lookEuler.set(-pitch, yaw + Math.PI, 0, 'YXZ');
     this.lookTarget.setFromEuler(this.lookEuler);
-    this.worldLook.slerp(this.lookTarget, smoothing(deltaSeconds, LOOK_RESPONSE));
+    this.worldLook.slerp(this.lookTarget, smoothing(deltaSeconds, ROBOT_WALKING.LOOK_RESPONSE));
     this.robot.animateWalking(this.phase, this.amount, this.worldLook);
-    this.robot.animateSquint(squint, smoothing(deltaSeconds, LOOK_RESPONSE));
+    this.robot.animateSquint(squint, smoothing(deltaSeconds, ROBOT_WALKING.LOOK_RESPONSE));
   }
 }

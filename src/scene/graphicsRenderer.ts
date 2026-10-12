@@ -1,7 +1,8 @@
+import { onSettingsChange } from '../config/hotSettings';
 import type { PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import { GraphicsPipeline } from './graphicsPipeline';
-import { antialiasingMode, onAntialiasingChange, type AntialiasingMode } from './graphicsSettings';
-import { POST_PROCESSING } from './postProcessingSettings';
+import { antialiasingMode, onAntialiasingChange, type AntialiasingMode } from './graphicsPreference';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 import { FpsMeter } from '../ui/fpsMeter';
 import { onPostProcessingChange, postProcessingEnabled } from './postProcessingPreference';
 
@@ -15,6 +16,7 @@ export class GraphicsRenderer {
   private pixelRatio = 1;
   private drawingOverlay = false;
   private readonly unsubscribe: () => void;
+  private readonly unsubscribeSettings: () => void;
   private readonly unsubscribePostProcessing: () => void;
   private readonly previousAfterRender: Scene['onAfterRender'];
 
@@ -26,6 +28,9 @@ export class GraphicsRenderer {
       overlay?: () => void;
     },
   ) {
+    this.unsubscribeSettings = onSettingsChange(category => {
+      if (category === 'postProcessingSettings' || category === 'graphicsPreference') this.rebuild();
+    });
     this.pixelRatio = options.renderer.getPixelRatio();
     this.previousAfterRender = options.scene.onAfterRender.bind(options.scene);
     if (options.overlay) options.scene.onAfterRender = this.drawOverlay.bind(this);
@@ -63,6 +68,7 @@ export class GraphicsRenderer {
   dispose(): void {
     this.fpsMeter.dispose();
     this.unsubscribe();
+    this.unsubscribeSettings();
     this.unsubscribePostProcessing();
     this.pipeline?.dispose();
     this.options.scene.onAfterRender = this.previousAfterRender;

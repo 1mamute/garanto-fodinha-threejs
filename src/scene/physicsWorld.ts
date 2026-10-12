@@ -1,20 +1,20 @@
+import { watchSettings } from '../config/hotSettings';
+import { PHYSICS_WORLD } from '../config/physicsSettings';
 import type Jolt from 'jolt-physics';
 import * as THREE from 'three';
 import { CARD_SIZE } from './cardGeometry';
 import { CardMesh } from './cards';
-import { CARD_MOTION, type CardMotionSettings } from './cardMotionSettings';
+import { CARD_MOTION, type CardMotionSettings } from '../config/cardMotionSettings';
 import { createPhysicsSystem, MOVING_LAYER, STATIC_LAYER } from './physicsLayers';
 import { boxShape, furnitureShape, meshShape, robotMeshShape } from './physicsShapes';
 
-export const PHYSICS_STEP = 1 / 60;
-export const GRAVITY = 9.81;
-const MAX_FRAME_SECONDS = 0.1;
 type Motion = 'static' | 'kinematic' | 'dynamic';
 
 interface BodyRecord {
   body: Jolt.Body;
   object: THREE.Object3D;
   motion: Motion;
+  card: CardMotionSettings | false;
 }
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
@@ -31,6 +31,10 @@ export class PhysicsWorld {
   private readonly velocity: Jolt.Vec3;
   private readonly worldPosition = new THREE.Vector3();
   private readonly worldRotation = new THREE.Quaternion();
+  private readonly chairs = new Map<THREE.Object3D, boolean>();
+  private readonly solids = new Set<THREE.Object3D>();
+  private readonly robots = new Set<THREE.Object3D>();
+  private refreshPending = false;
   private accumulator = 0;
   private disposed = false;
 
@@ -39,8 +43,20 @@ export class PhysicsWorld {
     this.bodies = this.system.GetPhysicsSystem().GetBodyInterface();
     this.position = new runtime.RVec3();
     this.rotation = new runtime.Quat(0, 0, 0, 1);
-    this.velocity = new runtime.Vec3(0, -GRAVITY, 0);
+    this.velocity = new runtime.Vec3(0, -PHYSICS_WORLD.GRAVITY, 0);
     this.system.GetPhysicsSystem().SetGravity(this.velocity);
+    watchSettings(this, (world, category) => {
+      if (
+        [
+          'roomSettings',
+          'robotSettings',
+          'physicsSettings',
+          'cardMotionSettings',
+          'cardAppearanceSettings',
+        ].includes(category)
+      )
+        world.refreshPending = true;
+    });
   }
 
   get bodyCount(): number {
@@ -48,6 +64,7 @@ export class PhysicsWorld {
   }
 
   addSolids(root: THREE.Object3D): void {
+    this.solids.add(root);
     root.traverse(object => {
       if (!isMesh(object)) return;
       const shape = meshShape(this.runtime, object.geometry);
@@ -56,6 +73,7 @@ export class PhysicsWorld {
   }
 
   addRobot(root: THREE.Object3D): void {
+    this.robots.add(root);
     root.traverse(object => {
       // The merged shells and limbs are solid; eyes, paint and held cards are details.
       if (isMesh(object) && object.geometry.type === 'BufferGeometry') {
@@ -78,7 +96,8 @@ export class PhysicsWorld {
     }
   }
 
-  addChair(object: THREE.Group, movable = false): void {
+  addChair(object: THREE.Object3D, movable = false): void {
+    this.chairs.set(object, movable);
     this.addBody(object, furnitureShape(this.runtime, object), movable ? 'dynamic' : 'static');
   }
 
@@ -116,7 +135,7 @@ export class PhysicsWorld {
     const body = this.bodies.CreateBody(settings);
     runtime.destroy(settings);
     this.bodies.AddBody(body.GetID(), runtime.EActivation_Activate);
-    this.records.set(object, { body, object, motion });
+    this.records.set(object, { body, object, motion, card });
   }
 
   private configureCard(settings: Jolt.BodyCreationSettings, motion: CardMotionSettings): void {
@@ -161,6 +180,9 @@ export class PhysicsWorld {
   }
 
   removeObject(root: THREE.Object3D): void {
+    this.solids.delete(root);
+    this.robots.delete(root);
+    this.chairs.delete(root);
     root.traverse(object => {
       this.remove(object);
     });
@@ -168,15 +190,54 @@ export class PhysicsWorld {
 
   step(deltaSeconds: number): void {
     if (this.disposed || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+    if (this.refreshPending) this.refreshSettings();
     this.syncKinematics();
-    this.accumulator += Math.min(MAX_FRAME_SECONDS, deltaSeconds);
-    while (this.accumulator + Number.EPSILON >= PHYSICS_STEP) {
-      this.system.Step(PHYSICS_STEP, 1);
-      this.accumulator -= PHYSICS_STEP;
+    this.accumulator += Math.min(PHYSICS_WORLD.MAX_FRAME_SECONDS, deltaSeconds);
+    while (this.accumulator + Number.EPSILON >= PHYSICS_WORLD.PHYSICS_STEP) {
+      this.system.Step(PHYSICS_WORLD.PHYSICS_STEP, 1);
+      this.accumulator -= PHYSICS_WORLD.PHYSICS_STEP;
     }
     for (const record of this.records.values()) {
       if (record.motion === 'dynamic') this.writeTransform(record);
     }
+  }
+
+  private refreshSettings(): void {
+    if (this.disposed) return;
+    this.refreshPending = false;
+    this.velocity.Set(0, -PHYSICS_WORLD.GRAVITY, 0);
+    this.system.GetPhysicsSystem().SetGravity(this.velocity);
+    for (const record of [...this.records.values()]) {
+      this.refreshBody(record);
+    }
+    this.refreshColliders();
+  }
+
+  private refreshColliders(): void {
+    for (const root of this.solids) this.addSolids(root);
+    for (const [chair, movable] of this.chairs) {
+      if (!movable && chair.parent) this.addChair(chair);
+    }
+    for (const root of this.robots) {
+      if (root.parent) this.addRobot(root);
+      else this.robots.delete(root);
+    }
+  }
+
+  private refreshBody(record: BodyRecord): void {
+    if (!record.card) {
+      if (record.motion !== 'dynamic') this.remove(record.object);
+      return;
+    }
+    record.body.SetFriction(record.card.friction);
+    const { width, height, depth } = CARD_SIZE;
+    const scale = record.object.getWorldScale(new THREE.Vector3());
+    const extent = new THREE.Vector3(width, height, depth).multiply(scale).multiplyScalar(0.5);
+    const shape = boxShape(this.runtime, extent);
+    this.bodies.SetShape(record.body.GetID(), shape, true, this.runtime.EActivation_Activate);
+    shape.Release();
+    if (record.motion === 'dynamic')
+      record.body.GetMotionProperties().SetLinearDamping(record.card.linearDamping);
   }
 
   private readTransform(object: THREE.Object3D): void {
@@ -226,6 +287,9 @@ export class PhysicsWorld {
     this.runtime.destroy(this.rotation);
     this.runtime.destroy(this.velocity);
     this.runtime.destroy(this.system);
+    this.chairs.clear();
+    this.solids.clear();
+    this.robots.clear();
     this.disposed = true;
   }
 }

@@ -1,3 +1,6 @@
+import { SCENE_ANIMATION } from '../config/sceneSettings';
+import { watchSettings } from '../config/hotSettings';
+import { TABLE_SCENE } from '../config/tableSettings';
 /**
  * The 3D table: owns the renderer and the render loop, and mirrors the game state with robots,
  * cards and camera. The UI talks to it through `setState`, `setMode` and the `SceneCallbacks`.
@@ -27,13 +30,11 @@ import { isMobileRenderer, RenderBudget } from './renderBudget';
 import { buildChair, buildRoom, nameLabel, TABLE_TOP, type RoomProps } from './room';
 import { TableCards, type Seat } from './tableCards';
 import { TurnIndicator } from './turnIndicator';
-import { TURN_INDICATOR } from './turnIndicatorSettings';
+import { TURN_INDICATOR } from '../config/turnIndicatorSettings';
+import { updateTurnSpotlight } from './turnSpotlight';
 import type { CameraMode, CardInspection, Pose, SceneCallbacks } from './types';
 
-const SEAT_RADIUS = 3.35;
-const POSE_INTERVAL_S = 1 / 20;
 /** Robots show at most this many cards in their fan. */
-const MAX_FAN_CARDS = 20;
 
 /** Everything drawn for one seated player. */
 interface SeatProps {
@@ -68,7 +69,7 @@ export class TableScene implements InputTarget {
   private state: GameState | null = null;
   private myId: string | null = null;
   private lastPoseAt = 0;
-  private readonly budget = new RenderBudget(isMobileRenderer());
+  private readonly budget = new RenderBudget(isMobileRenderer);
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -95,6 +96,9 @@ export class TableScene implements InputTarget {
       this.resize();
     });
     this.demo();
+    watchSettings(this, (scene, category) => {
+      if (category === 'tableSettings' && scene.state) scene.setState(scene.state, scene.myId);
+    });
     window.addEventListener('pagehide', event => {
       if (event.persisted) return;
       this.renderer.setAnimationLoop(null);
@@ -234,14 +238,18 @@ export class TableScene implements InputTarget {
       updateRobot(props.robot, player, { state, previous, matchStarted });
       // Other players' cards are face down, unless you are only watching.
       const faceDown = !observer && player.id !== this.myId;
-      syncFan(props.robot.hand, player.hand.slice(0, MAX_FAN_CARDS), faceDown, ROBOT_FAN);
+      syncFan(props.robot.hand, player.hand.slice(0, TABLE_SCENE.MAX_FAN_CARDS), faceDown, ROBOT_FAN);
       this.physics.syncHand(props.robot.hand);
     });
   }
 
   private placeSeat(player: Player, angle: number): SeatProps {
     const props = this.seatFor(player);
-    const position = new THREE.Vector3(Math.sin(angle) * SEAT_RADIUS, 0, Math.cos(angle) * SEAT_RADIUS);
+    const position = new THREE.Vector3(
+      Math.sin(angle) * TABLE_SCENE.SEAT_RADIUS,
+      0,
+      Math.cos(angle) * TABLE_SCENE.SEAT_RADIUS,
+    );
     props.robot.group.position.copy(position);
     // Turned half a circle to face the table centre.
     props.robot.group.rotation.y = angle + Math.PI;
@@ -328,7 +336,7 @@ export class TableScene implements InputTarget {
     const deltaSeconds = this.budget.takeFrame(time, document.hidden);
     if (!deltaSeconds) return;
     this.physics.step(deltaSeconds);
-    const blend = smoothing(deltaSeconds, 7);
+    const blend = smoothing(deltaSeconds, SCENE_ANIMATION.smoothingResponse);
     const walking = canWalk(this.state ? findPlayer(this.state, this.myId) : undefined);
     const mySeat = this.myId ? this.seats.get(this.myId) : undefined;
     this.rig.update(deltaSeconds, blend, {
@@ -387,6 +395,8 @@ export class TableScene implements InputTarget {
   }
 
   private updateTurnIndicator(): void {
+    updateTurnSpotlight(this.room.spotlight);
+    if (this.state) this.syncMarkers(this.state);
     const player = activeTurn(this.state);
     if (!player) {
       this.turnIndicator.hide();
@@ -420,7 +430,7 @@ export class TableScene implements InputTarget {
 
   /** Shares motion and the host's actual card physics at 20 Hz. */
   private sendPose(time: number, walking: boolean): void {
-    if (this.mode === 'landing' || time - this.lastPoseAt <= POSE_INTERVAL_S) return;
+    if (this.mode === 'landing' || time - this.lastPoseAt <= TABLE_SCENE.POSE_INTERVAL_S) return;
     this.lastPoseAt = time;
     const pose = walking ? this.walkingPose() : this.localPose();
     if (walking) pose.position = this.rig.spectatorPosition.toArray();

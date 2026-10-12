@@ -17,7 +17,7 @@ import {
 } from 'three';
 import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
-import { POST_PROCESSING } from './postProcessingSettings';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 
 const settings = POST_PROCESSING.ambientOcclusion;
 

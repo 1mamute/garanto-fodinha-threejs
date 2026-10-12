@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { morph } from '../ui/dom';
 import { html } from '../ui/html';
-import { TURN_INDICATOR } from './turnIndicatorSettings';
+import { TURN_INDICATOR } from '../config/turnIndicatorSettings';
 
 export interface TurnMarkerPosition {
   left: number;
@@ -80,6 +80,7 @@ export class TurnIndicator {
     /** The laboratory keeps its preview enabled even when the game's shared toggle is off. */
     enabled?: boolean;
   }): void {
+    this.element.style.setProperty('--turn-color', TURN_INDICATOR.color);
     this.element.hidden = !(options.enabled ?? TURN_INDICATOR.enabled) || !options.visible || !options.seat;
     if (this.element.hidden || !options.seat) return;
     if (this.text !== options.text) {

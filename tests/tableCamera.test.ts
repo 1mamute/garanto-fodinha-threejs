@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Group, Raycaster, Vector2, Vector3, Plane } from 'three';
 import { CameraRig } from '../src/scene/cameraRig';
-import { TABLE_CAMERA } from '../src/scene/cameraSettings';
-import { TABLE_RADIUS } from '../src/scene/roomDimensions';
-import { TABLE_VIEW_HEIGHT } from '../src/scene/tableCamera';
+import { TABLE_CAMERA } from '../src/config/cameraSettings';
+import { ROOM_DIMENSIONS } from '../src/config/roomSettings';
+
+import { TABLE_VIEW } from '../src/config/cameraSettings';
 
 const top = { mode: 'top', observer: true, seat: null, inspected: null } as const;
 
@@ -13,7 +14,7 @@ function focus(rig: CameraRig): Vector3 {
   const raycaster = new Raycaster();
   raycaster.setFromCamera(new Vector2(), rig.camera);
   const point = raycaster.ray.intersectPlane(
-    new Plane(new Vector3(0, 1, 0), -TABLE_VIEW_HEIGHT),
+    new Plane(new Vector3(0, 1, 0), -TABLE_VIEW.TABLE_VIEW_HEIGHT),
     new Vector3(),
   );
   if (!point) assert.fail('A câmera deve apontar para a mesa');
@@ -29,7 +30,7 @@ test('a inclinação configurável mantém o centro e respeita os limites de ân
     const direction = rig.camera.getWorldDirection(new Vector3());
     const measured = (Math.acos(-direction.y) * 180) / Math.PI;
     assert.ok(Math.abs(measured - angle) < 1e-6);
-    assert.ok(focus(rig).distanceTo(new Vector3(0, TABLE_VIEW_HEIGHT, 0)) < 1e-8);
+    assert.ok(focus(rig).distanceTo(new Vector3(0, TABLE_VIEW.TABLE_VIEW_HEIGHT, 0)) < 1e-8);
     assert.ok(rig.camera.position.y <= 4.3);
   }
   rig.tableCamera.angleDegrees = -10;
@@ -74,7 +75,7 @@ test('o arrasto acompanha a tela em qualquer assento e para na borda circular', 
     assert.ok(target.dot(right) < 0, 'o conteúdo acompanha o gesto para a direita');
     rig.tableCamera.pan(rig.camera, new Vector2(), new Vector2(100, -0.5));
     rig.update(0, 1, context);
-    assert.ok(Math.abs(focus(rig).setY(0).length() - TABLE_RADIUS) < 1e-8);
+    assert.ok(Math.abs(focus(rig).setY(0).length() - ROOM_DIMENSIONS.TABLE_RADIUS) < 1e-8);
   }
 });
 

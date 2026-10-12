@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { Box3, Group, Vector3 } from 'three';
 import { CameraRig } from '../src/scene/cameraRig';
 import { Robot } from '../src/scene/robot';
-import { ROBOT_DIMENSIONS } from '../src/scene/robotDimensions';
+import { ROBOT_DIMENSIONS } from '../src/config/robotSettings';
 
 test('o robô em pé mantém as proporções do sentado e a câmera coincide com seus olhos', () => {
   const seated = new Robot('#c38e67', 'seated');

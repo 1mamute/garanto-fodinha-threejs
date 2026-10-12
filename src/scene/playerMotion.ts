@@ -1,3 +1,4 @@
+import { PLAYER_MOTION } from '../config/playerSettings';
 import * as THREE from 'three';
 import { isUiHidden } from '../ui/visibility';
 import { canWalk, type GameState, type Player } from '../game';
@@ -10,10 +11,8 @@ import { disposeMaterials } from './primitives';
 import { Robot } from './robot';
 import { RobotWalking } from './robotWalking';
 import { playerSpawn } from './playerSpawn';
-import { ROBOT_DIMENSIONS } from './robotDimensions';
+import { ROBOT_DIMENSIONS } from '../config/robotSettings';
 import { nameLabel } from './room';
-
-const POSE_TIMEOUT_MS = 1_000;
 
 export function isObserver(player: Player | undefined): boolean {
   return !player?.seated || player.eliminated || player.spectator;
@@ -53,7 +52,7 @@ export class PlayerMotion {
   poseFor(id: string): Pose | undefined {
     const sample = this.poses.get(id);
     if (!sample) return undefined;
-    if (performance.now() - sample.at <= POSE_TIMEOUT_MS) return sample.pose;
+    if (performance.now() - sample.at <= PLAYER_MOTION.POSE_TIMEOUT_MS) return sample.pose;
     // A lost release packet or backgrounded sender must not leave a floating held card.
     return { ...sample.pose, reaching: false, heldCard: null };
   }

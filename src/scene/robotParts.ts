@@ -1,9 +1,10 @@
+import { onSettingsChange } from '../config/hotSettings';
 /** Shared, inexpensive geometry for the seated utility robots and first-person grippers. */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { POST_PROCESSING } from './postProcessingSettings';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 import { material, mesh } from './primitives';
-import { ROBOT_DIMENSIONS } from './robotDimensions';
+import { ROBOT_DIMENSIONS } from '../config/robotSettings';
 
 type Coordinates = readonly [number, number, number];
 interface Part {
@@ -31,6 +32,14 @@ export const VISOR = material('#101a1c', { roughness: 0.32, metalness: 0.2 });
 export const EYE = material('#fff9e9', {
   emissive: '#fff9e9',
   emissiveIntensity: POST_PROCESSING.bloom.eyeEmission,
+});
+
+onSettingsChange(category => {
+  if (category === 'postProcessingSettings') EYE.emissiveIntensity = POST_PROCESSING.bloom.eyeEmission;
+  if (category === 'robotSettings') {
+    for (const shape of geometryCache.values()) shape.dispose();
+    geometryCache.clear();
+  }
 });
 
 function paintWear(): THREE.DataTexture {

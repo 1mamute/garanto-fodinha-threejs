@@ -1,6 +1,6 @@
-import { SOUND_SETTINGS } from './soundSettings';
+import { FEEDBACK } from '../config/soundSettings';
+import { SOUND_SETTINGS } from '../config/soundSettings';
 
-const TOAST_MS = 4_500;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Short message at the bottom of the screen. Uses `textContent`, so any text is safe. */
@@ -12,7 +12,7 @@ export function toast(message: string): void {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     element.classList.remove('visible');
-  }, TOAST_MS);
+  }, FEEDBACK.TOAST_MS);
 }
 
 export type SoundKind = keyof typeof SOUND_SETTINGS;

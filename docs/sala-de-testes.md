@@ -16,8 +16,10 @@ A rodada permanece congelada, sem avanço de turnos ou animações de partida. `
 O robô sentado **Paçoca** mantém holofote, anel no chão e seta com nome e ação sempre
 ativados para prévia, inclusive durante a inspeção de cartas e com `enabled: false` nas
 configurações do jogo. O alvo é fixado por `LAB_TURN_PREVIEW.playerId` em
-`src/scene/turnIndicatorSettings.ts`, sem depender da fase ou da vez da composição congelada.
-Edite os parâmetros compartilhados nesse arquivo com Vite aberto para atualizar a prévia.
+`src/config/turnIndicatorSettings.ts`, sem depender da fase ou da vez da composição congelada.
+Edite os parâmetros compartilhados nesse arquivo com Vite aberto para atualizar a prévia
+e o jogo em andamento, sem recarregar a página ou reiniciar a partida. Cor da seta,
+luz, anel e cone são atualizados ao salvar, preservando a câmera e a posição do personagem.
 Intensidade zero em `lightIntensity` desliga a luz, permitindo testar esse valor neutro.
 O cone cartunesco de holofote é compartilhado com o jogo em `turnSpotlight.ts`. Ajuste
 `TURN_INDICATOR.beam` para mudar cor, opacidade, largura, altura da base e brilho da fonte.
@@ -66,7 +68,7 @@ A vista superior fica abaixo da luminária central, com altura máxima de 4,3 un
 O controle **Ângulo da vista superior** ajusta a inclinação em tempo real, entre 0° (vertical)
 e 45°, partindo de 15°. O valor é preservado ao alternar as perspectivas e volta ao padrão
 ao recarregar. Para mudar o padrão compartilhado com o jogo, edite `TABLE_CAMERA.angleDegrees`
-em `src/scene/cameraSettings.ts`. `TABLE_CAMERA.returnDurationSeconds` controla a duração
+em `src/config/cameraSettings.ts`. `TABLE_CAMERA.returnDurationSeconds` controla a duração
 do retorno ao centro depois de um arrasto (padrão: 1,2 segundo).
 
 ## Movimentação e limites
@@ -96,9 +98,9 @@ A organização geral e as convenções de renderização estão em [Organizaç�
 | `src/scene/environment.ts` | Renderer, neblina e iluminação compartilhados com a cena principal. |
 | `src/scene/room.ts`, `robot.ts`, `cards.ts` e `hands.ts` | Recursos gráficos compartilhados; altere aqui para atualizar as duas cenas. |
 | `src/scene/cameraRig.ts` | Caminhada compartilhada, órbita e posicionamento das câmeras. |
-| `src/scene/tableCamera.ts`, `cameraSettings.ts` | Enquadramento inclinado da mesa, arrasto limitado à borda, retorno ao centro e configurações de câmera. |
+| `src/scene/tableCamera.ts`, `src/config/cameraSettings.ts` | Enquadramento inclinado da mesa, arrasto limitado à borda, retorno ao centro e configurações de câmera. |
 | `src/scene/dealerIndicator.ts` | Seta compartilhada que indica o dealer na vista superior, ocultada durante a inspeção de cartas. |
-| `src/scene/roomDimensions.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
+| `src/config/roomSettings.ts` | Raio da sala e limite externo da caminhada, com margem para as paredes. |
 | `src/scene/robotWalking.ts` | Rotação suave do corpo, ciclo dos passos e orientação independente da cabeça do robô controlado. |
 | `src/scene/physicsWorld.ts`, `physicsShapes.ts` e `physicsLayers.ts` | Corpos Jolt, colisores derivados da geometria, filtros de colisão, passo fixo e descarte da memória nativa. |
 | `src/scene/physicsCharacter.ts` e `physicsCards.ts` | Caminhada com colisões e queda/organização de cartas, compartilhadas com o jogo. |

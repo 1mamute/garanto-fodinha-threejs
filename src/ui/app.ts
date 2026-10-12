@@ -1,3 +1,5 @@
+import { startUiTimers } from './configuredInterval';
+import { updateCountdowns } from './countdowns';
 /**
  * Interface controller: owns the UI state, reacts to DOM events and session updates, and
  * re-renders by morphing `#app` (see `dom.ts`), so focus and open menus survive updates.
@@ -11,7 +13,6 @@ import { TableScene } from '../scene/tableScene';
 import type { CameraMode, CardInspection } from '../scene/types';
 import { errorMessage } from '../shared/errors';
 import type { PublicRoom, RoomIdentity } from '../shared/protocol';
-import { updateCountdowns } from './countdowns';
 import { morph } from './dom';
 import { playSound, toast, type SoundKind } from './feedback';
 import { HandDrag } from './handDrag';
@@ -22,8 +23,6 @@ import { TurnNotice } from './turnNotice';
 import { createGameView, gameScreen } from './views/game';
 import { homeView } from './views/home';
 
-const ROOM_POLL_MS = 15_000;
-const COUNTDOWN_MS = 500;
 const NAME_KEY = 'garanto-name';
 const SOUND_KEY = 'garanto-sound';
 
@@ -265,12 +264,9 @@ export class App {
     window.addEventListener('keydown', event => {
       if (event.code === 'Escape' && this.ui.modal) this.openModal(null);
     });
-    setInterval(() => {
-      updateCountdowns(this.root, this.ui.game);
-    }, COUNTDOWN_MS);
-    setInterval(() => {
-      if (!this.ui.game && this.ui.screen === 'rooms' && !this.ui.modal) void this.refreshRooms();
-    }, ROOM_POLL_MS);
+    startUiTimers(this.root, this.ui, () => {
+      void this.refreshRooms();
+    });
   }
 
   private onInput(target: EventTarget | null): void {

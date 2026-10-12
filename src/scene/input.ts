@@ -1,3 +1,4 @@
+import { SCENE_INPUT } from '../config/interactionSettings';
 /**
  * Pointer and keyboard input on the 3D canvas.
  *
@@ -10,19 +11,11 @@ import type { CameraRig } from './cameraRig';
 import { Vector2, type Vector3 } from 'three';
 import type { CardMesh } from './cards';
 import { CardDrag } from './cardDrag';
-import { SEATED_CAMERA } from './cameraSettings';
+import { SEATED_CAMERA } from '../config/cameraSettings';
 import { MouseLook } from './mouseLook';
 import type { InspectionCameraMode, Pose } from './types';
 
-const DRAG_THRESHOLD_PX = 7;
-const LOOK_SPEED = 0.004;
 /** Horizontal drag distance that moves a card one slot in the hand. */
-const SLOT_WIDTH_PX = 35;
-const HOLD_TO_INSPECT_MS = 2000;
-const WHEEL_ZOOM = 0.008;
-const PINCH_ZOOM = 0.025;
-const POINTER_YAW = 0.65;
-const POINTER_PITCH = 0.4;
 
 /** What the input handler needs from the scene. */
 export interface InputTarget {
@@ -149,21 +142,22 @@ export class SceneInput {
     if (!rect.width || !rect.height) return;
     const x = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1));
     const y = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1));
-    this.pointerLook.yaw = -x * POINTER_YAW;
-    this.pointerLook.pitch = -y * POINTER_PITCH;
+    this.pointerLook.yaw = -x * SCENE_INPUT.POINTER_YAW;
+    this.pointerLook.pitch = -y * SCENE_INPUT.POINTER_PITCH;
   }
 
   /** Inspects a card after the pointer rested on it, or held it down, long enough. */
   checkLongPress(now: number): void {
     this.mouseLook.sync();
     if (this.drag && this.drag.mode !== this.target.mode) this.cancelDrag();
-    if (this.hover && now - this.hover.since > HOLD_TO_INSPECT_MS) this.target.inspect(this.hover.card);
+    if (this.hover && now - this.hover.since > SCENE_INPUT.HOLD_TO_INSPECT_MS)
+      this.target.inspect(this.hover.card);
     const drag = this.drag;
     if (
       this.target.mode === 'top' &&
       drag?.card &&
       !drag.moved &&
-      now - drag.startedAt > HOLD_TO_INSPECT_MS
+      now - drag.startedAt > SCENE_INPUT.HOLD_TO_INSPECT_MS
     ) {
       this.target.inspect(drag.card);
     }
@@ -235,7 +229,7 @@ export class SceneInput {
       this.cancelDrag();
       return;
     }
-    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > DRAG_THRESHOLD_PX)
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > SCENE_INPUT.DRAG_THRESHOLD_PX)
       drag.moved = true;
     this.dragCamera(drag, event);
     drag.lastX = event.clientX;
@@ -264,8 +258,8 @@ export class SceneInput {
   private dragFirstPerson(drag: Drag, event: PointerEvent): void {
     const { rig } = this.target;
     if (!drag.card) {
-      rig.yaw -= (event.clientX - drag.lastX) * LOOK_SPEED;
-      rig.addPitch(-(event.clientY - drag.lastY) * LOOK_SPEED);
+      rig.yaw -= (event.clientX - drag.lastX) * SCENE_INPUT.LOOK_SPEED;
+      rig.addPitch(-(event.clientY - drag.lastY) * SCENE_INPUT.LOOK_SPEED);
       return;
     }
     this.cardDrag.move(drag.card, event.clientX, event.clientY, event.timeStamp);
@@ -278,7 +272,8 @@ export class SceneInput {
     if (this.drag) this.drag.moved = true;
     this.target.rig.tableCamera.release();
     const distance = Math.hypot(first.x - second.x, first.y - second.y);
-    if (this.pinchDistance !== null) this.target.rig.addZoom(-(distance - this.pinchDistance) * PINCH_ZOOM);
+    if (this.pinchDistance !== null)
+      this.target.rig.addZoom(-(distance - this.pinchDistance) * SCENE_INPUT.PINCH_ZOOM);
     this.pinchDistance = distance;
     this.hover = null;
   }
@@ -317,10 +312,10 @@ export class SceneInput {
     if (!drag.card) return;
     if (target.mode === 'top' && !drag.moved) target.inspect(drag.card);
     if (target.mode === 'first' && drag.moved) {
-      const slotShift = Math.round((event.clientX - drag.startX) / SLOT_WIDTH_PX);
+      const slotShift = Math.round((event.clientX - drag.startX) / SCENE_INPUT.SLOT_WIDTH_PX);
       // The hand overlaps the felt in screen space; lateral motion must still reorder its cards.
       const tablePoint =
-        drag.startY - event.clientY > DRAG_THRESHOLD_PX
+        drag.startY - event.clientY > SCENE_INPUT.DRAG_THRESHOLD_PX
           ? this.cardDrag.tablePoint(event.clientX, event.clientY)
           : null;
       this.cardDrag.move(drag.card, event.clientX, event.clientY, event.timeStamp);
@@ -338,12 +333,12 @@ export class SceneInput {
     }
     if (this.target.mode === 'third') {
       event.preventDefault();
-      this.target.rig.addOrbitZoom(event.deltaY * WHEEL_ZOOM);
+      this.target.rig.addOrbitZoom(event.deltaY * SCENE_INPUT.WHEEL_ZOOM);
       return;
     }
     if (this.target.mode !== 'top') return;
     event.preventDefault();
-    this.target.rig.addZoom(event.deltaY * WHEEL_ZOOM);
+    this.target.rig.addZoom(event.deltaY * SCENE_INPUT.WHEEL_ZOOM);
   }
 
   private keyDown(event: KeyboardEvent): void {

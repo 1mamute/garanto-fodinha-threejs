@@ -1,6 +1,5 @@
+import { JOYSTICK } from '../config/interactionSettings';
 /** Radius, in pixels, of the joystick's travel. */
-const JOYSTICK_RANGE = 35;
-const KNOB_TRAVEL = 30;
 const bound = new WeakSet<HTMLElement>();
 
 /**
@@ -13,12 +12,12 @@ export function bindJoystick(element: HTMLElement | null, onMove: (x: number, y:
   const knob = element.firstElementChild as HTMLElement | null;
   const move = (event: PointerEvent): void => {
     const rect = element.getBoundingClientRect();
-    const x = (event.clientX - rect.left - rect.width / 2) / JOYSTICK_RANGE;
-    const y = (event.clientY - rect.top - rect.height / 2) / JOYSTICK_RANGE;
+    const x = (event.clientX - rect.left - rect.width / 2) / JOYSTICK.JOYSTICK_RANGE;
+    const y = (event.clientY - rect.top - rect.height / 2) / JOYSTICK.JOYSTICK_RANGE;
     const length = Math.max(1, Math.hypot(x, y));
     onMove(x / length, y / length);
     if (knob)
-      knob.style.transform = `translate(${(x / length) * KNOB_TRAVEL}px, ${(y / length) * KNOB_TRAVEL}px)`;
+      knob.style.transform = `translate(${(x / length) * JOYSTICK.KNOB_TRAVEL}px, ${(y / length) * JOYSTICK.KNOB_TRAVEL}px)`;
   };
   const release = (): void => {
     delete element.dataset.active;

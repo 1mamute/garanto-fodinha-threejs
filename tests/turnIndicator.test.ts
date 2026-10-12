@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { turnMarkerPosition } from '../src/scene/turnIndicator';
-import { TURN_INDICATOR } from '../src/scene/turnIndicatorSettings';
+import { TURN_INDICATOR } from '../src/config/turnIndicatorSettings';
 import { activeTurn } from '../src/shared/activeTurn';
 import { startedMatch } from './helpers';
 

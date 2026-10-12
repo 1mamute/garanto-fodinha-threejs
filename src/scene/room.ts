@@ -1,15 +1,17 @@
+import { FELT } from '../config/roomSettings';
+import { watchSettings } from '../config/hotSettings';
 /** Static decor: floor, walls, table, plant, the turn spotlight, the dealer chip and chairs. */
 import * as THREE from 'three';
 import { floorTexture } from './floorTexture';
-import { POST_PROCESSING } from './postProcessingSettings';
-import { canvasTexture, material, mesh, TAU, WOOD } from './primitives';
-import { FLOOR_ROTATION, ROOM_RADIUS, TABLE_RADIUS, WALL_LAMP_ANGLES } from './roomDimensions';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
+import { canvasTexture, disposeMaterials, material, mesh, TAU, WOOD } from './primitives';
+import { ROOM_DIMENSIONS } from '../config/roomSettings';
 import { wornTexture } from './surfaceTextures';
 import { buildTurnSpotlight } from './turnSpotlight';
 
 /** Table surface height; cards lie just above it. */
 export const TABLE_TOP = 1.6465;
-const WALL_PANEL_INSET = 0.25;
+
 let shadowMaterial: THREE.MeshBasicMaterial | undefined;
 
 export interface RoomProps {
@@ -22,30 +24,46 @@ export interface RoomProps {
 export function buildRoom(world: THREE.Group): RoomProps {
   const solids = new THREE.Group();
   world.add(solids);
+  populateSolids(solids);
+  watchSettings(solids, (current, category) => {
+    if (category !== 'roomSettings') return;
+    current.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>;
+      mesh.geometry.dispose();
+      disposeMaterials(mesh, [WOOD]);
+    });
+    shadowMaterial = undefined;
+    current.clear();
+    populateSolids(current);
+  });
+  return { solids, spotlight: buildTurnSpotlight(world), dealerChip: buildDealerChip(world) };
+}
+
+function populateSolids(solids: THREE.Group): void {
   buildFloorAndWalls(solids);
   buildTable(solids);
   buildLamp(solids);
   buildWallLamps(solids);
   buildUtilities(solids);
-  return { solids, spotlight: buildTurnSpotlight(world), dealerChip: buildDealerChip(world) };
 }
 
 function buildFloorAndWalls(world: THREE.Group): void {
   mesh(
-    new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64),
+    new THREE.CylinderGeometry(ROOM_DIMENSIONS.ROOM_RADIUS, ROOM_DIMENSIONS.ROOM_RADIUS, 0.15, 64),
     material('#b0ada5', { map: floorTexture(), roughness: 1 }),
     world,
     [0, -0.075, 0],
-  ).rotation.y = FLOOR_ROTATION;
+  ).rotation.y = ROOM_DIMENSIONS.FLOOR_ROTATION;
   const wallMaterial = material('#313a39', { side: THREE.BackSide, map: wornTexture('metal') });
   mesh(
-    new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 6, 40, 1, true),
+    new THREE.CylinderGeometry(ROOM_DIMENSIONS.ROOM_RADIUS, ROOM_DIMENSIONS.ROOM_RADIUS, 6, 40, 1, true),
     wallMaterial,
     world,
     [0, 2.8, 0],
   );
   const panelCount = 16;
-  const panelRadius = ROOM_RADIUS - WALL_PANEL_INSET;
+  const panelRadius = ROOM_DIMENSIONS.ROOM_RADIUS - ROOM_DIMENSIONS.WALL_PANEL_INSET;
   for (let panel = 0; panel < panelCount; panel++) {
     const angle = (panel * TAU) / panelCount;
     const position = [Math.sin(angle) * panelRadius, 1.4, Math.cos(angle) * panelRadius] as const;
@@ -56,9 +74,14 @@ function buildFloorAndWalls(world: THREE.Group): void {
 function buildTable(world: THREE.Group): void {
   WOOD.color.set('#694832');
   WOOD.map = wornTexture('wood');
-  mesh(new THREE.CylinderGeometry(TABLE_RADIUS, TABLE_RADIUS, 0.2, 64), WOOD, world, [0, 1.5, 0]);
   mesh(
-    new THREE.CylinderGeometry(2.65, 2.65, 0.035, 64),
+    new THREE.CylinderGeometry(ROOM_DIMENSIONS.TABLE_RADIUS, ROOM_DIMENSIONS.TABLE_RADIUS, 0.2, 64),
+    WOOD,
+    world,
+    [0, 1.5, 0],
+  );
+  mesh(
+    new THREE.CylinderGeometry(FELT.FELT_RADIUS, FELT.FELT_RADIUS, 0.035, 64),
     material('#315d49', { map: wornTexture('felt') }),
     world,
     [0, 1.62, 0],
@@ -80,6 +103,7 @@ function buildLamp(world: THREE.Group): void {
     color: new THREE.Color('#ffdb9c').multiplyScalar(POST_PROCESSING.bloom.lampRadiance),
     side: THREE.DoubleSide,
   });
+  watchLamp(glow, '#ffdb9c');
   mesh(new THREE.CircleGeometry(0.98, 24), glow, world, [0, 4.61, 0]).rotation.x = Math.PI / 2;
 }
 
@@ -98,10 +122,11 @@ function buildWallLamps(world: THREE.Group): void {
     // Keep lamp radiance linear; OutputPass applies the same exposure as the room.
     color: new THREE.Color('#ffd59a').multiplyScalar(POST_PROCESSING.bloom.lampRadiance),
   });
+  watchLamp(bulb, '#ffd59a');
   const casing = material('#3e3024', { roughness: 0.9 });
-  for (const angle of WALL_LAMP_ANGLES) {
+  for (const angle of ROOM_DIMENSIONS.WALL_LAMP_ANGLES) {
     const fixture = new THREE.Group();
-    const radius = ROOM_RADIUS - 0.2;
+    const radius = ROOM_DIMENSIONS.ROOM_RADIUS - 0.2;
     fixture.position.set(Math.sin(angle) * radius, 3, Math.cos(angle) * radius);
     fixture.rotation.y = angle + Math.PI;
     world.add(fixture);
@@ -205,4 +230,14 @@ export function nameLabel(text: string): THREE.Sprite {
   );
   label.scale.set(1.55, 0.39, 1);
   return label;
+}
+
+function watchLamp(lamp: THREE.MeshBasicMaterial, color: string): void {
+  lamp.userData.baseColor = color;
+  watchSettings(lamp, (current, category) => {
+    if (category !== 'postProcessingSettings') return;
+    const baseColor: unknown = current.userData.baseColor;
+    if (typeof baseColor === 'string')
+      current.color.set(baseColor).multiplyScalar(POST_PROCESSING.bloom.lampRadiance);
+  });
 }

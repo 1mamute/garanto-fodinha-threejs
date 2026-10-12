@@ -1,11 +1,20 @@
+import { onSettingsChange } from '../config/hotSettings';
 /** One unique map covers the whole floor; grain and scorch marks cost nothing per frame. */
 import type * as THREE from 'three';
 import { canvasTexture, TAU } from './primitives';
-import { FLOOR_ROTATION, WALL_LAMP_ANGLES } from './roomDimensions';
+import { ROOM_DIMENSIONS } from '../config/roomSettings';
 
 const SIZE = 1024;
 let texture: THREE.CanvasTexture | undefined;
 type Random = () => number;
+
+onSettingsChange(category => {
+  if (category !== 'roomSettings' || !texture) return;
+  const next = canvasTexture(SIZE, SIZE, drawFloor);
+  texture.image = next.image;
+  texture.needsUpdate = true;
+  next.dispose();
+});
 
 export function floorTexture(): THREE.CanvasTexture {
   texture ??= canvasTexture(SIZE, SIZE, drawFloor);
@@ -133,8 +142,8 @@ function drawScorch(context: CanvasRenderingContext2D, random: Random): void {
 function drawLampPools(context: CanvasRenderingContext2D): void {
   context.save();
   context.globalCompositeOperation = 'screen';
-  for (const angle of WALL_LAMP_ANGLES) {
-    const localAngle = angle - FLOOR_ROTATION;
+  for (const angle of ROOM_DIMENSIONS.WALL_LAMP_ANGLES) {
+    const localAngle = angle - ROOM_DIMENSIONS.FLOOR_ROTATION;
     // Cylinder cap UVs use cosine horizontally and sine vertically; canvas Y is inverted.
     const x = SIZE * (0.5 + Math.cos(localAngle) * 0.43);
     const y = SIZE * (0.5 - Math.sin(localAngle) * 0.43);

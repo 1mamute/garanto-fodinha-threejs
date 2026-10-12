@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from 'three';
 import { CardThrow } from '../src/scene/cardThrow';
-import { CARD_MOTION } from '../src/scene/cardMotionSettings';
+import { CARD_MOTION } from '../src/config/cardMotionSettings';
 
 test('carta pousa no ponto escolhido e depois se acomoda à frente do jogador', () => {
   const card = new THREE.Object3D();

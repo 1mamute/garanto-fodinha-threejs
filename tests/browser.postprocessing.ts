@@ -2,8 +2,8 @@
 import * as THREE from 'three';
 import { createRenderer } from '../src/scene/environment';
 import { GraphicsRenderer } from '../src/scene/graphicsRenderer';
-import { antialiasingMode, setAntialiasingMode } from '../src/scene/graphicsSettings';
-import { POST_PROCESSING } from '../src/scene/postProcessingSettings';
+import { antialiasingMode, setAntialiasingMode } from '../src/scene/graphicsPreference';
+import { POST_PROCESSING } from '../src/config/postProcessingSettings';
 import { postProcessingEnabled, setPostProcessingEnabled } from '../src/scene/postProcessingPreference';
 
 const SIZE = 128;

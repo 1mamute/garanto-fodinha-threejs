@@ -1,3 +1,4 @@
+import { GRAPHICS } from '../config/graphicsSettings';
 import {
   Color,
   HalfFloatType,
@@ -17,13 +18,10 @@ import { TAARenderPass } from 'three/addons/postprocessing/TAARenderPass.js';
 import { AmbientOcclusionPass } from './ambientOcclusionPass';
 import { BloomPass } from './bloomPass';
 import { createColorGradingPass } from './colorGradingPass';
-import type { AntialiasingMode } from './graphicsSettings';
-import { POST_PROCESSING } from './postProcessingSettings';
+import type { AntialiasingMode } from './graphicsPreference';
+import { POST_PROCESSING } from '../config/postProcessingSettings';
 import { TemporalHistory } from './temporalHistory';
 import { createVignettePass } from './vignettePass';
-
-const MSAA_SAMPLES = 4;
-const SSAA_SAMPLE_LEVEL = 2;
 
 /** Three's runtime exposes the accumulation index, but its declaration omits it. */
 class RestartableTAAPass extends TAARenderPass {
@@ -50,7 +48,7 @@ export class GraphicsPipeline {
     const { renderer, scene, camera, mode } = options;
     const size = renderer.getSize(new Vector2());
     const target = new WebGLRenderTarget(size.x, size.y, { type: HalfFloatType });
-    if (mode === 'msaa') target.samples = Math.min(MSAA_SAMPLES, renderer.capabilities.maxSamples);
+    if (mode === 'msaa') target.samples = Math.min(GRAPHICS.MSAA_SAMPLES, renderer.capabilities.maxSamples);
     this.composer = new EffectComposer(renderer, target);
     this.temporal = mode === 'taa' ? new RestartableTAAPass(scene, camera) : null;
     this.addScenePass(options);
@@ -87,7 +85,7 @@ export class GraphicsPipeline {
       this.composer.addPass(this.temporal);
     } else if (mode === 'ssaa') {
       const pass = new SSAARenderPass(scene, camera, renderer.getClearColor(new Color()));
-      pass.sampleLevel = SSAA_SAMPLE_LEVEL;
+      pass.sampleLevel = GRAPHICS.SSAA_SAMPLE_LEVEL;
       this.composer.addPass(pass);
     } else this.composer.addPass(new RenderPass(scene, camera));
   }

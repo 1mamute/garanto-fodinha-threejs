@@ -1,8 +1,7 @@
+import { DEALER_INDICATOR } from '../config/dealerIndicatorSettings';
 import * as THREE from 'three';
 import { morph } from '../ui/dom';
 import { html } from '../ui/html';
-
-const SCREEN_MARGIN = 0.72;
 
 /** Screen direction stays meaningful even when the dealer's seat is outside the close-up. */
 export function dealerDirection(camera: THREE.Camera, seat: THREE.Vector3): THREE.Vector2 {
@@ -53,7 +52,7 @@ export class DealerIndicator {
     // Convert to pixel direction before rotating, so portrait screens do not skew the arrow.
     const horizontal = direction.x * innerWidth;
     const vertical = direction.y * innerHeight;
-    const edge = SCREEN_MARGIN / Math.max(Math.abs(direction.x), Math.abs(direction.y), 1);
+    const edge = DEALER_INDICATOR.SCREEN_MARGIN / Math.max(Math.abs(direction.x), Math.abs(direction.y), 1);
     this.element.style.left = `${(1 + direction.x * edge) * 50}%`;
     this.element.style.top = `${(1 + direction.y * edge) * 50}%`;
     this.arrow.style.transform = `rotate(${Math.atan2(vertical, horizontal)}rad)`;

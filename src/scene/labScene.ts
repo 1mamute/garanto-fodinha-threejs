@@ -1,3 +1,6 @@
+import { SCENE_ANIMATION } from '../config/sceneSettings';
+import { watchSettings } from '../config/hotSettings';
+import { TABLE_SCENE } from '../config/tableSettings';
 /** Local, development-only scene for inspecting the same assets rendered by the game. */
 import * as THREE from 'three';
 import { createDeck } from '../game';
@@ -6,7 +9,7 @@ import { html } from '../ui/html';
 import { graphicsMenu } from '../ui/graphicsMenu';
 import { bindJoystick } from '../ui/joystick';
 import { CameraRig } from './cameraRig';
-import { TABLE_CAMERA } from './cameraSettings';
+import { TABLE_CAMERA } from '../config/cameraSettings';
 import { CardMesh } from './cards';
 import { demoState } from './demo';
 import { DealerIndicator } from './dealerIndicator';
@@ -25,10 +28,10 @@ import { RobotWalking } from './robotWalking';
 import { buildChair, buildRoom, TABLE_TOP } from './room';
 import { TableCards, type Seat } from './tableCards';
 import { TurnIndicator } from './turnIndicator';
-import { LAB_TURN_PREVIEW } from './turnIndicatorSettings';
+import { LAB_TURN_PREVIEW } from '../config/turnIndicatorSettings';
+import { updateTurnSpotlight } from './turnSpotlight';
 import type { InspectionCameraMode } from './types';
 
-const SEAT_RADIUS = 3.35;
 const MODES = ['first', 'top', 'third'] as const;
 const MODE_LABELS = {
   first: 'Primeira pessoa',
@@ -51,6 +54,7 @@ export class LabScene implements InputTarget {
   private readonly tableCards = new TableCards(this.world, this.cardPhysics);
   private readonly dealerIndicator = new DealerIndicator();
   private readonly turnIndicator = new TurnIndicator();
+  private spotlight = new THREE.Group();
   private turnCaption = '';
   private dealerSeat: THREE.Vector3 | null = null;
   private dealerName = '';
@@ -63,10 +67,11 @@ export class LabScene implements InputTarget {
   private zoomDemoEnabled = true;
   private zoomDemoElapsed = 0;
   private zoomRobot: Robot | null = null;
+  private readonly previewSeats = new Map<string, { robot: Robot; chair: THREE.Group; name: string }>();
   private readonly zoomTarget = new THREE.Vector3(0, TABLE_TOP, 0);
   private readonly walking: RobotWalking;
   private readonly timer = new THREE.Timer();
-  private readonly budget = new RenderBudget(isMobileRenderer());
+  private readonly budget = new RenderBudget(isMobileRenderer);
   private readonly input: SceneInput;
   private readonly raycaster = new THREE.Raycaster();
 
@@ -82,6 +87,10 @@ export class LabScene implements InputTarget {
     });
     this.scene.add(this.world, this.rig.camera);
     this.populate();
+    watchSettings(this, (lab, category) => {
+      if (category === 'turnIndicatorSettings' || category === 'tableSettings') lab.refreshPreview();
+      if (category === 'cameraSettings') lab.renderUi();
+    });
     this.rig.resolveWalk = this.walker.move;
     this.walking = new RobotWalking(this.controlled, this.rig.spectatorPosition);
     this.input = new SceneInput(canvas, this);
@@ -130,6 +139,7 @@ export class LabScene implements InputTarget {
 
   private populate(): void {
     const room = buildRoom(this.world);
+    this.spotlight = room.spotlight;
     this.physics.addSolids(room.solids);
     const state = demoState();
     const visibleIds = new Set([state.kicker?.id, ...state.table.map(entry => entry.card.id)]);
@@ -143,7 +153,11 @@ export class LabScene implements InputTarget {
         this.zoomRobot = robot;
         this.turnCaption = `${player.name} · Jogando`;
       }
-      robot.group.position.set(Math.sin(angle) * SEAT_RADIUS, 0, Math.cos(angle) * SEAT_RADIUS);
+      robot.group.position.set(
+        Math.sin(angle) * TABLE_SCENE.SEAT_RADIUS,
+        0,
+        Math.cos(angle) * TABLE_SCENE.SEAT_RADIUS,
+      );
       robot.group.rotation.y = angle + Math.PI;
       const chair = buildChair();
       chair.position.copy(robot.group.position);
@@ -152,6 +166,7 @@ export class LabScene implements InputTarget {
       animateFan(robot.hand, 1, null);
       // The printed side faces its owner; keep the top edge above the gripper.
       for (const card of robot.hand.children) card.rotation.z = Math.PI;
+      this.previewSeats.set(player.id, { robot, chair, name: player.name });
       this.world.add(robot.group, chair);
       this.physics.addRobot(robot.group);
       this.physics.addChair(chair);
@@ -180,6 +195,20 @@ export class LabScene implements InputTarget {
     this.looseChair.position.set(-2, 0, 6.5);
     this.world.add(this.looseChair);
     this.physics.addChair(this.looseChair, true);
+  }
+
+  private refreshPreview(): void {
+    const active = this.previewSeats.get(LAB_TURN_PREVIEW.playerId);
+    this.zoomRobot = active?.robot ?? null;
+    this.turnCaption = active ? `${active.name} · Jogando` : '';
+    for (const { robot, chair } of this.previewSeats.values()) {
+      robot.group.position.setLength(TABLE_SCENE.SEAT_RADIUS);
+      chair.position.copy(robot.group.position);
+      this.physics.removeObject(chair);
+      this.physics.addChair(chair);
+    }
+    if (active) this.spotlight.position.copy(active.robot.group.position);
+    this.spotlight.visible = Boolean(active);
   }
 
   private dropPhysicsCard(): void {
@@ -251,7 +280,8 @@ export class LabScene implements InputTarget {
     const deltaSeconds = this.budget.takeFrame(this.timer.getElapsed(), document.hidden);
     if (!deltaSeconds) return;
     this.physics.step(deltaSeconds);
-    const blend = smoothing(deltaSeconds, 7);
+    updateTurnSpotlight(this.spotlight);
+    const blend = smoothing(deltaSeconds, SCENE_ANIMATION.smoothingResponse);
     this.rig.update(deltaSeconds, blend, {
       mode: this.mode,
       observer: true,

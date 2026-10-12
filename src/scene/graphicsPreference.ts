@@ -1,9 +1,11 @@
+import { onSettingsChange } from '../config/hotSettings';
+import { GRAPHICS_DEFAULTS } from '../config/graphicsSettings';
 /** Local graphics preferences never become part of the multiplayer state. */
 export const ANTIALIASING_MODES = ['off', 'msaa', 'fxaa', 'smaa', 'ssaa', 'taa'] as const;
 export type AntialiasingMode = (typeof ANTIALIASING_MODES)[number];
 
 const STORAGE_KEY = 'garanto-antialiasing';
-const DEFAULT_MODE: AntialiasingMode = 'msaa';
+
 const listeners = new Set<(mode: AntialiasingMode) => void>();
 let selectedMode: AntialiasingMode | undefined;
 
@@ -15,11 +17,11 @@ export function antialiasingMode(): AntialiasingMode {
   if (selectedMode) return selectedMode;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    selectedMode = isAntialiasingMode(saved) ? saved : DEFAULT_MODE;
+    if (isAntialiasingMode(saved)) selectedMode = saved;
   } catch {
-    selectedMode = DEFAULT_MODE;
+    return GRAPHICS_DEFAULTS.antialiasing;
   }
-  return selectedMode;
+  return selectedMode ?? GRAPHICS_DEFAULTS.antialiasing;
 }
 
 export function setAntialiasingMode(mode: AntialiasingMode): void {
@@ -38,3 +40,8 @@ export function onAntialiasingChange(listener: (mode: AntialiasingMode) => void)
     listeners.delete(listener);
   };
 }
+
+onSettingsChange(category => {
+  if (category !== 'graphicsSettings') return;
+  for (const listener of listeners) listener(antialiasingMode());
+});

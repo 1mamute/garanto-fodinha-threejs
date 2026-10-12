@@ -1,9 +1,5 @@
-export const FPS_METER = {
-  /** Milliseconds between readings; 250–1000 keeps the display readable. Must be positive. */
-  sampleIntervalMs: 500,
-  /** Hidden by default; true shows the meter when no browser preference exists. */
-  defaultEnabled: false,
-};
+import { onSettingsChange } from '../config/hotSettings';
+import { FPS_METER } from '../config/fpsMeterSettings';
 
 const STORAGE_KEY = 'garanto-fps-meter';
 const listeners = new Set<(enabled: boolean) => void>();
@@ -13,11 +9,11 @@ export function fpsMeterEnabled(): boolean {
   if (enabled !== undefined) return enabled;
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    enabled = saved === null ? FPS_METER.defaultEnabled : saved === 'true';
+    if (saved !== null) enabled = saved === 'true';
   } catch {
-    enabled = FPS_METER.defaultEnabled;
+    return FPS_METER.defaultEnabled;
   }
-  return enabled;
+  return enabled ?? FPS_METER.defaultEnabled;
 }
 
 export function setFpsMeterEnabled(value: boolean): void {
@@ -36,3 +32,8 @@ export function onFpsMeterChange(listener: (enabled: boolean) => void): () => vo
     listeners.delete(listener);
   };
 }
+
+onSettingsChange(category => {
+  if (category !== 'fpsMeterSettings') return;
+  for (const listener of listeners) listener(fpsMeterEnabled());
+});

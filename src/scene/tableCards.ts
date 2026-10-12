@@ -1,3 +1,5 @@
+import { watchSettings } from '../config/hotSettings';
+import { TABLE_CARDS } from '../config/tableSettings';
 /**
  * Cards lying on the table: the current trick, every player's pile of won tricks and the kicker.
  *
@@ -17,8 +19,6 @@ import { TABLE_TOP } from './room';
 import type { CardInspection } from './types';
 
 /** Leaves the centre for the kicker and the outer edge for won tricks. */
-const PLAYED_CARD_RADIUS = 1.45;
-const KICKER_ROTATION = -0.15;
 const UP = new THREE.Vector3(0, 1, 0);
 const FULL_SIZE = new THREE.Vector3(1, 1, 1);
 
@@ -52,7 +52,7 @@ function placeTrick(
   for (const entry of state.table) {
     const seat = seats.get(entry.playerId);
     if (!seat) continue;
-    const position = seat.position.clone().setY(0).setLength(PLAYED_CARD_RADIUS).setY(TABLE_TOP);
+    const position = seat.position.clone().setY(0).setLength(TABLE_CARDS.PLAYED_CARD_RADIUS).setY(TABLE_TOP);
     const details = { card: entry.card, playerName: entry.playerName };
     // Robots face local +Z; a readable card points its top towards local -Z.
     const rotation = seat.rotation - Math.PI;
@@ -104,6 +104,8 @@ export class TableCards {
   private released: ReleasedCard | null = null;
   private readonly throws = new Map<string, CardThrow>();
   private readonly restingOrientation = new THREE.Quaternion();
+  private state: GameState | null = null;
+  private seats: ReadonlyMap<string, Seat> = new Map();
   private authority = true;
   private readonly remote = new Map<string, CardTransform>();
   private readonly releases = new Map<string, CardRelease>();
@@ -111,7 +113,11 @@ export class TableCards {
   constructor(
     private readonly world: THREE.Group,
     private readonly physics?: PhysicsCards,
-  ) {}
+  ) {
+    watchSettings(this, (cards, category) => {
+      if (category === 'tableSettings' && cards.state) cards.sync(cards.state, cards.seats);
+    });
+  }
 
   setAuthority(authority: boolean): void {
     if (this.authority === authority) return;
@@ -153,6 +159,8 @@ export class TableCards {
   }
 
   sync(state: GameState, seats: ReadonlyMap<string, Seat>): void {
+    this.state = state;
+    this.seats = seats;
     const placements = new Map<string, Placement>();
     placeTrick(state, seats, placements);
     placePiles(state, seats, placements);
@@ -258,7 +266,7 @@ export class TableCards {
     const card = new CardMesh(kicker);
     card.position.set(0, TABLE_TOP, 0);
     card.target.copy(card.position);
-    card.rotation.y = card.targetRotation = KICKER_ROTATION;
+    card.rotation.y = card.targetRotation = TABLE_CARDS.KICKER_ROTATION;
     card.details = { card: kicker, playerName: 'Kicker da rodada', kicker: true };
     this.world.add(card);
     this.kicker = card;

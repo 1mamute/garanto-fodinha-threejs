@@ -1,14 +1,16 @@
+import { watchSettings } from '../config/hotSettings';
+import { FELT } from '../config/roomSettings';
+import { CARD_CONTACT } from '../config/cardMotionSettings';
 import * as THREE from 'three';
 import type { CardMesh } from './cards';
 import { CARD_SIZE } from './cardGeometry';
-import { CARD_MOTION, type CardMotionSettings } from './cardMotionSettings';
+import { CARD_MOTION, type CardMotionSettings } from '../config/cardMotionSettings';
 import { CardReturn } from './cardReturn';
 import { TABLE_TOP } from './room';
-import { GRAVITY, type PhysicsWorld } from './physicsWorld';
+import { type PhysicsWorld } from './physicsWorld';
+import { PHYSICS_WORLD } from '../config/physicsSettings';
 
 const UP = new THREE.Vector3(0, 1, 0);
-const FLIGHT_TIMEOUT_SECONDS = 1.5;
-const CONTACT_MARGIN = 0.025;
 
 interface Flight {
   elapsed: number;
@@ -30,6 +32,9 @@ export class PhysicsCards {
     settings: Partial<CardMotionSettings> = {},
   ) {
     this.settings = { ...CARD_MOTION, ...settings };
+    watchSettings(this, (motion, category) => {
+      if (category === 'cardMotionSettings') Object.assign(motion.settings, CARD_MOTION, settings);
+    });
   }
 
   add(card: CardMesh, landing?: THREE.Vector3, dragVelocity = new THREE.Vector3()): void {
@@ -59,7 +64,7 @@ export class PhysicsCards {
     const impulse = dragVelocity.clone().setY(0).clampLength(0, settings.maxDragSpeed);
     const verticalSpeed = -settings.dropSpeed - impulse.length() * settings.impactSpeedGain;
     const height = start.y - target.y;
-    const duration = (verticalSpeed + Math.sqrt(verticalSpeed ** 2 + 2 * GRAVITY * height)) / GRAVITY;
+    const duration = flightDuration(height, verticalSpeed);
     // Aim supplies a gentle placement; the player's recent gesture adds real momentum and impact.
     const velocity = target.clone().sub(start).divideScalar(duration).setY(0);
     velocity.addScaledVector(impulse, settings.dragVelocityGain).clampLength(0, settings.maxLaunchSpeed);
@@ -70,7 +75,7 @@ export class PhysicsCards {
   private safeLanding(landing: THREE.Vector3): THREE.Vector3 {
     const target = landing.clone();
     // Pointer releases near the rail must leave room for the whole card on the felt.
-    const maximumRadius = 2.65 - Math.hypot(CARD_SIZE.width, CARD_SIZE.depth) / 2 - 0.05;
+    const maximumRadius = FELT.FELT_RADIUS - Math.hypot(CARD_SIZE.width, CARD_SIZE.depth) / 2 - 0.05;
     const radius = Math.hypot(target.x, target.z);
     if (radius > maximumRadius) target.multiplyScalar(maximumRadius / radius);
     return target.setY(TABLE_TOP);
@@ -96,11 +101,12 @@ export class PhysicsCards {
     flight.elapsed += deltaSeconds;
     // A host update collecting a trick may arrive while its final card is still in flight.
     const collecting = !flight.target.equals(card.target);
-    const landed = flight.elapsed >= flight.duration && card.position.y <= TABLE_TOP + CONTACT_MARGIN;
+    const landed =
+      flight.elapsed >= flight.duration && card.position.y <= TABLE_TOP + CARD_CONTACT.CONTACT_MARGIN;
     if (landed && flight.landedAt === null) flight.landedAt = flight.elapsed;
     const waiting =
       flight.landedAt === null
-        ? flight.elapsed < flight.duration + FLIGHT_TIMEOUT_SECONDS
+        ? flight.elapsed < flight.duration + CARD_CONTACT.FLIGHT_TIMEOUT_SECONDS
         : flight.elapsed - flight.landedAt < this.settings.slideSeconds;
     if (!collecting && waiting) return true;
     this.startReturn(card);
@@ -111,7 +117,7 @@ export class PhysicsCards {
     this.world.hold(card);
     this.flights.delete(card);
     this.targets.set(card, card.target.clone());
-    this.returns.set(card, new CardReturn(card, this.settings.returnSeconds));
+    this.returns.set(card, new CardReturn(card, () => this.settings.returnSeconds));
   }
 
   remove(card: CardMesh): void {
@@ -133,4 +139,11 @@ export class PhysicsCards {
     this.returns.clear();
     this.targets.clear();
   }
+}
+
+function flightDuration(height: number, verticalSpeed: number): number {
+  const gravity = PHYSICS_WORLD.GRAVITY;
+  // With gravity disabled, the downward launch alone determines flight time.
+  if (gravity <= 0) return Math.max(0.01, height / Math.max(0.01, -verticalSpeed));
+  return Math.max(0.01, (verticalSpeed + Math.sqrt(verticalSpeed ** 2 + 2 * gravity * height)) / gravity);
 }

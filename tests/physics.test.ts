@@ -10,9 +10,9 @@ import { PhysicsCharacter } from '../src/scene/physicsCharacter';
 import { PhysicsWorld } from '../src/scene/physicsWorld';
 import { playerSpawn } from '../src/scene/playerSpawn';
 import { Robot } from '../src/scene/robot';
-import { ROBOT_DIMENSIONS } from '../src/scene/robotDimensions';
+import { ROBOT_DIMENSIONS } from '../src/config/robotSettings';
 import { TABLE_TOP } from '../src/scene/room';
-import { ROOM_RADIUS } from '../src/scene/roomDimensions';
+import { ROOM_DIMENSIONS } from '../src/config/roomSettings';
 import { TableCards } from '../src/scene/tableCards';
 
 const runtime = await initJolt();
@@ -42,7 +42,9 @@ test('observadores nascem separados e conseguem caminhar com outros corpos conec
 function fixture(): { world: PhysicsWorld; root: THREE.Group } {
   const world = new PhysicsWorld(runtime);
   const root = new THREE.Group();
-  const floor = new THREE.Mesh(new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 0.15, 64));
+  const floor = new THREE.Mesh(
+    new THREE.CylinderGeometry(ROOM_DIMENSIONS.ROOM_RADIUS, ROOM_DIMENSIONS.ROOM_RADIUS, 0.15, 64),
+  );
   floor.position.y = -0.075;
   root.add(floor);
   world.addSolids(root);
@@ -171,7 +173,9 @@ test('a parede circular não bloqueia o centro e contém a caminhada', () => {
   const start = new THREE.Vector3(0, ROBOT_DIMENSIONS.eyeHeight, 5);
   const walker = new PhysicsCharacter(world, start);
   try {
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(ROOM_RADIUS, ROOM_RADIUS, 6, 40, 1, true));
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(ROOM_DIMENSIONS.ROOM_RADIUS, ROOM_DIMENSIONS.ROOM_RADIUS, 6, 40, 1, true),
+    );
     wall.position.y = 2.8;
     root.add(wall);
     world.addSolids(wall);
@@ -179,7 +183,7 @@ test('a parede circular não bloqueia o centro e contém a caminhada', () => {
     for (let index = 0; index < 360; index++) {
       position = walker.move(position, position.clone().add(new THREE.Vector3(0, 0, 0.045)), 1 / 60).clone();
     }
-    assert.ok(position.z > 12.7 && position.z < ROOM_RADIUS - 0.5);
+    assert.ok(position.z > 12.7 && position.z < ROOM_DIMENSIONS.ROOM_RADIUS - 0.5);
     for (let index = 0; index < 360; index++) {
       position = walker.move(position, position.clone().add(new THREE.Vector3(0, 0, -0.045)), 1 / 60).clone();
     }

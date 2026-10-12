@@ -1,8 +1,7 @@
+import { FELT } from '../config/roomSettings';
 import * as THREE from 'three';
 import { TABLE_TOP } from './room';
 import { DragMomentum } from './dragMomentum';
-
-const FELT_RADIUS = 2.65;
 
 /** Keeps the grabbed point under the pointer, independently of viewport size and hand scale. */
 export class CardDrag {
@@ -51,7 +50,7 @@ export class CardDrag {
     this.setRay(x, y);
     const table = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TABLE_TOP);
     const hit = this.ray.ray.intersectPlane(table, this.point);
-    return hit && Math.hypot(hit.x, hit.z) < FELT_RADIUS ? hit.clone() : null;
+    return hit && Math.hypot(hit.x, hit.z) < FELT.FELT_RADIUS ? hit.clone() : null;
   }
 
   private setRay(x: number, y: number): void {
