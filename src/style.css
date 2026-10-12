@@ -34,6 +34,13 @@ body.ui-hidden .turn-indicator {
 .lab-panel p {
   margin: 8px 0;
 }
+.lab-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .graphics-menu {
   position: relative;
   font-size: 12px;

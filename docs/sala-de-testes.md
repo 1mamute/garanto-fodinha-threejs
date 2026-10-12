@@ -32,6 +32,11 @@ editáveis, sua ordem e a validação estão em [Pós-processamento](pos-process
 
 ## Particularidades dos controles
 
+O painel começa recolhido até o cabeçalho. **Mostrar controles** abre os ajustes e
+**Esconder controles** recolhe o painel. A escolha continua ao trocar de câmera ou
+inspecionar cartas e volta ao painel recolhido ao recarregar. A cena, o indicador de turno, o joystick e os atalhos
+continuam ativos com os controles recolhidos.
+
 **Shift + V** oculta ou restaura toda a interface, incluindo o painel, o joystick e o
 aviso de captura do mouse. A cena, WASD e os atalhos de câmera continuam ativos.
 O mesmo atalho funciona durante o jogo, apenas em modo desenvolvedor, e ignora campos

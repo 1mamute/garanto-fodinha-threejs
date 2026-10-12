@@ -59,6 +59,7 @@ export class LabScene implements InputTarget {
   private readonly looseChair = buildChair();
   private looseCard: CardMesh | null = null;
   private headTracking = false;
+  private controlsHidden = true;
   private zoomDemoEnabled = true;
   private zoomDemoElapsed = 0;
   private zoomRobot: Robot | null = null;
@@ -90,6 +91,10 @@ export class LabScene implements InputTarget {
     });
     root.addEventListener('click', event => {
       if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[data-action="toggle-lab-controls"]')) {
+        this.controlsHidden = !this.controlsHidden;
+        this.renderUi();
+      }
       const mode = event.target.closest<HTMLElement>('[data-camera]')?.dataset.camera;
       if (mode === 'first' || mode === 'third' || mode === 'top') this.setMode(mode);
       if (event.target.closest('[data-action="toggle-head-tracking"]')) {
@@ -300,7 +305,11 @@ export class LabScene implements InputTarget {
     morph(
       this.root,
       html`<aside class="lab-panel">
-      <strong>Laboratório de cena</strong>
+      <div class="lab-panel-header">
+        <strong>Laboratório de cena</strong>
+        <button type="button" class="button subtle small" data-action="toggle-lab-controls" aria-expanded="${String(!this.controlsHidden)}" aria-controls="lab-controls">${this.controlsHidden ? 'Mostrar controles' : 'Esconder controles'}</button>
+      </div>
+      <div id="lab-controls" ${this.controlsHidden && 'hidden'}>
       ${graphicsMenu()}
       <p>Câmera: ${MODE_LABELS[this.mode]}</p>
       <div class="lab-cameras">${MODES.map(mode => html`<button class="button subtle" data-camera="${mode}" aria-pressed="${this.mode === mode}">${MODE_LABELS[mode]}</button>`)}</div>
@@ -317,6 +326,7 @@ export class LabScene implements InputTarget {
       <p>A cadeira vazia atrás de você pode ser empurrada ao caminhar. A carta cai e colide com a cadeira ou o chão.</p>
       ${card && html`<p>Inspecionando: ${card.rank}${card.suit}</p>`}
       <a class="text-button" href="/">← Voltar ao jogo</a>
+      </div>
     </aside>${this.mode !== 'top' && html`<div class="joystick" id="joystick" aria-label="Joystick para andar"><span></span></div>`}`,
     );
     bindJoystick(this.root.querySelector<HTMLElement>('#joystick'), (x, y) => {
